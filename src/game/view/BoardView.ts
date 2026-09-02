@@ -26,6 +26,12 @@ import {
   type Point,
 } from './layout.ts';
 import { getBoardTexture } from './BoardTexture.ts';
+import {
+  getCardMotionDuration,
+  getFoundationStepDelay,
+  getStockFlightOriginY,
+  type CardMotionKind,
+} from './CardAnimation.ts';
 import { getCardDepthTransition } from './CardMotionDepth.ts';
 import {
   MAX_STOCK_LAYERS,
@@ -63,6 +69,9 @@ const FOUNDATION_SYMBOLS: Record<Suit, string> = {
   hearts: '♥',
   spades: '♠',
 };
+
+const STOCK_DEAL_STAGGER = 52;
+const STOCK_DRAW_STAGGER = 80;
 
 export class BoardView {
   private readonly scene: Phaser.Scene;
@@ -110,19 +119,25 @@ export class BoardView {
       }
 
       image
-        .setPosition(STOCK_X, STOCK_Y)
         .setDepth(900 + index)
         .setVisible(false);
 
-      const timer = this.scene.time.delayedCall(index * 52, () => {
+      const timer = this.scene.time.delayedCall(index * STOCK_DEAL_STAGGER, () => {
+        const stockOriginY = getStockFlightOriginY(
+          STOCK_Y,
+          this.stockVisual.layerOffsets,
+        );
+
         this.stockVisual.removeDealtCard();
         this.updateStockStack();
-        image.setVisible(true);
+        image
+          .setPosition(STOCK_X, stockOriginY)
+          .setVisible(true);
         this.scene.tweens.add({
           targets: image,
           x: target.x,
           y: target.y,
-          duration: 210,
+          duration: getCardMotionDuration('stock'),
           ease: 'Cubic.easeOut',
         });
       });
@@ -131,10 +146,12 @@ export class BoardView {
     });
 
     const finishTimer = this.scene.time.delayedCall(
-      sequence.length * 52 + 230,
+      sequence.length * STOCK_DEAL_STAGGER
+        + getCardMotionDuration('stock')
+        + 20,
       () => {
         this.stockVisual.sync(this.game.stock.length);
-        this.sync(false);
+        this.sync(null);
         this.scheduleAutoFoundationStep(0);
       },
     );
@@ -331,13 +348,18 @@ export class BoardView {
 
   private animateDraw(drawn: readonly Card[]): void {
     this.inputLocked = true;
+    const stockOriginY = getStockFlightOriginY(
+      STOCK_Y,
+      this.stockVisual.layerOffsets,
+    );
+
     this.stockVisual.sync(this.game.stock.length);
     this.updateStockStack();
 
     const placements = this.calculatePlacements();
     const drawnIds = new Set(drawn.map((card) => card.id));
 
-    this.sync(true, drawnIds);
+    this.sync('player', drawnIds);
 
     drawn.forEach((card, index) => {
       const image = this.cardImages.get(card.id);
@@ -349,23 +371,25 @@ export class BoardView {
 
       image
         .setVisible(true)
-        .setPosition(STOCK_X, STOCK_Y)
+        .setPosition(STOCK_X, stockOriginY)
         .setDepth(1200 + index);
 
       this.scene.tweens.add({
         targets: image,
         x: target.x,
         y: target.y,
-        duration: 230,
-        delay: index * 72,
+        duration: getCardMotionDuration('stock'),
+        delay: index * STOCK_DRAW_STAGGER,
         ease: 'Cubic.easeOut',
       });
     });
 
     const timer = this.scene.time.delayedCall(
-      drawn.length * 72 + 250,
+      drawn.length * STOCK_DRAW_STAGGER
+        + getCardMotionDuration('stock')
+        + 20,
       () => {
-        this.sync(false);
+        this.sync(null);
         this.scheduleAutoFoundationStep(0);
       },
     );
@@ -391,7 +415,7 @@ export class BoardView {
     this.lastTap = { cardId: card.id, time: now };
 
     if (isDoubleTap && this.actions.autoFoundation(source)) {
-      this.finishMoveWithAutoFoundation();
+      this.finishMoveWithAutoFoundation('foundation');
     }
   }
 
@@ -453,17 +477,23 @@ export class BoardView {
       : this.findDropTarget(dragState.source, root);
 
     if (target !== null && this.actions.move(dragState.source, target)) {
-      this.finishMoveWithAutoFoundation();
+      this.finishMoveWithAutoFoundation('player');
       return;
     }
 
-    this.sync(true);
+    this.sync('player');
   }
 
-  private finishMoveWithAutoFoundation(): void {
+  private finishMoveWithAutoFoundation(
+    initialMotion: 'foundation' | 'player',
+  ): void {
     this.inputLocked = true;
-    this.sync(true);
-    this.scheduleAutoFoundationStep(190);
+    this.sync(initialMotion);
+    this.scheduleAutoFoundationStep(
+      initialMotion === 'foundation'
+        ? getFoundationStepDelay()
+        : getCardMotionDuration('player') + 20,
+    );
   }
 
   private scheduleAutoFoundationStep(delay: number): void {
@@ -472,12 +502,12 @@ export class BoardView {
 
       if (movedCard === null) {
         this.inputLocked = false;
-        this.sync(false);
+        this.sync(null);
         return;
       }
 
-      this.sync(true);
-      this.scheduleAutoFoundationStep(190);
+      this.sync('foundation');
+      this.scheduleAutoFoundationStep(getFoundationStepDelay());
     });
 
     this.timers.push(timer);
@@ -527,8 +557,12 @@ export class BoardView {
       })[0]?.target ?? null;
   }
 
-  private sync(animated: boolean, skippedIds = new Set<string>()): void {
+  private sync(
+    motion: CardMotionKind | null,
+    skippedIds = new Set<string>(),
+  ): void {
     const placements = this.calculatePlacements();
+    const animated = motion !== null;
 
     this.cardImages.forEach((image, id) => {
       const placement = placements.get(id);
@@ -564,7 +598,7 @@ export class BoardView {
           targets: image,
           x: placement.x,
           y: placement.y,
-          duration: 175,
+          duration: getCardMotionDuration(motion),
           ease: 'Cubic.easeOut',
           onComplete: () => image.setDepth(depth.resting),
         });
