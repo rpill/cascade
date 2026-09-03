@@ -1,0 +1,33 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const suits = ['club', 'diamond', 'heart', 'spade'] as const;
+const ranks = [
+  'Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+  'Jack', 'Queen', 'King',
+] as const;
+
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+test('all 52 runtime card faces exist as PNG files', () => {
+  const missingOrInvalid: string[] = [];
+
+  for (const suit of suits) {
+    for (const rank of ranks) {
+      const fileName = `${suit}${rank}.png`;
+      const runtime = new URL(`../public/assets/cards/${fileName}`, import.meta.url);
+
+      try {
+        const bytes = readFileSync(runtime);
+        if (bytes.length <= PNG_SIGNATURE.length || !bytes.subarray(0, 8).equals(PNG_SIGNATURE)) {
+          missingOrInvalid.push(fileName);
+        }
+      } catch {
+        missingOrInvalid.push(fileName);
+      }
+    }
+  }
+
+  assert.deepEqual(missingOrInvalid, []);
+});
