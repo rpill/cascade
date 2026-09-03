@@ -8,7 +8,7 @@ import { promisify } from 'node:util';
 
 import {
   buildContextBundle,
-  chooseUniqueBundlePath,
+  getBundlePath,
   generateProjectTree,
   isBundleExcludedPath,
   isEmbeddableTextPath,
@@ -118,16 +118,15 @@ test('last-commit bundle reports the latest commit files', async () => {
 });
 
 
-test('bundle path keeps the normal timestamp name and avoids same-second overwrite', async () => {
+test('bundle path is stable so each generation replaces CHATGPT_CONTEXT.txt', async () => {
   const outputDir = await mkdtemp(path.join(os.tmpdir(), 'cascade-output-'));
-  const now = new Date(2026, 8, 3, 16, 30, 45);
 
-  const first = await chooseUniqueBundlePath(outputDir, now);
-  assert.equal(path.basename(first), 'CHATGPT_CONTEXT(20260903-163045).txt');
+  const first = getBundlePath(outputDir);
+  assert.equal(path.basename(first), 'CHATGPT_CONTEXT.txt');
   await writeFile(first, 'first');
 
-  const second = await chooseUniqueBundlePath(outputDir, now);
-  assert.equal(path.basename(second), 'CHATGPT_CONTEXT(20260903-163045-2).txt');
+  const second = getBundlePath(outputDir);
+  assert.equal(second, first);
 });
 
 test('CLI outside Git fails clearly instead of producing a misleading bundle', async () => {

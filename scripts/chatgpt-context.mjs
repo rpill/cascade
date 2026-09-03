@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 
 import {
   buildContextBundle,
-  chooseUniqueBundlePath,
+  getBundlePath,
   generateProjectTree,
 } from './chatgpt-context-lib.mjs';
 
@@ -49,7 +49,7 @@ try {
   const bundle = await buildContextBundle({ rootDir, mode, now, treeChanged });
   const outputDir = path.join(rootDir, '_chatgpt_bundle');
   await mkdir(outputDir, { recursive: true });
-  const outputPath = await chooseUniqueBundlePath(outputDir, now);
+  const outputPath = getBundlePath(outputDir);
   await writeFile(outputPath, bundle.text, 'utf8');
   console.log(path.relative(rootDir, outputPath));
 } catch (error) {
