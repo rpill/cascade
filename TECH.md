@@ -20,7 +20,7 @@
 - Keep undo transactional; auto-foundation steps are part of the triggering player action.
 - Do not run auto-foundation again immediately after undo restore.
 - Keep deal-mode selection in the main menu; New Game keeps the active mode.
-- Interaction geometry may be tuned independently of legal-move rules.
+- Interaction geometry uses overlap area and may be tuned independently of legal-move rules.
 - Manual drag resolution is always an immediate snap, both for accepted placement and rejected/cancelled return; reserve motion tweens for non-drag/automatic movement.
 - Prefer tests for rules, state transitions, geometry and animation math.
 - Avoid tests that freeze cosmetic styling, exact colours, mutable UI coordinates or

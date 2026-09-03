@@ -5,41 +5,29 @@ import { isCommittedCardDrop } from '../src/game/view/DropGeometry.ts';
 
 const target = { x: 0, y: 0, width: 108, height: 151 };
 
-function movingCardWithCenter(x: number, y: number) {
-  return { x: x - 54, y: y - 75.5, width: 108, height: 151 };
-}
-
 test('a centered card is a committed drop', () => {
+  assert.equal(isCommittedCardDrop({ ...target }, target), true);
+});
+
+test('about one quarter of the card overlapping is enough to commit', () => {
   assert.equal(
-    isCommittedCardDrop(movingCardWithCenter(54, 75.5), target),
+    isCommittedCardDrop({ x: 81, y: 0, width: 108, height: 151 }, target),
     true,
   );
 });
 
-test('a shallow edge hover inside the 8px safety margin is rejected', () => {
-  const boundaryCenters = [
-    [8, 75.5],
-    [100, 75.5],
-    [54, 8],
-    [54, 143],
-  ] as const;
-
-  for (const [x, y] of boundaryCenters) {
-    assert.equal(isCommittedCardDrop(movingCardWithCenter(x, y), target), false);
-  }
+test('a shallow edge overlap is rejected', () => {
+  assert.equal(
+    isCommittedCardDrop({ x: 98, y: 0, width: 108, height: 151 }, target),
+    false,
+  );
 });
 
-test('one pixel beyond the 8px safety margin commits the drop', () => {
-  const insideCenters = [
-    [9, 75.5],
-    [99, 75.5],
-    [54, 9],
-    [54, 142],
-  ] as const;
-
-  for (const [x, y] of insideCenters) {
-    assert.equal(isCommittedCardDrop(movingCardWithCenter(x, y), target), true);
-  }
+test('a corner overlap is rejected even when it reaches well into both axes', () => {
+  assert.equal(
+    isCommittedCardDrop({ x: 54, y: 113.25, width: 108, height: 151 }, target),
+    false,
+  );
 });
 
 test('invalid rectangles cannot become committed drops', () => {
@@ -49,7 +37,7 @@ test('invalid rectangles cannot become committed drops', () => {
   );
   assert.equal(
     isCommittedCardDrop(
-      movingCardWithCenter(54, 75.5),
+      { ...target },
       { ...target, x: Number.NaN },
     ),
     false,

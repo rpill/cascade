@@ -5,7 +5,7 @@ export interface RectLike {
   readonly height: number;
 }
 
-const DEFAULT_INSET = 8;
+const DEFAULT_MINIMUM_OVERLAP_RATIO = 0.25;
 
 function isValidRectangle(rectangle: RectLike): boolean {
   return [
@@ -21,24 +21,33 @@ function isValidRectangle(rectangle: RectLike): boolean {
 export function isCommittedCardDrop(
   moving: RectLike,
   target: RectLike,
-  inset = DEFAULT_INSET,
+  minimumOverlapRatio = DEFAULT_MINIMUM_OVERLAP_RATIO,
 ): boolean {
   if (
     !isValidRectangle(moving)
     || !isValidRectangle(target)
-    || !Number.isFinite(inset)
-    || inset < 0
-    || target.width <= inset * 2
-    || target.height <= inset * 2
+    || !Number.isFinite(minimumOverlapRatio)
+    || minimumOverlapRatio < 0
+    || minimumOverlapRatio > 1
   ) {
     return false;
   }
 
-  const centerX = moving.x + moving.width / 2;
-  const centerY = moving.y + moving.height / 2;
+  const overlapWidth = Math.max(
+    0,
+    Math.min(moving.x + moving.width, target.x + target.width)
+      - Math.max(moving.x, target.x),
+  );
+  const overlapHeight = Math.max(
+    0,
+    Math.min(moving.y + moving.height, target.y + target.height)
+      - Math.max(moving.y, target.y),
+  );
+  const overlapArea = overlapWidth * overlapHeight;
+  const referenceArea = Math.min(
+    moving.width * moving.height,
+    target.width * target.height,
+  );
 
-  return centerX > target.x + inset
-    && centerX < target.x + target.width - inset
-    && centerY > target.y + inset
-    && centerY < target.y + target.height - inset;
+  return overlapArea / referenceArea >= minimumOverlapRatio;
 }

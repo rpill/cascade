@@ -57,6 +57,6 @@ Drag-and-drop must avoid both extremes:
 - a player must not need to drag the card close to the target center either.
 - every manual drag resolves immediately with no settle tween: accepted drags snap to the destination, while rejected/cancelled drags snap back to the original placement.
 
-The current implementation uses a small inner safety margin in `DropGeometry.ts`.
-This value is interaction tuning, not a sacred game rule, and may be adjusted from
-playtesting without changing solitaire mechanics.
+The current implementation uses overlap-based commitment in `DropGeometry.ts`: roughly
+25% of the moving card must overlap the target. This threshold is interaction tuning, not
+a sacred game rule, and may be adjusted from playtesting without changing solitaire mechanics.

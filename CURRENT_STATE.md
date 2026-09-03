@@ -27,9 +27,9 @@
 - Tableau begins at `TABLEAU_Y = 236` so suits remain easier to read.
 - The old empty waste placeholder rectangle is removed.
 - Non-drag moves use shallow quadratic Bézier flights.
-- Drop commitment uses an **8 px inner safety margin** around the visible target.
-  This replaces the previous 18 px margin: edge grazing is still rejected, but the
-  player no longer needs to pull the moving card so close to the target center.
+- Drop commitment uses an **overlap-area threshold**: roughly 25% of the moving card
+  must overlap the visible target. Edge grazing and corner touches are rejected, while
+  a clearly overlapping card no longer needs to have its center inside the target.
 - Manual drag-and-drop has no settle tween in either direction: accepted drags snap directly into the destination, while rejected/cancelled drags snap immediately back to the previous placement.
 
 ## ChatGPT handoff workflow
@@ -65,6 +65,6 @@ C++20 toolchain configured in `package.json` is available.
 
 ## Current next focus
 
-Playtest the softened 8 px drag/drop threshold. If it still feels too sticky or too
-sensitive, tune only the interaction margin and its geometry tests rather than changing
+Playtest the 25% overlap drag/drop threshold. If it still feels too sticky or too
+sensitive, tune only the overlap threshold and its geometry tests rather than changing
 tableau legality rules.
