@@ -4,10 +4,12 @@ cascade/
 │   └── superpowers/
 │       ├── plans/
 │       │   ├── 2026-09-02-sawayama-game-modes.md
-│       │   └── 2026-09-02-visual-undo-main-menu.md
+│       │   ├── 2026-09-02-visual-undo-main-menu.md
+│       │   └── 2026-09-03-responsive-fullscreen-layout.md
 │       └── specs/
 │           ├── 2026-09-02-sawayama-game-modes-design.md
-│           └── 2026-09-02-visual-undo-main-menu-design.md
+│           ├── 2026-09-02-visual-undo-main-menu-design.md
+│           └── 2026-09-03-responsive-fullscreen-layout-design.md
 ├── public/
 │   └── assets/
 │       └── cards/ [contents omitted]
@@ -38,7 +40,9 @@ cascade/
 │   │       ├── CardMotionDepth.ts
 │   │       ├── DropGeometry.ts
 │   │       ├── layout.ts
+│   │       ├── LayoutMetrics.ts
 │   │       ├── MainMenuView.ts
+│   │       ├── RenderQuality.ts
 │   │       └── StockVisualState.ts
 │   ├── platform/
 │   │   └── yandex.ts
@@ -53,13 +57,18 @@ cascade/
 │   ├── chatgpt-context.test.mjs
 │   ├── deal-original.test.ts
 │   ├── deal-seed.test.ts
+│   ├── dom-ui.test.ts
+│   ├── drag-snap.test.ts
 │   ├── drop-geometry.test.ts
+│   ├── foundation-visibility.test.ts
 │   ├── game-controls.test.ts
 │   ├── game-history.test.ts
 │   ├── game-session.test.ts
 │   ├── game.test.ts
 │   ├── main-menu-wiring.test.ts
 │   ├── render-config.test.ts
+│   ├── render-quality.test.ts
+│   ├── responsive-layout.test.ts
 │   ├── stock-visual.test.ts
 │   ├── undo-wiring.test.ts
 │   └── winnable-pool.test.ts

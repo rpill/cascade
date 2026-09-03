@@ -65,8 +65,12 @@ a sacred game rule, and may be adjusted from playtesting without changing solita
 
 - Gameplay coordinates and layout remain resolution-independent logical pixels.
 - Normal antialiasing and subpixel motion stay enabled; do not switch the whole game to pixel-art filtering to mask blurry assets.
-- Desktop rendering must not upscale the entire logical canvas through CSS when the viewport is already large enough; preserve 1:1 canvas display where possible.
+- Desktop rendering uses a real viewport-sized canvas (`Phaser.Scale.RESIZE`) instead of CSS-upscaling a fixed canvas.
+- The main camera remains at zoom 1 and scroll 0. Gameplay positions are calculated directly from the live viewport by `LayoutMetrics`; there is no authored-board camera fitting layer.
+- Desktop card size is constrained from 84 px to 180 px wide; the foundation utility rail stays attached to the left edge, tableau uses the remaining play region with compact proportional column gaps (about 30% of card width, capped at 40%), and additional widescreen/ultrawide space centers the tableau within that right-side region instead of stretching it edge-to-edge. Current 216×302 PNG textures are never raster-upscaled by this layout.
+- Text-heavy HUD/menu DOM is screen-space UI attached directly to the game host and remains independent from Phaser board layout.
+- Foundation stacks keep every collected card placed at the suit slot so the previous rank remains visible while the next rank flies in.
 - Phaser Text may use a higher internal texture resolution for clarity without changing logical layout coordinates.
-- Card runtime assets should have enough raster resolution for their displayed size. The current Horizontal2 implementation uses 216×302 PNG textures for a logical 108×151 card and does not depend on runtime SVG rasterization.
+- Card runtime assets should have enough raster resolution for their displayed size. The current Horizontal2 implementation uses 216×302 PNG textures and responsive display sizes up to 180×252; it does not depend on runtime SVG rasterization.
 - Rendering-quality tests protect these technical guarantees, not exact artwork bytes, colours or a permanent card pack.
 

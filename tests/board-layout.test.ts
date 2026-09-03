@@ -1,20 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  CARD_HEIGHT,
-  GAME_HEIGHT,
-  getBoardSlots,
-  tableauCardY,
-} from '../src/game/view/layout.ts';
+import { calculateLayoutMetrics } from '../src/game/view/LayoutMetrics.ts';
+import { getBoardSlots, tableauCardY } from '../src/game/view/layout.ts';
 
-test('tableau begins higher and long columns remain visible', () => {
-  assert.equal(tableauCardY(1, 0), 236);
-  assert.ok(tableauCardY(20, 19) + CARD_HEIGHT <= GAME_HEIGHT - 18);
+test('long tableau columns compress to remain inside the current viewport', () => {
+  const layout = calculateLayoutMetrics(1366, 768);
+
+  assert.ok(
+    tableauCardY(layout, 20, 19) + layout.cardHeight
+      <= layout.viewportHeight - layout.bottomMargin + 1e-9,
+  );
 });
 
-test('static board slots omit the waste placeholder', () => {
-  const slots = getBoardSlots();
+test('board slots still omit a waste placeholder for every viewport', () => {
+  const slots = getBoardSlots(calculateLayoutMetrics(1920, 1080));
 
   assert.equal(slots.filter((slot) => slot.kind === 'foundation').length, 4);
   assert.equal(slots.filter((slot) => slot.kind === 'stock').length, 1);

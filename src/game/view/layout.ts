@@ -1,23 +1,4 @@
-export const GAME_WIDTH = 1152;
-export const GAME_HEIGHT = 768;
-
-export const CARD_WIDTH = 108;
-export const CARD_HEIGHT = 151;
-
-export const FOUNDATION_X = 28;
-export const FOUNDATION_Y = [24, 205, 386, 567] as const;
-
-export const STOCK_X = 194;
-export const STOCK_Y = 62;
-export const WASTE_X = 328;
-export const TABLEAU_Y = 236;
-export const TABLEAU_X = Array.from(
-  { length: 7 },
-  (_, index) => STOCK_X + index * 134,
-);
-
-export const TABLEAU_GAP = 36;
-export const WASTE_GAP = 26;
+import type { LayoutMetrics } from './LayoutMetrics.ts';
 
 export interface Point {
   readonly x: number;
@@ -31,43 +12,59 @@ export interface BoardSlot extends Point {
   readonly alpha: number;
 }
 
-export function getBoardSlots(): BoardSlot[] {
+export function getBoardSlots(metrics: LayoutMetrics): BoardSlot[] {
   return [
-    ...FOUNDATION_Y.map((y) => ({
+    ...metrics.foundationY.map((y) => ({
       kind: 'foundation' as const,
-      x: FOUNDATION_X,
+      x: metrics.foundationX,
       y,
       alpha: 0.32,
     })),
     {
       kind: 'stock' as const,
-      x: STOCK_X,
-      y: STOCK_Y,
+      x: metrics.stock.x,
+      y: metrics.stock.y,
       alpha: 0.32,
     },
-    ...TABLEAU_X.map((x) => ({
+    ...metrics.tableauX.map((x) => ({
       kind: 'tableau' as const,
       x,
-      y: TABLEAU_Y,
+      y: metrics.tableauY,
       alpha: 0.16,
     })),
   ];
 }
 
-export function tableauCardY(cardCount: number, index: number): number {
-  const available = GAME_HEIGHT - TABLEAU_Y - CARD_HEIGHT - 18;
+export function tableauCardY(
+  metrics: LayoutMetrics,
+  cardCount: number,
+  index: number,
+): number {
+  const available = metrics.viewportHeight
+    - metrics.tableauY
+    - metrics.cardHeight
+    - metrics.bottomMargin;
   const gap = cardCount <= 1
-    ? TABLEAU_GAP
-    : Math.min(TABLEAU_GAP, available / (cardCount - 1));
+    ? metrics.tableauCardGap
+    : Math.min(
+      metrics.tableauCardGap,
+      Math.max(0, available / (cardCount - 1)),
+    );
 
-  return TABLEAU_Y + index * gap;
+  return metrics.tableauY + index * gap;
 }
 
-export function wasteCardX(cardCount: number, index: number): number {
-  const available = GAME_WIDTH - WASTE_X - CARD_WIDTH - 20;
+export function wasteCardX(
+  metrics: LayoutMetrics,
+  cardCount: number,
+  index: number,
+): number {
+  const compositionRight = metrics.compositionBounds.x
+    + metrics.compositionBounds.width;
+  const available = compositionRight - metrics.waste.x - metrics.cardWidth;
   const gap = cardCount <= 1
-    ? WASTE_GAP
-    : Math.min(WASTE_GAP, available / (cardCount - 1));
+    ? metrics.wasteGap
+    : Math.min(metrics.wasteGap, Math.max(0, available / (cardCount - 1)));
 
-  return WASTE_X + index * gap;
+  return metrics.waste.x + index * gap;
 }

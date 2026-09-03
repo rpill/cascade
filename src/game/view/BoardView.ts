@@ -10,20 +10,12 @@ import {
   type Suit,
 } from '../model/types.ts';
 import {
-  CARD_HEIGHT,
-  CARD_WIDTH,
-  FOUNDATION_X,
-  FOUNDATION_Y,
-  GAME_WIDTH,
   getBoardSlots,
-  STOCK_X,
-  STOCK_Y,
-  TABLEAU_X,
-  TABLEAU_Y,
   tableauCardY,
   wasteCardX,
   type Point,
 } from './layout.ts';
+import type { LayoutMetrics } from './LayoutMetrics.ts';
 import { getBoardTexture } from './BoardTexture.ts';
 import {
   getCardMotionDuration,
@@ -34,6 +26,7 @@ import {
 import { getCardDepthTransition } from './CardMotionDepth.ts';
 import { getCardFlightPoint } from './CardFlight.ts';
 import { isCommittedCardDrop } from './DropGeometry.ts';
+import { UI_TEXT_RESOLUTION } from './RenderQuality.ts';
 import {
   MAX_STOCK_LAYERS,
   StockVisualState,
@@ -83,21 +76,35 @@ export class BoardView {
   private readonly cardImages = new Map<string, Phaser.GameObjects.Image>();
   private readonly stockBacks: Phaser.GameObjects.Image[] = [];
   private readonly ownedObjects: Phaser.GameObjects.GameObject[] = [];
+  private readonly ownedDomElements: HTMLElement[] = [];
   private readonly timers: Phaser.Time.TimerEvent[] = [];
   private readonly activeFlights = new Map<
     Phaser.GameObjects.Image,
     Phaser.Tweens.Tween
   >();
   private readonly stockVisual: StockVisualState;
+  private layout: LayoutMetrics;
+  private boardSurface!: Phaser.GameObjects.TileSprite;
+  private utilityPanel!: Phaser.GameObjects.Rectangle;
+  private utilityDivider!: Phaser.GameObjects.Rectangle;
+  private readonly slotRects: Phaser.GameObjects.Rectangle[] = [];
+  private readonly foundationSymbols: Phaser.GameObjects.Text[] = [];
+  private freeArrow!: Phaser.GameObjects.Text;
 
   private dragState: DragState | null = null;
   private inputLocked = true;
   private lastTap: { cardId: string; time: number } | null = null;
 
-  constructor(scene: Phaser.Scene, game: SolitaireGame, actions: BoardActions) {
+  constructor(
+    scene: Phaser.Scene,
+    game: SolitaireGame,
+    actions: BoardActions,
+    metrics: LayoutMetrics,
+  ) {
     this.scene = scene;
     this.game = game;
     this.actions = actions;
+    this.layout = metrics;
     this.stockVisual = new StockVisualState(game.stock.length);
 
     this.createBoardSurface();
@@ -105,6 +112,7 @@ export class BoardView {
     this.createGameButtons();
     this.createCardImages();
     this.createStockStack();
+    this.relayout(metrics);
   }
 
   playInitialDeal(): void {
@@ -112,16 +120,13 @@ export class BoardView {
     this.cardImages.forEach((image) => image.setVisible(false));
 
     const sequence = getTableauDealSequence(this.game.tableau);
-    const placements = this.calculatePlacements();
-
     this.stockVisual.sync(this.game.stock.length + sequence.length);
     this.updateStockStack();
 
     sequence.forEach((card, index) => {
       const image = this.cardImages.get(card.id);
-      const target = placements.get(card.id);
 
-      if (image === undefined || target === undefined) {
+      if (image === undefined) {
         return;
       }
 
@@ -130,15 +135,21 @@ export class BoardView {
         .setVisible(false);
 
       const timer = this.scene.time.delayedCall(index * STOCK_DEAL_STAGGER, () => {
+        const target = this.calculatePlacements().get(card.id);
+
+        if (target === undefined) {
+          return;
+        }
+
         const stockOriginY = getStockFlightOriginY(
-          STOCK_Y,
+          this.layout.stock.y,
           this.stockVisual.layerOffsets,
         );
 
         this.stockVisual.removeDealtCard();
         this.updateStockStack();
         image
-          .setPosition(STOCK_X, stockOriginY)
+          .setPosition(this.layout.stock.x, stockOriginY)
           .setVisible(true);
         this.animateCardTo(image, target, 'stock');
       });
@@ -160,26 +171,111 @@ export class BoardView {
     this.timers.push(finishTimer);
   }
 
+  relayout(metrics: LayoutMetrics): void {
+    this.activeFlights.forEach((flight) => flight.stop());
+    this.activeFlights.clear();
+    this.dragState = null;
+    this.layout = metrics;
+
+    this.boardSurface.setDisplaySize(metrics.viewportWidth, metrics.viewportHeight);
+
+    const railRight = Math.min(
+      metrics.viewportWidth,
+      metrics.utilityDividerX,
+    );
+
+    this.utilityPanel
+      .setPosition(0, 0)
+      .setDisplaySize(railRight, metrics.viewportHeight);
+    this.utilityDivider
+      .setPosition(railRight, 0)
+      .setDisplaySize(2, metrics.viewportHeight);
+
+    const slots = getBoardSlots(metrics);
+    this.slotRects.forEach((slot, index) => {
+      const target = slots[index];
+
+      if (target === undefined) {
+        return;
+      }
+
+      slot
+        .setPosition(
+          target.x + metrics.cardWidth / 2,
+          target.y + metrics.cardHeight / 2,
+        )
+        .setDisplaySize(metrics.cardWidth, metrics.cardHeight);
+    });
+
+    this.foundationSymbols.forEach((symbol, index) => {
+      symbol
+        .setPosition(
+          metrics.foundationX + metrics.cardWidth / 2,
+          metrics.foundationY[index] + metrics.cardHeight / 2,
+        )
+        .setFontSize(Math.round(metrics.cardWidth * 0.4));
+    });
+    this.freeArrow
+      .setPosition(
+        metrics.stock.x + metrics.cardWidth / 2,
+        metrics.stock.y + metrics.cardHeight / 2,
+      )
+      .setFontSize(Math.round(metrics.cardWidth * 0.39));
+
+    this.cardImages.forEach((image) => {
+      image.setDisplaySize(metrics.cardWidth, metrics.cardHeight);
+    });
+    this.stockBacks.forEach((back) => {
+      back.setDisplaySize(metrics.cardWidth, metrics.cardHeight);
+    });
+
+    this.sync(null);
+  }
+
   destroy(): void {
     this.timers.forEach((timer) => timer.remove(false));
     this.activeFlights.forEach((flight) => flight.stop());
     this.activeFlights.clear();
     this.ownedObjects.forEach((object) => object.destroy());
+    this.ownedDomElements.forEach((element) => element.remove());
     this.cardImages.clear();
   }
 
   private createBoardSurface(): void {
-    const surface = this.scene.add.image(
+    this.boardSurface = this.scene.add.tileSprite(
       0,
       0,
+      this.layout.viewportWidth,
+      this.layout.viewportHeight,
       getBoardTexture(this.scene),
     ).setOrigin(0).setDepth(0);
 
-    this.ownedObjects.push(surface);
+    this.utilityPanel = this.scene.add.rectangle(
+      0,
+      0,
+      1,
+      1,
+      0x242b2a,
+      1,
+    ).setOrigin(0).setDepth(1);
+    this.utilityDivider = this.scene.add.rectangle(
+      0,
+      0,
+      2,
+      1,
+      0x738280,
+      0.8,
+    ).setOrigin(0.5, 0).setDepth(2);
+
+    this.ownedObjects.push(
+      this.boardSurface,
+      this.utilityPanel,
+      this.utilityDivider,
+    );
   }
 
   private createSlots(): void {
-    getBoardSlots().forEach((slot) => {
+    getBoardSlots(this.layout).forEach((slot) => {
       this.createSlot(slot.x, slot.y, slot.alpha);
     });
 
@@ -189,96 +285,80 @@ export class BoardView {
         : '#66706e';
 
       const symbol = this.scene.add.text(
-        FOUNDATION_X + CARD_WIDTH / 2,
-        FOUNDATION_Y[index] + CARD_HEIGHT / 2,
+        this.layout.foundationX + this.layout.cardWidth / 2,
+        this.layout.foundationY[index] + this.layout.cardHeight / 2,
         FOUNDATION_SYMBOLS[suit],
         {
           color,
           fontFamily: 'Georgia, serif',
           fontSize: '43px',
         },
-      ).setOrigin(0.5).setAlpha(0.6).setDepth(10);
+      ).setOrigin(0.5).setAlpha(0.6).setDepth(10).setResolution(UI_TEXT_RESOLUTION);
 
+      this.foundationSymbols.push(symbol);
       this.ownedObjects.push(symbol);
     });
 
-    const freeArrow = this.scene.add.text(
-      STOCK_X + CARD_WIDTH / 2,
-      STOCK_Y + CARD_HEIGHT / 2,
+    this.freeArrow = this.scene.add.text(
+      this.layout.stock.x + this.layout.cardWidth / 2,
+      this.layout.stock.y + this.layout.cardHeight / 2,
       '↓',
       {
         color: '#67716f',
         fontFamily: 'Arial, sans-serif',
         fontSize: '42px',
       },
-    ).setOrigin(0.5).setAlpha(0.42).setDepth(10);
+    ).setOrigin(0.5).setAlpha(0.42).setDepth(10).setResolution(UI_TEXT_RESOLUTION);
 
-    this.ownedObjects.push(freeArrow);
+    this.ownedObjects.push(this.freeArrow);
   }
 
   private createSlot(x: number, y: number, alpha = 0.32): void {
     const slot = this.scene.add.rectangle(
-      x + CARD_WIDTH / 2,
-      y + CARD_HEIGHT / 2,
-      CARD_WIDTH,
-      CARD_HEIGHT,
+      x + this.layout.cardWidth / 2,
+      y + this.layout.cardHeight / 2,
+      this.layout.cardWidth,
+      this.layout.cardHeight,
       0x151b1a,
       alpha,
     ).setStrokeStyle(2, 0x667370, 0.58).setDepth(5);
 
+    this.slotRects.push(slot);
     this.ownedObjects.push(slot);
   }
 
   private createGameButtons(): void {
-    this.createGameButton(
-      GAME_WIDTH - 472,
-      104,
-      'В МЕНЮ',
-      () => this.actions.mainMenu(),
-    );
-    this.createGameButton(
-      GAME_WIDTH - 340,
-      144,
-      'НОВАЯ ИГРА  N',
-      () => this.actions.newGame(),
-    );
-    this.createGameButton(
-      GAME_WIDTH - 196,
-      128,
-      'ОТМЕНА  Z',
-      () => this.requestUndo(),
-    );
-    this.createGameButton(
-      GAME_WIDTH - 68,
-      112,
-      'РЕСТАРТ  R',
-      () => this.actions.restart(),
-    );
-  }
+    const controls = document.createElement('div');
+    controls.className = 'game-controls';
 
-  private createGameButton(
-    x: number,
-    width: number,
-    text: string,
-    action: () => void,
-  ): void {
-    const button = this.scene.add.rectangle(x, 24, width, 32, 0xb8473e, 0.96)
-      .setStrokeStyle(1, 0xe07a6d, 0.9)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(2000);
+    const specs: readonly [label: string, width: number, action: () => void][] = [
+      ['В МЕНЮ', 104, () => this.actions.mainMenu()],
+      ['НОВАЯ ИГРА  N', 144, () => this.actions.newGame()],
+      ['ОТМЕНА  Z', 128, () => this.requestUndo()],
+      ['РЕСТАРТ  R', 112, () => this.actions.restart()],
+    ];
 
-    const label = this.scene.add.text(x, 24, text, {
-      color: '#fff4df',
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '13px',
-      fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(2001);
+    specs.forEach(([label, width, action]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'game-control-button';
+      button.textContent = label;
+      button.style.width = `${width}px`;
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        action();
+      });
+      controls.append(button);
+    });
 
-    button.on('pointerover', () => button.setFillStyle(0xd05a4e));
-    button.on('pointerout', () => button.setFillStyle(0xb8473e));
-    button.on('pointerdown', action);
+    const host = this.scene.game.canvas.parentElement;
 
-    this.ownedObjects.push(button, label);
+    if (host === null) {
+      throw new Error('Game canvas must have a parent element for screen-space controls.');
+    }
+
+    host.append(controls);
+    this.ownedDomElements.push(controls);
   }
 
   private createCardImages(): void {
@@ -293,7 +373,7 @@ export class BoardView {
     allCards.forEach((card) => {
       const image = this.scene.add.image(0, 0, card.id)
         .setOrigin(0)
-        .setDisplaySize(CARD_WIDTH, CARD_HEIGHT)
+        .setDisplaySize(this.layout.cardWidth, this.layout.cardHeight)
         .setVisible(false);
 
       image.on('pointerdown', () => this.handleCardPointerDown(card));
@@ -310,9 +390,9 @@ export class BoardView {
 
   private createStockStack(): void {
     for (let index = 0; index < MAX_STOCK_LAYERS; index += 1) {
-      const back = this.scene.add.image(STOCK_X, STOCK_Y, 'card-back')
+      const back = this.scene.add.image(this.layout.stock.x, this.layout.stock.y, 'card-back')
         .setOrigin(0)
-        .setDisplaySize(CARD_WIDTH, CARD_HEIGHT)
+        .setDisplaySize(this.layout.cardWidth, this.layout.cardHeight)
         .setVisible(false)
         .setDepth(50 + index);
 
@@ -332,7 +412,7 @@ export class BoardView {
 
       back
         .setVisible(visible)
-        .setPosition(STOCK_X, STOCK_Y + (offset ?? 0))
+        .setPosition(this.layout.stock.x, this.layout.stock.y + (offset ?? 0))
         .setDepth(50 + index);
 
       if (visible) {
@@ -379,7 +459,7 @@ export class BoardView {
   private animateDraw(drawn: readonly Card[]): void {
     this.inputLocked = true;
     const stockOriginY = getStockFlightOriginY(
-      STOCK_Y,
+      this.layout.stock.y,
       this.stockVisual.layerOffsets,
     );
 
@@ -401,7 +481,7 @@ export class BoardView {
 
       image
         .setVisible(true)
-        .setPosition(STOCK_X, stockOriginY)
+        .setPosition(this.layout.stock.x, stockOriginY)
         .setDepth(1200 + index);
 
       this.animateCardTo(
@@ -549,37 +629,37 @@ export class BoardView {
     const movingBounds = new Phaser.Geom.Rectangle(
       image.x,
       image.y,
-      CARD_WIDTH,
-      CARD_HEIGHT,
+      this.layout.cardWidth,
+      this.layout.cardHeight,
     );
 
     const candidates: Array<{ target: MoveTarget; bounds: Phaser.Geom.Rectangle; center: Point }> = [
-      ...TABLEAU_X.map((x, pile) => {
+      ...this.layout.tableauX.map((x, pile) => {
         const cards = this.game.tableau[pile];
         const y = cards.length === 0
-          ? TABLEAU_Y
-          : tableauCardY(cards.length, cards.length - 1);
+          ? this.layout.tableauY
+          : tableauCardY(this.layout, cards.length, cards.length - 1);
 
         return {
           target: { zone: 'tableau', pile } as const,
-          bounds: new Phaser.Geom.Rectangle(x, y, CARD_WIDTH, CARD_HEIGHT),
-          center: { x: x + CARD_WIDTH / 2, y: y + CARD_HEIGHT / 2 },
+          bounds: new Phaser.Geom.Rectangle(x, y, this.layout.cardWidth, this.layout.cardHeight),
+          center: { x: x + this.layout.cardWidth / 2, y: y + this.layout.cardHeight / 2 },
         };
       }),
       ...SUITS.map((suit, index) => ({
         target: { zone: 'foundation', suit } as const,
-        bounds: new Phaser.Geom.Rectangle(FOUNDATION_X, FOUNDATION_Y[index], CARD_WIDTH, CARD_HEIGHT),
-        center: { x: FOUNDATION_X + CARD_WIDTH / 2, y: FOUNDATION_Y[index] + CARD_HEIGHT / 2 },
+        bounds: new Phaser.Geom.Rectangle(this.layout.foundationX, this.layout.foundationY[index], this.layout.cardWidth, this.layout.cardHeight),
+        center: { x: this.layout.foundationX + this.layout.cardWidth / 2, y: this.layout.foundationY[index] + this.layout.cardHeight / 2 },
       })),
       {
         target: { zone: 'free' } as const,
-        bounds: new Phaser.Geom.Rectangle(STOCK_X, STOCK_Y, CARD_WIDTH, CARD_HEIGHT),
-        center: { x: STOCK_X + CARD_WIDTH / 2, y: STOCK_Y + CARD_HEIGHT / 2 },
+        bounds: new Phaser.Geom.Rectangle(this.layout.stock.x, this.layout.stock.y, this.layout.cardWidth, this.layout.cardHeight),
+        center: { x: this.layout.stock.x + this.layout.cardWidth / 2, y: this.layout.stock.y + this.layout.cardHeight / 2 },
       },
     ];
 
-    const centerX = image.x + CARD_WIDTH / 2;
-    const centerY = image.y + CARD_HEIGHT / 2;
+    const centerX = image.x + this.layout.cardWidth / 2;
+    const centerY = image.y + this.layout.cardHeight / 2;
 
     return candidates
       .filter((candidate) =>
@@ -666,7 +746,7 @@ export class BoardView {
       duration: getCardMotionDuration(motion),
       delay,
       ease: 'Cubic.easeOut',
-      onUpdate: (tween) => {
+      onUpdate: (tween: Phaser.Tweens.Tween) => {
         const progress = tween.getValue();
 
         if (progress !== null) {
@@ -702,8 +782,8 @@ export class BoardView {
         const movable = this.game.cardsFromSource(source).length > 0;
 
         placements.set(card.id, {
-          x: TABLEAU_X[pileIndex],
-          y: tableauCardY(pile.length, cardIndex),
+          x: this.layout.tableauX[pileIndex],
+          y: tableauCardY(this.layout, pile.length, cardIndex),
           depth: 200 + cardIndex,
           source: movable ? source : undefined,
         });
@@ -714,29 +794,27 @@ export class BoardView {
       const isTop = index === this.game.waste.length - 1;
 
       placements.set(card.id, {
-        x: wasteCardX(this.game.waste.length, index),
-        y: STOCK_Y,
+        x: wasteCardX(this.layout, this.game.waste.length, index),
+        y: this.layout.stock.y,
         depth: 500 + index,
         source: isTop ? { zone: 'waste' } : undefined,
       });
     });
 
     SUITS.forEach((suit, index) => {
-      const card = this.game.foundations[suit].at(-1);
-
-      if (card !== undefined) {
+      this.game.foundations[suit].forEach((card, cardIndex) => {
         placements.set(card.id, {
-          x: FOUNDATION_X,
-          y: FOUNDATION_Y[index],
-          depth: 400 + index,
+          x: this.layout.foundationX,
+          y: this.layout.foundationY[index],
+          depth: 400 + index * 20 + cardIndex,
         });
-      }
+      });
     });
 
     if (this.game.freeCell !== null) {
       placements.set(this.game.freeCell.id, {
-        x: STOCK_X,
-        y: STOCK_Y,
+        x: this.layout.stock.x,
+        y: this.layout.stock.y,
         depth: 600,
         source: { zone: 'free' },
       });

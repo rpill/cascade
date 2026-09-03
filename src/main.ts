@@ -4,13 +4,12 @@ import './styles.css';
 
 import { BootScene } from './game/scenes/BootScene.ts';
 import { GameScene } from './game/scenes/GameScene.ts';
-import { GAME_HEIGHT, GAME_WIDTH } from './game/view/layout.ts';
 
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
-  width: GAME_WIDTH,
-  height: GAME_HEIGHT,
+  width: window.innerWidth,
+  height: window.innerHeight,
   backgroundColor: '#393937',
   disableContextMenu: true,
   scene: [BootScene, GameScene],
@@ -18,8 +17,8 @@ new Phaser.Game({
     activePointers: 3,
   },
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+    mode: Phaser.Scale.RESIZE,
+    autoRound: true,
   },
   render: {
     antialias: true,

@@ -7,3 +7,5 @@ tools/*.exe
 
 # Generated ChatGPT context
 _chatgpt_bundle/
+
+# Generated from Decks/Horizontal2/svgs before dev/build

@@ -27,10 +27,11 @@ const menuSource = readFileSync(
   'utf8',
 );
 
-test('desktop rendering never scales the canvas above its logical size', () => {
+test('desktop rendering resizes the real canvas to the viewport instead of CSS-scaling a fixed canvas', () => {
   assert.doesNotMatch(mainSource, /\bresolution\s*:/);
-  assert.match(mainSource, /autoRound:\s*true/);
-  assert.match(mainSource, /max:\s*\{[\s\S]*width:\s*GAME_WIDTH,[\s\S]*height:\s*GAME_HEIGHT/);
+  assert.match(mainSource, /mode:\s*Phaser\.Scale\.RESIZE/);
+  assert.doesNotMatch(mainSource, /Phaser\.Scale\.FIT/);
+  assert.doesNotMatch(mainSource, /max:\s*\{/);
   assert.match(mainSource, /roundPixels:\s*false/);
 });
 
@@ -40,9 +41,13 @@ test('boot loads stable raster card textures instead of runtime SVGs', () => {
   assert.doesNotMatch(bootSource, /this\.load\.svg\(|cards-vector/);
 });
 
-test('board and menu text opt into high-resolution Phaser text textures', () => {
-  assert.match(boardSource, /setResolution\(UI_TEXT_RESOLUTION\)/);
-  assert.match(menuSource, /setResolution\(UI_TEXT_RESOLUTION\)/);
+test('text-heavy controls live in screen-space DOM outside the camera transform', () => {
+  assert.doesNotMatch(mainSource, /createContainer:\s*true/);
+  assert.doesNotMatch(boardSource, /scene\.add\.dom\(/);
+  assert.doesNotMatch(menuSource, /scene\.add\.dom\(/);
+  assert.match(boardSource, /canvas\.parentElement/);
+  assert.match(menuSource, /canvas\.parentElement/);
+  assert.doesNotMatch(menuSource, /scene\.add\.text\(/);
 });
 
 test('dev and build do not depend on runtime SVG asset generation', () => {
@@ -51,4 +56,14 @@ test('dev and build do not depend on runtime SVG asset generation', () => {
 
 test('board background has no per-dot graphics command loop', () => {
   assert.doesNotMatch(boardSource, /fillCircle\(/);
+});
+
+test('board geometry comes from instance layout metrics instead of authored constants', () => {
+  assert.match(boardSource, /private layout: LayoutMetrics/);
+  assert.match(boardSource, /relayout\(metrics: LayoutMetrics\)/);
+  assert.match(boardSource, /this\.layout\.cardWidth/);
+  assert.doesNotMatch(
+    boardSource,
+    /\bCARD_WIDTH\b|\bCARD_HEIGHT\b|\bFOUNDATION_X\b|\bFOUNDATION_Y\b|\bSTOCK_X\b|\bSTOCK_Y\b|\bTABLEAU_X\b|\bTABLEAU_Y\b/,
+  );
 });

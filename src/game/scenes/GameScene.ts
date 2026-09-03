@@ -6,6 +6,7 @@ import { SolitaireGame } from '../model/SolitaireGame.ts';
 import type { Deal } from '../model/types.ts';
 import { BoardView } from '../view/BoardView.ts';
 import { MainMenuView } from '../view/MainMenuView.ts';
+import { calculateLayoutMetrics } from '../view/LayoutMetrics.ts';
 import { notifyPlatformReady } from '../../platform/yandex.ts';
 
 export class GameScene extends Phaser.Scene {
@@ -20,6 +21,8 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.input.dragDistanceThreshold = 7;
+    this.applyViewportLayout();
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this);
     this.flow = new GameFlow();
     this.mainMenu = new MainMenuView(this, {
       select: (mode) => this.flow.selectMenuMode(mode),
@@ -42,6 +45,7 @@ export class GameScene extends Phaser.Scene {
   private startDeal(deal: Deal): void {
     this.history.clear();
     const gameState = new SolitaireGame(deal);
+    const metrics = calculateLayoutMetrics(this.scale.width, this.scale.height);
     this.board = new BoardView(this, gameState, {
       draw: () => this.history.execute(
         gameState,
@@ -63,7 +67,7 @@ export class GameScene extends Phaser.Scene {
       restart: () => this.restartDeal(),
       newGame: () => this.startNewDeal(),
       mainMenu: () => this.openMainMenu(),
-    });
+    }, metrics);
 
     this.board.playInitialDeal();
   }
@@ -124,7 +128,27 @@ export class GameScene extends Phaser.Scene {
     this.board?.requestUndo();
   }
 
+  private handleResize(): void {
+    this.applyViewportLayout();
+  }
+
+  private applyViewportLayout(): void {
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const camera = this.cameras.main;
+    const metrics = calculateLayoutMetrics(width, height);
+
+    camera
+      .setSize(width, height)
+      .setZoom(1)
+      .setScroll(0, 0)
+      .setBackgroundColor('#393937');
+
+    this.board?.relayout(metrics);
+  }
+
   private shutdown(): void {
+    this.scale.off(Phaser.Scale.Events.RESIZE, this.handleResize, this);
     this.input.keyboard?.off('keydown-R', this.restartDeal, this);
     this.input.keyboard?.off('keydown-Z', this.undoLastAction, this);
     this.input.keyboard?.off('keydown-N', this.startNewDeal, this);

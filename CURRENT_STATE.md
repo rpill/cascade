@@ -24,10 +24,13 @@
 ## Current visual/input state
 
 - Runtime card faces use stable `public/assets/cards/*.png` files; Phaser does not load SVG cards at runtime.
-- The current Horizontal2 runtime PNGs are pre-resampled to 216×302, exactly 2× the logical 108×151 display size. This avoids the broken SVG-loader path and prevents Phaser/browser from enlarging the old 75×113 files during gameplay.
-- `Scale.FIT` is capped at the logical `1152×768` size so desktop viewports do not upscale the whole canvas through CSS.
-- Phaser Text objects use internal resolution 2× for clearer labels while normal antialiasing and subpixel motion stay enabled.
-- Tableau begins at `TABLEAU_Y = 236` so suits remain easier to read.
+- The current Horizontal2 runtime PNGs are pre-resampled to 216×302. Responsive desktop display width is constrained to 84..180 px, so these textures retain resolution headroom without runtime SVG rasterization.
+- Desktop uses `Phaser.Scale.RESIZE`: the real canvas fills the browser viewport 1:1 instead of being CSS-stretched.
+- `LayoutMetrics.ts` calculates card size and all board coordinates directly from the live viewport. The main camera stays at `zoom = 1` and `scroll = 0`; `ResponsiveViewport.ts` has been removed.
+- Desktop layout is hybrid: the foundation utility rail stays attached to the left edge, cards grow moderately while tableau columns keep a compact gap of about 30% of card width (hard-capped at 40%), and excess widescreen/ultrawide space centers the tableau inside the remaining play region instead of stretching it edge-to-edge.
+- Text-heavy HUD controls and the main menu use native DOM/HTML text for browser-native sharpness and are attached directly to the viewport host; only the remaining in-canvas symbols use Phaser Text at 2× internal resolution.
+- Foundation rendering keeps the complete collected stack at each suit slot; the previous rank stays visible underneath while the next automatic card flies in.
+- Tableau top position is responsive and derived from the current card height plus a constrained top-row gap; long piles compress using the actual available viewport height.
 - The old empty waste placeholder rectangle is removed.
 - Non-drag moves use shallow quadratic Bézier flights.
 - Drop commitment uses an **overlap-area threshold**: roughly 25% of the moving card
@@ -68,5 +71,4 @@ C++20 toolchain configured in `package.json` is available.
 
 ## Current next focus
 
-Playtest the stable 2× PNG card textures and high-resolution UI text on the actual desktop/browser setup after restarting `pnpm dev`. If the UI text still looks soft, tune canvas/CSS scaling separately without changing card asset loading again.
-If text is still soft, check browser zoom and OS scaling before changing gameplay layout.
+Playtest the new true responsive desktop layout at 16:9, resized browser windows, and ultrawide. Confirm cards/columns use the available viewport naturally, camera remains identity, DOM controls/menu stay anchored to the viewport, drag/drop still feels unchanged, resize does not restart the current game, and foundation cards remain visible beneath incoming automatic cards. Mobile layout is intentionally a later separate pass.

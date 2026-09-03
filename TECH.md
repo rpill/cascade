@@ -9,8 +9,10 @@
 - `src/game/view/BoardView.ts` — Phaser board input, card sync, target selection and motion.
 - `src/game/view/DropGeometry.ts` — renderer-independent drop commitment geometry.
 - `src/game/view/CardFlight.ts` — quadratic flight path math.
-- `src/game/view/MainMenuView.ts` — main menu and pending mode selection.
+- `src/game/view/MainMenuView.ts` — native DOM main menu and pending mode selection.
 - `src/game/view/RenderQuality.ts` — high-resolution Phaser Text settings.
+- `src/game/view/LayoutMetrics.ts` — pure responsive desktop card sizing and board coordinates.
+- `src/game/view/layout.ts` — pure derived slot/tableau/waste placement helpers that consume `LayoutMetrics`.
 - `src/game/scenes/GameScene.ts` — wiring between flow, history, model and views.
 - `scripts/chatgpt-context-lib.mjs` — testable tree/Git/context-bundle core.
 - `scripts/chatgpt-context.mjs` — CLI used by `pnpm context*`.
@@ -24,10 +26,14 @@
 - Interaction geometry uses overlap area and may be tuned independently of legal-move rules.
 - Manual drag resolution is always an immediate snap, both for accepted placement and rejected/cancelled return; reserve motion tweens for non-drag/automatic movement.
 - Keep normal antialiasing and subpixel motion; do not use `pixelArt`/nearest-neighbour filtering merely to hide low-resolution source assets.
-- Do not use the unsupported Phaser 3 `GameConfig.resolution` field. Keep `Scale.FIT` capped at the logical game size so desktop canvases are never CSS-upscaled.
-- Load runtime card faces from `public/assets/cards/*.png`; do not use Phaser SVG loading for cards. The current PNGs are 216×302 and are displayed at 108×151. Use Phaser Text resolution 2× for UI labels.
+- Do not use the unsupported Phaser 3 `GameConfig.resolution` field. Desktop uses `Phaser.Scale.RESIZE` so the canvas itself matches the parent viewport instead of being CSS-upscaled.
+- Keep the main camera at zoom 1 / scroll 0. Do not reintroduce authored-board camera fitting; calculate board geometry directly from `LayoutMetrics(this.scale.width, this.scale.height)`.
+- Desktop responsive cards are constrained to 84..180 px wide with the existing 108:151 aspect ratio. The foundation utility rail is anchored to the left viewport edge; tableau columns use a compact proportional gap (target ~30% of card width, cap 40%) instead of consuming all spare width; excess widescreen/ultrawide space centers the tableau inside that region.
+- Load runtime card faces from `public/assets/cards/*.png`; do not use Phaser SVG loading for cards. The current PNGs are 216×302 and are displayed responsively up to 180×252. Native DOM handles text-heavy HUD/menu UI; Phaser Text resolution 2× remains only for in-canvas symbols.
 - `Decks/` is source-art/reference material only; `dev` and `build` must not require asset synchronization or conversion.
 - Prefer tests for rules, state transitions, geometry and animation math.
+- Use native DOM for text-heavy HUD/menu UI; append it directly to the game host as screen-space UI, never as Phaser DOM game objects. Keep gameplay cards and board rendering in Phaser.
+- Foundation placement must include every collected card at its suit coordinates with increasing depth; never hide the previous foundation rank merely because a newer rank entered model state.
 - Avoid tests that freeze cosmetic styling, exact colours, mutable UI coordinates or
   exact image bytes unless a temporary migration explicitly needs them.
 - Asset tests must not hash-lock artwork or prevent a later reskin; rendering tests should protect
