@@ -2,4 +2,8 @@ node_modules/
 dist/
 artifacts/
 *.log
+tools/*.exe
 .DS_Store
+
+# Generated ChatGPT context
+_chatgpt_bundle/

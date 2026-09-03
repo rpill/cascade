@@ -1,0 +1,79 @@
+cascade/
+├── Decks/ [contents omitted]
+├── docs/
+│   └── superpowers/
+│       ├── plans/
+│       │   ├── 2026-09-02-sawayama-game-modes.md
+│       │   └── 2026-09-02-visual-undo-main-menu.md
+│       └── specs/
+│           ├── 2026-09-02-sawayama-game-modes-design.md
+│           └── 2026-09-02-visual-undo-main-menu-design.md
+├── public/
+│   └── assets/
+│       └── cards/ [contents omitted]
+├── scripts/
+│   ├── chatgpt-context-lib.mjs
+│   └── chatgpt-context.mjs
+├── src/
+│   ├── game/
+│   │   ├── model/
+│   │   │   ├── cards.ts
+│   │   │   ├── deal.ts
+│   │   │   ├── GameFlow.ts
+│   │   │   ├── GameHistory.ts
+│   │   │   ├── GameSession.ts
+│   │   │   ├── OriginalRandom.ts
+│   │   │   ├── SolitaireGame.ts
+│   │   │   ├── types.ts
+│   │   │   └── winnableSeeds.ts
+│   │   ├── scenes/
+│   │   │   ├── BootScene.ts
+│   │   │   ├── dealSeed.ts
+│   │   │   └── GameScene.ts
+│   │   └── view/
+│   │       ├── BoardTexture.ts
+│   │       ├── BoardView.ts
+│   │       ├── CardAnimation.ts
+│   │       ├── CardFlight.ts
+│   │       ├── CardMotionDepth.ts
+│   │       ├── DropGeometry.ts
+│   │       ├── layout.ts
+│   │       ├── MainMenuView.ts
+│   │       └── StockVisualState.ts
+│   ├── platform/
+│   │   └── yandex.ts
+│   ├── main.ts
+│   └── styles.css
+├── tests/
+│   ├── board-layout.test.ts
+│   ├── card-animation.test.ts
+│   ├── card-assets.test.ts
+│   ├── card-flight.test.ts
+│   ├── card-motion.test.ts
+│   ├── chatgpt-context.test.mjs
+│   ├── deal-original.test.ts
+│   ├── deal-seed.test.ts
+│   ├── drop-geometry.test.ts
+│   ├── game-controls.test.ts
+│   ├── game-history.test.ts
+│   ├── game-session.test.ts
+│   ├── game.test.ts
+│   ├── main-menu-wiring.test.ts
+│   ├── render-config.test.ts
+│   ├── stock-visual.test.ts
+│   ├── undo-wiring.test.ts
+│   └── winnable-pool.test.ts
+├── tools/
+│   └── sawayama_solver.cpp
+├── .gitignore
+├── CHATGPT_CONTEXT.md
+├── CURRENT_STATE.md
+├── index.html
+├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
+├── PROJECT.md
+├── README.md
+├── TECH.md
+├── TREE.txt
+└── tsconfig.json
