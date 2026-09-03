@@ -30,6 +30,7 @@
 - Drop commitment uses an **8 px inner safety margin** around the visible target.
   This replaces the previous 18 px margin: edge grazing is still rejected, but the
   player no longer needs to pull the moving card so close to the target center.
+- Successful manual drag-and-drop snaps directly into the exact destination with no player settle tween; rejected drags still animate back.
 
 ## ChatGPT handoff workflow
 
@@ -45,7 +46,7 @@ pnpm context:last
 - `pnpm context:last` describes files changed by the latest commit and is intended
   for a clean checkpoint handoff.
 - Both refresh `TREE.txt` first.
-- Bundles are written to `_chatgpt_bundle/CHATGPT_CONTEXT(YYYYMMDD-HHMMSS).txt`.
+- Bundles are written to `_chatgpt_bundle/CHATGPT_CONTEXT.txt` and each generation replaces the previous bundle.
 - `PROJECT.md`, `CURRENT_STATE.md`, `TECH.md`, and `TREE.txt` are always embedded.
 - Changed text/source files are embedded with full current contents.
 - Changed binary assets are listed by path only; their bytes are never embedded.

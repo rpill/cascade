@@ -505,7 +505,7 @@ export class BoardView {
       : this.findDropTarget(dragState.source, root);
 
     if (target !== null && this.actions.move(dragState.source, target)) {
-      this.finishMoveWithAutoFoundation('player');
+      this.finishMoveWithAutoFoundation('player', false);
       return;
     }
 
@@ -514,9 +514,10 @@ export class BoardView {
 
   private finishMoveWithAutoFoundation(
     initialMotion: 'foundation' | 'player',
+    animateInitialMove = true,
   ): void {
     this.inputLocked = true;
-    this.sync(initialMotion);
+    this.sync(animateInitialMove ? initialMotion : null);
     this.scheduleAutoFoundationStep(
       initialMotion === 'foundation'
         ? getFoundationStepDelay()
