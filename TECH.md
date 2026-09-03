@@ -10,6 +10,7 @@
 - `src/game/view/DropGeometry.ts` — renderer-independent drop commitment geometry.
 - `src/game/view/CardFlight.ts` — quadratic flight path math.
 - `src/game/view/MainMenuView.ts` — main menu and pending mode selection.
+- `src/game/view/RenderQuality.ts` — high-resolution Phaser Text settings.
 - `src/game/scenes/GameScene.ts` — wiring between flow, history, model and views.
 - `scripts/chatgpt-context-lib.mjs` — testable tree/Git/context-bundle core.
 - `scripts/chatgpt-context.mjs` — CLI used by `pnpm context*`.
@@ -22,11 +23,15 @@
 - Keep deal-mode selection in the main menu; New Game keeps the active mode.
 - Interaction geometry uses overlap area and may be tuned independently of legal-move rules.
 - Manual drag resolution is always an immediate snap, both for accepted placement and rejected/cancelled return; reserve motion tweens for non-drag/automatic movement.
+- Keep normal antialiasing and subpixel motion; do not use `pixelArt`/nearest-neighbour filtering merely to hide low-resolution source assets.
+- Do not use the unsupported Phaser 3 `GameConfig.resolution` field. Keep `Scale.FIT` capped at the logical game size so desktop canvases are never CSS-upscaled.
+- Load runtime card faces from `public/assets/cards/*.png`; do not use Phaser SVG loading for cards. The current PNGs are 216×302 and are displayed at 108×151. Use Phaser Text resolution 2× for UI labels.
+- `Decks/` is source-art/reference material only; `dev` and `build` must not require asset synchronization or conversion.
 - Prefer tests for rules, state transitions, geometry and animation math.
 - Avoid tests that freeze cosmetic styling, exact colours, mutable UI coordinates or
   exact image bytes unless a temporary migration explicitly needs them.
-- `tests/card-assets.test.ts` checks presence/PNG validity of all 52 runtime faces but
-  intentionally does not hash-lock the current art.
+- Asset tests must not hash-lock artwork or prevent a later reskin; rendering tests should protect
+  resolution/clarity behavior rather than specific visual bytes.
 
 ## Context workflow constraints
 

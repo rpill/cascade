@@ -23,7 +23,10 @@
 
 ## Current visual/input state
 
-- Runtime card faces are the `Horizontal2` set in `public/assets/cards`.
+- Runtime card faces use stable `public/assets/cards/*.png` files; Phaser does not load SVG cards at runtime.
+- The current Horizontal2 runtime PNGs are pre-resampled to 216×302, exactly 2× the logical 108×151 display size. This avoids the broken SVG-loader path and prevents Phaser/browser from enlarging the old 75×113 files during gameplay.
+- `Scale.FIT` is capped at the logical `1152×768` size so desktop viewports do not upscale the whole canvas through CSS.
+- Phaser Text objects use internal resolution 2× for clearer labels while normal antialiasing and subpixel motion stay enabled.
 - Tableau begins at `TABLEAU_Y = 236` so suits remain easier to read.
 - The old empty waste placeholder rectangle is removed.
 - Non-drag moves use shallow quadratic Bézier flights.
@@ -65,6 +68,5 @@ C++20 toolchain configured in `package.json` is available.
 
 ## Current next focus
 
-Playtest the 25% overlap drag/drop threshold. If it still feels too sticky or too
-sensitive, tune only the overlap threshold and its geometry tests rather than changing
-tableau legality rules.
+Playtest the stable 2× PNG card textures and high-resolution UI text on the actual desktop/browser setup after restarting `pnpm dev`. If the UI text still looks soft, tune canvas/CSS scaling separately without changing card asset loading again.
+If text is still soft, check browser zoom and OS scaling before changing gameplay layout.

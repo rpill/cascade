@@ -10,7 +10,14 @@ const ranks = [
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-test('all 52 runtime card faces exist as PNG files', () => {
+function pngSize(bytes: Buffer): { width: number; height: number } {
+  return {
+    width: bytes.readUInt32BE(16),
+    height: bytes.readUInt32BE(20),
+  };
+}
+
+test('all 52 runtime card faces exist as high-resolution PNG files', () => {
   const missingOrInvalid: string[] = [];
 
   for (const suit of suits) {
@@ -21,6 +28,12 @@ test('all 52 runtime card faces exist as PNG files', () => {
       try {
         const bytes = readFileSync(runtime);
         if (bytes.length <= PNG_SIGNATURE.length || !bytes.subarray(0, 8).equals(PNG_SIGNATURE)) {
+          missingOrInvalid.push(fileName);
+          continue;
+        }
+
+        const { width, height } = pngSize(bytes);
+        if (width < 216 || height < 302) {
           missingOrInvalid.push(fileName);
         }
       } catch {

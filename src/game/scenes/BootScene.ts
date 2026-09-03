@@ -34,7 +34,10 @@ export class BootScene extends Phaser.Scene {
       }
     });
 
-    this.load.image('card-back', '/assets/cards/redBack.png');
+    this.load.image(
+      'card-back',
+      '/assets/cards/redBack.png',
+    );
   }
 
   create(): void {

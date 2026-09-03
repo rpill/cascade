@@ -60,3 +60,13 @@ Drag-and-drop must avoid both extremes:
 The current implementation uses overlap-based commitment in `DropGeometry.ts`: roughly
 25% of the moving card must overlap the target. This threshold is interaction tuning, not
 a sacred game rule, and may be adjusted from playtesting without changing solitaire mechanics.
+
+## Rendering quality contract
+
+- Gameplay coordinates and layout remain resolution-independent logical pixels.
+- Normal antialiasing and subpixel motion stay enabled; do not switch the whole game to pixel-art filtering to mask blurry assets.
+- Desktop rendering must not upscale the entire logical canvas through CSS when the viewport is already large enough; preserve 1:1 canvas display where possible.
+- Phaser Text may use a higher internal texture resolution for clarity without changing logical layout coordinates.
+- Card runtime assets should have enough raster resolution for their displayed size. The current Horizontal2 implementation uses 216×302 PNG textures for a logical 108×151 card and does not depend on runtime SVG rasterization.
+- Rendering-quality tests protect these technical guarantees, not exact artwork bytes, colours or a permanent card pack.
+
