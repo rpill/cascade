@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-test('successful drag snaps directly into place while rejected drag still settles back', async () => {
+test('manual drag snaps directly into place whether accepted or rejected', async () => {
   const source = await readFile('src/game/view/BoardView.ts', 'utf8');
 
   assert.match(
@@ -15,9 +15,18 @@ test('successful drag snaps directly into place while rejected drag still settle
     /this\.sync\(animateInitialMove \? initialMotion : null\);/,
     'the complete-action finisher must support an immediate snap sync',
   );
+  const endDrag = source.slice(
+    source.indexOf('private endDrag(): void'),
+    source.indexOf('private finishMoveWithAutoFoundation'),
+  );
   assert.match(
-    source,
+    endDrag,
+    /this\.sync\(null\);/,
+    'a rejected drag must snap immediately back to its previous placement',
+  );
+  assert.doesNotMatch(
+    endDrag,
     /this\.sync\('player'\);/,
-    'a rejected drag should still animate back to its previous placement',
+    'a rejected drag must not use the player settle tween',
   );
 });

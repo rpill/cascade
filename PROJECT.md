@@ -55,7 +55,7 @@ Drag-and-drop must avoid both extremes:
 
 - merely grazing a target edge must not accidentally commit a move;
 - a player must not need to drag the card close to the target center either.
-- a successful manual drag snaps immediately to its exact destination without a settle tween; rejected drags may animate back.
+- every manual drag resolves immediately with no settle tween: accepted drags snap to the destination, while rejected/cancelled drags snap back to the original placement.
 
 The current implementation uses a small inner safety margin in `DropGeometry.ts`.
 This value is interaction tuning, not a sacred game rule, and may be adjusted from

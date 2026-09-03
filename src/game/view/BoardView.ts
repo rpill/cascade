@@ -509,7 +509,7 @@ export class BoardView {
       return;
     }
 
-    this.sync('player');
+    this.sync(null);
   }
 
   private finishMoveWithAutoFoundation(

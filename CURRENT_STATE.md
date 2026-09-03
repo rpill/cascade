@@ -30,7 +30,7 @@
 - Drop commitment uses an **8 px inner safety margin** around the visible target.
   This replaces the previous 18 px margin: edge grazing is still rejected, but the
   player no longer needs to pull the moving card so close to the target center.
-- Successful manual drag-and-drop snaps directly into the exact destination with no player settle tween; rejected drags still animate back.
+- Manual drag-and-drop has no settle tween in either direction: accepted drags snap directly into the destination, while rejected/cancelled drags snap immediately back to the previous placement.
 
 ## ChatGPT handoff workflow
 
