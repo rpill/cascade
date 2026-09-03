@@ -20,7 +20,8 @@ test('deal contains a full unique deck and 1..7 tableau columns', () => {
 
 test('tableau accepts descending alternating runs', () => {
   const game = new SolitaireGame({
-    seed: 1,
+    seed: 1n,
+    mode: 'original',
     tableau: [
       [createCard('spades', 10)],
       [createCard('hearts', 9), createCard('clubs', 8)],
@@ -38,7 +39,8 @@ test('tableau accepts descending alternating runs', () => {
 
 test('drawing exposes three cards and unlocks the stock free cell at the end', () => {
   const game = new SolitaireGame({
-    seed: 1,
+    seed: 1n,
+    mode: 'original',
     tableau: [[], [], [], [], [], [], []],
     stock: [
       createCard('clubs', 2),
@@ -55,11 +57,66 @@ test('drawing exposes three cards and unlocks the stock free cell at the end', (
   assert.equal(game.freeCellAvailable, true);
 });
 
+test('draw-three keeps the original order when the third card can move', () => {
+  const first = createCard('hearts', 6);
+  const second = createCard('spades', 12);
+  const third = createCard('diamonds', 8);
+  const game = new SolitaireGame({
+    seed: 1n,
+    mode: 'original',
+    tableau: [[createCard('clubs', 9)], [], [], [], [], [], []],
+    stock: [third, second, first],
+  });
+
+  assert.deepEqual(game.draw().map((card) => card.id), [
+    first.id,
+    second.id,
+    third.id,
+  ]);
+  assert.equal(game.waste.at(-1)?.id, third.id);
+});
+
+test('draw-three exposes the first card when only it is playable', () => {
+  const first = createCard('hearts', 6);
+  const second = createCard('spades', 12);
+  const third = createCard('diamonds', 4);
+  const game = new SolitaireGame({
+    seed: 1n,
+    mode: 'original',
+    tableau: [[createCard('clubs', 7)], [], [], [], [], [], []],
+    stock: [third, second, first],
+  });
+
+  assert.deepEqual(game.draw().map((card) => card.id), [
+    third.id,
+    second.id,
+    first.id,
+  ]);
+  assert.equal(game.waste.at(-1)?.id, first.id);
+});
+
+test('empty tableau columns do not suppress the original draw swap', () => {
+  const first = createCard('hearts', 6);
+  const second = createCard('spades', 12);
+  const third = createCard('diamonds', 4);
+  const game = new SolitaireGame({
+    seed: 1n,
+    mode: 'original',
+    tableau: [[], [], [], [], [], [], []],
+    stock: [third, second, first],
+  });
+
+  game.draw();
+
+  assert.equal(game.waste.at(-1)?.id, first.id);
+});
+
 test('foundations build by suit from ace and remain one-way', () => {
   const ace = createCard('hearts', 1);
   const two = createCard('hearts', 2);
   const game = new SolitaireGame({
-    seed: 1,
+    seed: 1n,
+    mode: 'original',
     tableau: [[ace], [two], [], [], [], [], []],
     stock: [],
   });
@@ -74,7 +131,8 @@ test('automatic foundation moves chain from an exposed ace into its two', () => 
   const ace = createCard('hearts', 1);
   const two = createCard('hearts', 2);
   const game = new SolitaireGame({
-    seed: 1,
+    seed: 1n,
+    mode: 'original',
     tableau: [[], [], [], [], [], [], []],
     stock: [],
     waste: [two, ace],
@@ -97,7 +155,8 @@ test('automatic foundation holds a three until both opposite-colour twos are saf
   const diamondTwo = createCard('diamonds', 2);
   const blockingCard = createCard('hearts', 5);
   const game = new SolitaireGame({
-    seed: 1,
+    seed: 1n,
+    mode: 'original',
     tableau: [
       [clubThree],
       [diamondTwo, blockingCard],

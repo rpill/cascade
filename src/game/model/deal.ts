@@ -1,59 +1,31 @@
 import { createDeck } from './cards.ts';
-import type { Card, Deal } from './types.ts';
+import type { Card, Deal, GameMode } from './types.ts';
+import {
+  normalizeDealSeed,
+  OriginalRandom,
+  type DealSeedInput,
+} from './OriginalRandom.ts';
 
-function seedToUint32(seed: number | string): number {
-  if (typeof seed === 'number' && Number.isFinite(seed)) {
-    return seed >>> 0;
+function shuffleInPlace(cards: Card[], random: OriginalRandom): void {
+  for (let index = cards.length - 1; index > 0; index -= 1) {
+    const swapIndex = random.nextInt(index + 1);
+    [cards[index], cards[swapIndex]] = [cards[swapIndex], cards[index]];
   }
-
-  let hash = 2166136261;
-
-  for (const character of String(seed)) {
-    hash ^= character.charCodeAt(0);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  return hash >>> 0;
 }
 
-function mulberry32(seed: number): () => number {
-  let value = seed;
-
-  return () => {
-    value += 0x6d2b79f5;
-
-    let result = value;
-    result = Math.imul(result ^ (result >>> 15), result | 1);
-    result ^= result + Math.imul(result ^ (result >>> 7), result | 61);
-
-    return ((result ^ (result >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function shuffle(cards: readonly Card[], random: () => number): Card[] {
-  const result = [...cards];
-
-  for (let index = result.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(random() * (index + 1));
-    [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
-  }
-
-  return result;
-}
-
-function dealTableau(deck: Card[]): { tableau: Card[][]; stock: Card[] } {
+function dealTableau(deck: readonly Card[]): { tableau: Card[][]; stock: Card[] } {
   const tableau = Array.from({ length: 7 }, () => [] as Card[]);
-  let cursor = 0;
+  let cursor = deck.length - 1;
 
   for (let row = 0; row < 7; row += 1) {
     for (let pile = row; pile < 7; pile += 1) {
       tableau[pile].push(deck[cursor]);
-      cursor += 1;
+      cursor -= 1;
     }
   }
 
   // The top of every model pile is its final array element.
-  const stock = deck.slice(cursor).reverse();
+  const stock = deck.slice(0, cursor + 1);
 
   return { tableau, stock };
 }
@@ -88,25 +60,34 @@ export function hasOriginalOpeningConstraint(tableau: readonly Card[][]): boolea
  * Reproduces Hikone's opening constraint: the seven exposed cards contain
  * no aces and no immediately compatible opposite-colour pair.
  */
-export function createSawayamaDeal(
-  seed: number | string = Date.now(),
+export function createOriginalDeal(
+  seed: DealSeedInput = BigInt(Date.now()),
+  mode: GameMode = 'original',
 ): Deal {
-  const normalizedSeed = seedToUint32(seed);
-  const random = mulberry32(normalizedSeed);
+  const normalizedSeed = normalizeDealSeed(seed);
+  const random = new OriginalRandom(normalizedSeed);
   const deck = createDeck();
 
   for (let attempt = 0; attempt < 10_000; attempt += 1) {
-    const candidate = dealTableau(shuffle(deck, random));
+    shuffleInPlace(deck, random);
+    const candidate = dealTableau(deck);
 
     if (hasOriginalOpeningConstraint(candidate.tableau)) {
       return {
         seed: normalizedSeed,
+        mode,
         ...candidate,
       };
     }
   }
 
   throw new Error('Could not generate a valid Sawayama opening.');
+}
+
+export const createSawayamaDeal = createOriginalDeal;
+
+export function createDealForMode(mode: GameMode, seed: DealSeedInput): Deal {
+  return createOriginalDeal(seed, mode);
 }
 
 export function getTableauDealSequence(tableau: readonly Card[][]): Card[] {

@@ -7,6 +7,7 @@ export const SUITS = [
 
 export type Suit = (typeof SUITS)[number];
 export type CardColor = 'black' | 'red';
+export type GameMode = 'original' | 'winnable';
 
 export interface Card {
   readonly id: string;
@@ -27,8 +28,17 @@ export type MoveTarget =
 
 export type Foundations = Record<Suit, Card[]>;
 
+export interface SolitaireSnapshot {
+  readonly tableau: readonly (readonly Card[])[];
+  readonly stock: readonly Card[];
+  readonly waste: readonly Card[];
+  readonly foundations: Readonly<Record<Suit, readonly Card[]>>;
+  readonly freeCell: Card | null;
+}
+
 export interface Deal {
-  readonly seed: number;
+  readonly seed: bigint;
+  readonly mode: GameMode;
   readonly tableau: Card[][];
   readonly stock: Card[];
   readonly waste?: Card[];

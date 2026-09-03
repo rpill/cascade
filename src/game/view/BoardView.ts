@@ -14,13 +14,12 @@ import {
   CARD_WIDTH,
   FOUNDATION_X,
   FOUNDATION_Y,
-  GAME_HEIGHT,
   GAME_WIDTH,
+  getBoardSlots,
   STOCK_X,
   STOCK_Y,
   TABLEAU_X,
   TABLEAU_Y,
-  WASTE_X,
   tableauCardY,
   wasteCardX,
   type Point,
@@ -33,6 +32,8 @@ import {
   type CardMotionKind,
 } from './CardAnimation.ts';
 import { getCardDepthTransition } from './CardMotionDepth.ts';
+import { getCardFlightPoint } from './CardFlight.ts';
+import { isCommittedCardDrop } from './DropGeometry.ts';
 import {
   MAX_STOCK_LAYERS,
   StockVisualState,
@@ -43,8 +44,10 @@ interface BoardActions {
   readonly move: (source: CardSource, target: MoveTarget) => boolean;
   readonly autoFoundation: (source: CardSource) => boolean;
   readonly autoFoundationStep: () => Card | null;
+  readonly undo: () => boolean;
   readonly restart: () => void;
   readonly newGame: () => void;
+  readonly mainMenu: () => void;
 }
 
 interface Placement extends Point {
@@ -81,6 +84,10 @@ export class BoardView {
   private readonly stockBacks: Phaser.GameObjects.Image[] = [];
   private readonly ownedObjects: Phaser.GameObjects.GameObject[] = [];
   private readonly timers: Phaser.Time.TimerEvent[] = [];
+  private readonly activeFlights = new Map<
+    Phaser.GameObjects.Image,
+    Phaser.Tweens.Tween
+  >();
   private readonly stockVisual: StockVisualState;
 
   private dragState: DragState | null = null;
@@ -133,13 +140,7 @@ export class BoardView {
         image
           .setPosition(STOCK_X, stockOriginY)
           .setVisible(true);
-        this.scene.tweens.add({
-          targets: image,
-          x: target.x,
-          y: target.y,
-          duration: getCardMotionDuration('stock'),
-          ease: 'Cubic.easeOut',
-        });
+        this.animateCardTo(image, target, 'stock');
       });
 
       this.timers.push(timer);
@@ -161,7 +162,8 @@ export class BoardView {
 
   destroy(): void {
     this.timers.forEach((timer) => timer.remove(false));
-    this.scene.tweens.killTweensOf([...this.cardImages.values()]);
+    this.activeFlights.forEach((flight) => flight.stop());
+    this.activeFlights.clear();
     this.ownedObjects.forEach((object) => object.destroy());
     this.cardImages.clear();
   }
@@ -177,9 +179,11 @@ export class BoardView {
   }
 
   private createSlots(): void {
-    SUITS.forEach((suit, index) => {
-      this.createSlot(FOUNDATION_X, FOUNDATION_Y[index]);
+    getBoardSlots().forEach((slot) => {
+      this.createSlot(slot.x, slot.y, slot.alpha);
+    });
 
+    SUITS.forEach((suit, index) => {
       const color = suit === 'diamonds' || suit === 'hearts'
         ? '#8c514a'
         : '#66706e';
@@ -197,11 +201,6 @@ export class BoardView {
 
       this.ownedObjects.push(symbol);
     });
-
-    this.createSlot(STOCK_X, STOCK_Y);
-    this.createSlot(WASTE_X, STOCK_Y, 0.22);
-
-    TABLEAU_X.forEach((x) => this.createSlot(x, TABLEAU_Y, 0.16));
 
     const freeArrow = this.scene.add.text(
       STOCK_X + CARD_WIDTH / 2,
@@ -232,10 +231,22 @@ export class BoardView {
 
   private createGameButtons(): void {
     this.createGameButton(
-      GAME_WIDTH - 212,
+      GAME_WIDTH - 472,
+      104,
+      'В МЕНЮ',
+      () => this.actions.mainMenu(),
+    );
+    this.createGameButton(
+      GAME_WIDTH - 340,
       144,
-      'НОВАЯ ИГРА',
+      'НОВАЯ ИГРА  N',
       () => this.actions.newGame(),
+    );
+    this.createGameButton(
+      GAME_WIDTH - 196,
+      128,
+      'ОТМЕНА  Z',
+      () => this.requestUndo(),
     );
     this.createGameButton(
       GAME_WIDTH - 68,
@@ -332,6 +343,25 @@ export class BoardView {
     });
   }
 
+  requestUndo(): void {
+    if (this.inputLocked || !this.actions.undo()) {
+      return;
+    }
+
+    this.inputLocked = true;
+    this.sync('undo');
+
+    const timer = this.scene.time.delayedCall(
+      getCardMotionDuration('undo') + 20,
+      () => {
+        this.inputLocked = false;
+        this.sync(null);
+      },
+    );
+
+    this.timers.push(timer);
+  }
+
   private handleStockClick(): void {
     if (this.inputLocked) {
       return;
@@ -374,14 +404,12 @@ export class BoardView {
         .setPosition(STOCK_X, stockOriginY)
         .setDepth(1200 + index);
 
-      this.scene.tweens.add({
-        targets: image,
-        x: target.x,
-        y: target.y,
-        duration: getCardMotionDuration('stock'),
-        delay: index * STOCK_DRAW_STAGGER,
-        ease: 'Cubic.easeOut',
-      });
+      this.animateCardTo(
+        image,
+        target,
+        'stock',
+        index * STOCK_DRAW_STAGGER,
+      );
     });
 
     const timer = this.scene.time.delayedCall(
@@ -525,19 +553,26 @@ export class BoardView {
     );
 
     const candidates: Array<{ target: MoveTarget; bounds: Phaser.Geom.Rectangle; center: Point }> = [
-      ...TABLEAU_X.map((x, pile) => ({
-        target: { zone: 'tableau', pile } as const,
-        bounds: new Phaser.Geom.Rectangle(x - 18, TABLEAU_Y - 18, CARD_WIDTH + 36, GAME_HEIGHT - TABLEAU_Y + 18),
-        center: { x: x + CARD_WIDTH / 2, y: TABLEAU_Y + CARD_HEIGHT / 2 },
-      })),
+      ...TABLEAU_X.map((x, pile) => {
+        const cards = this.game.tableau[pile];
+        const y = cards.length === 0
+          ? TABLEAU_Y
+          : tableauCardY(cards.length, cards.length - 1);
+
+        return {
+          target: { zone: 'tableau', pile } as const,
+          bounds: new Phaser.Geom.Rectangle(x, y, CARD_WIDTH, CARD_HEIGHT),
+          center: { x: x + CARD_WIDTH / 2, y: y + CARD_HEIGHT / 2 },
+        };
+      }),
       ...SUITS.map((suit, index) => ({
         target: { zone: 'foundation', suit } as const,
-        bounds: new Phaser.Geom.Rectangle(FOUNDATION_X - 14, FOUNDATION_Y[index] - 14, CARD_WIDTH + 28, CARD_HEIGHT + 28),
+        bounds: new Phaser.Geom.Rectangle(FOUNDATION_X, FOUNDATION_Y[index], CARD_WIDTH, CARD_HEIGHT),
         center: { x: FOUNDATION_X + CARD_WIDTH / 2, y: FOUNDATION_Y[index] + CARD_HEIGHT / 2 },
       })),
       {
         target: { zone: 'free' } as const,
-        bounds: new Phaser.Geom.Rectangle(STOCK_X - 14, STOCK_Y - 14, CARD_WIDTH + 28, CARD_HEIGHT + 28),
+        bounds: new Phaser.Geom.Rectangle(STOCK_X, STOCK_Y, CARD_WIDTH, CARD_HEIGHT),
         center: { x: STOCK_X + CARD_WIDTH / 2, y: STOCK_Y + CARD_HEIGHT / 2 },
       },
     ];
@@ -547,7 +582,7 @@ export class BoardView {
 
     return candidates
       .filter((candidate) =>
-        Phaser.Geom.Intersects.RectangleToRectangle(movingBounds, candidate.bounds)
+        isCommittedCardDrop(movingBounds, candidate.bounds)
         && this.game.canMove(source, candidate.target),
       )
       .sort((left, right) => {
@@ -593,16 +628,13 @@ export class BoardView {
       image.setDepth(depth.active);
 
       if (animated && positionChanged) {
-        this.scene.tweens.killTweensOf(image);
-        this.scene.tweens.add({
-          targets: image,
-          x: placement.x,
-          y: placement.y,
-          duration: getCardMotionDuration(motion),
-          ease: 'Cubic.easeOut',
-          onComplete: () => image.setDepth(depth.resting),
-        });
+        this.animateCardTo(
+          image,
+          { ...placement, depth: depth.resting },
+          motion,
+        );
       } else if (!animated) {
+        this.stopCardFlight(image);
         image.setPosition(placement.x, placement.y);
       }
 
@@ -613,6 +645,51 @@ export class BoardView {
     });
 
     this.updateStockStack();
+  }
+
+  private animateCardTo(
+    image: Phaser.GameObjects.Image,
+    placement: Placement,
+    motion: CardMotionKind,
+    delay = 0,
+  ): void {
+    this.stopCardFlight(image);
+
+    const start = { x: image.x, y: image.y };
+    const target = { x: placement.x, y: placement.y };
+    let flight!: Phaser.Tweens.Tween;
+
+    flight = this.scene.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: getCardMotionDuration(motion),
+      delay,
+      ease: 'Cubic.easeOut',
+      onUpdate: (tween) => {
+        const progress = tween.getValue();
+
+        if (progress !== null) {
+          const point = getCardFlightPoint(start, target, progress);
+          image.setPosition(point.x, point.y);
+        }
+      },
+      onComplete: () => {
+        if (this.activeFlights.get(image) === flight) {
+          this.activeFlights.delete(image);
+        }
+
+        image
+          .setPosition(placement.x, placement.y)
+          .setDepth(placement.depth);
+      },
+    });
+
+    this.activeFlights.set(image, flight);
+  }
+
+  private stopCardFlight(image: Phaser.GameObjects.Image): void {
+    this.activeFlights.get(image)?.stop();
+    this.activeFlights.delete(image);
   }
 
   private calculatePlacements(): Map<string, Placement> {

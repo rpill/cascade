@@ -1,16 +1,18 @@
 import Phaser from 'phaser';
 
+import { GameFlow } from '../model/GameFlow.ts';
+import { GameHistory } from '../model/GameHistory.ts';
 import { SolitaireGame } from '../model/SolitaireGame.ts';
-import { createSawayamaDeal } from '../model/deal.ts';
-import type { CardSource, MoveTarget } from '../model/types.ts';
+import type { Deal } from '../model/types.ts';
 import { BoardView } from '../view/BoardView.ts';
+import { MainMenuView } from '../view/MainMenuView.ts';
 import { notifyPlatformReady } from '../../platform/yandex.ts';
-import { createNextDealSeed } from './dealSeed.ts';
 
 export class GameScene extends Phaser.Scene {
-  private seed = 0;
-  private gameState!: SolitaireGame;
-  private board!: BoardView;
+  private flow!: GameFlow;
+  private readonly history = new GameHistory();
+  private board: BoardView | null = null;
+  private mainMenu!: MainMenuView;
 
   constructor() {
     super('GameScene');
@@ -18,47 +20,116 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.input.dragDistanceThreshold = 7;
+    this.flow = new GameFlow();
+    this.mainMenu = new MainMenuView(this, {
+      select: (mode) => this.flow.selectMenuMode(mode),
+      play: () => this.playSelectedMode(),
+      cancel: () => this.closeMainMenu(),
+    });
+    this.mainMenu.show({
+      canCancel: false,
+      selectedMode: this.flow.selectedMode,
+    });
 
-    this.seed = this.generateSeed();
-
-    this.startDeal();
-
-    this.input.keyboard?.on('keydown-R', () => this.restartDeal());
+    this.input.keyboard?.on('keydown-R', this.restartDeal, this);
+    this.input.keyboard?.on('keydown-Z', this.undoLastAction, this);
+    this.input.keyboard?.on('keydown-N', this.startNewDeal, this);
+    this.input.keyboard?.on('keydown-ESC', this.closeMainMenu, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
     void notifyPlatformReady();
   }
 
-  private startDeal(): void {
-    this.gameState = new SolitaireGame(createSawayamaDeal(this.seed));
-    this.board = new BoardView(this, this.gameState, {
-      draw: () => this.gameState.draw(),
-      move: (source, target) => this.move(source, target),
-      autoFoundation: (source) => this.gameState.moveToFoundation(source),
-      autoFoundationStep: () => this.gameState.autoMoveToFoundation(),
+  private startDeal(deal: Deal): void {
+    this.history.clear();
+    const gameState = new SolitaireGame(deal);
+    this.board = new BoardView(this, gameState, {
+      draw: () => this.history.execute(
+        gameState,
+        () => gameState.draw(),
+        (cards) => cards.length > 0,
+      ),
+      move: (source, target) => this.history.execute(
+        gameState,
+        () => gameState.move(source, target),
+        Boolean,
+      ),
+      autoFoundation: (source) => this.history.execute(
+        gameState,
+        () => gameState.moveToFoundation(source),
+        Boolean,
+      ),
+      autoFoundationStep: () => gameState.autoMoveToFoundation(),
+      undo: () => this.history.undo(gameState),
       restart: () => this.restartDeal(),
       newGame: () => this.startNewDeal(),
+      mainMenu: () => this.openMainMenu(),
     });
 
     this.board.playInitialDeal();
   }
 
   private restartDeal(): void {
-    this.board.destroy();
-    this.startDeal();
+    if (this.flow.state !== 'playing') {
+      return;
+    }
+
+    const deal = this.flow.restart();
+    this.board?.destroy();
+    this.startDeal(deal);
   }
 
   private startNewDeal(): void {
-    this.seed = createNextDealSeed(this.seed, this.generateSeed());
-    this.restartDeal();
+    if (this.flow.state !== 'playing') {
+      return;
+    }
+
+    const deal = this.flow.startNewInCurrentMode();
+    this.board?.destroy();
+    this.startDeal(deal);
   }
 
-  private generateSeed(): number {
-    return (
-      Date.now()
-      ^ Math.floor(Math.random() * 0xffff_ffff)
-    ) >>> 0;
+  private openMainMenu(): void {
+    if (!this.flow.openMainMenu()) {
+      return;
+    }
+
+    this.mainMenu.show({
+      canCancel: this.flow.canCancelMenu,
+      selectedMode: this.flow.selectedMode,
+    });
   }
 
-  private move(source: CardSource, target: MoveTarget): boolean {
-    return this.gameState.move(source, target);
+  private closeMainMenu(): void {
+    if (this.flow.cancelMenu()) {
+      this.mainMenu.hide();
+    }
+  }
+
+  private playSelectedMode(): void {
+    if (this.flow.state === 'playing') {
+      return;
+    }
+
+    const deal = this.flow.playSelectedMode();
+    this.mainMenu.hide();
+    this.board?.destroy();
+    this.startDeal(deal);
+  }
+
+  private undoLastAction(): void {
+    if (this.flow.state !== 'playing') {
+      return;
+    }
+
+    this.board?.requestUndo();
+  }
+
+  private shutdown(): void {
+    this.input.keyboard?.off('keydown-R', this.restartDeal, this);
+    this.input.keyboard?.off('keydown-Z', this.undoLastAction, this);
+    this.input.keyboard?.off('keydown-N', this.startNewDeal, this);
+    this.input.keyboard?.off('keydown-ESC', this.closeMainMenu, this);
+    this.mainMenu.destroy();
+    this.board?.destroy();
   }
 }

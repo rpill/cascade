@@ -1,9 +1,10 @@
-export type CardMotionKind = 'stock' | 'foundation' | 'player';
+export type CardMotionKind = 'stock' | 'foundation' | 'player' | 'undo';
 
 const CARD_MOTION_DURATION: Record<CardMotionKind, number> = {
   stock: 260,
   foundation: 230,
   player: 110,
+  undo: 110,
 };
 
 const FOUNDATION_STEP_DELAY = 250;

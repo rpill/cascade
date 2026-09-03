@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-type CardMotionKind = 'stock' | 'foundation' | 'player';
+type CardMotionKind = 'stock' | 'foundation' | 'player' | 'undo';
 
 interface CardAnimationModule {
   getCardMotionDuration?: (kind: CardMotionKind) => number;
@@ -71,5 +71,20 @@ test('foundation cards settle before the next automatic step starts', async () =
 
   assert.ok(
     getFoundationStepDelay() >= getCardMotionDuration('foundation'),
+  );
+});
+
+
+test('undo uses the same quick settle duration as a player move', async () => {
+  const { getCardMotionDuration } = await loadCardAnimation();
+
+  assert.equal(typeof getCardMotionDuration, 'function');
+  if (getCardMotionDuration === undefined) {
+    assert.fail('card motion durations are unavailable');
+  }
+
+  assert.equal(
+    getCardMotionDuration('undo'),
+    getCardMotionDuration('player'),
   );
 });

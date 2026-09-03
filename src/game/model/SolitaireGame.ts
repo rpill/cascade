@@ -4,7 +4,9 @@ import {
   type CardSource,
   type Deal,
   type Foundations,
+  type GameMode,
   type MoveTarget,
+  type SolitaireSnapshot,
   type Suit,
 } from './types.ts';
 import { createSawayamaDeal } from './deal.ts';
@@ -20,7 +22,8 @@ function cloneFoundations(source?: Partial<Foundations>): Foundations {
 }
 
 export class SolitaireGame {
-  readonly seed: number;
+  readonly seed: bigint;
+  readonly mode: GameMode;
   readonly tableau: Card[][];
   readonly stock: Card[];
   readonly waste: Card[];
@@ -30,6 +33,7 @@ export class SolitaireGame {
 
   constructor(deal: Deal = createSawayamaDeal()) {
     this.seed = deal.seed;
+    this.mode = deal.mode;
     this.tableau = deal.tableau.map((pile) => [...pile]);
     this.stock = [...deal.stock];
     this.waste = [...(deal.waste ?? [])];
@@ -52,6 +56,36 @@ export class SolitaireGame {
     return this.foundationCount === 52;
   }
 
+  snapshot(): SolitaireSnapshot {
+    return {
+      tableau: this.tableau.map((pile) => [...pile]),
+      stock: [...this.stock],
+      waste: [...this.waste],
+      foundations: cloneFoundations(this.foundations),
+      freeCell: this.freeCell,
+    };
+  }
+
+  restore(snapshot: SolitaireSnapshot): void {
+    this.tableau.splice(
+      0,
+      this.tableau.length,
+      ...snapshot.tableau.map((pile) => [...pile]),
+    );
+    this.stock.splice(0, this.stock.length, ...snapshot.stock);
+    this.waste.splice(0, this.waste.length, ...snapshot.waste);
+
+    SUITS.forEach((suit) => {
+      this.foundations[suit].splice(
+        0,
+        this.foundations[suit].length,
+        ...snapshot.foundations[suit],
+      );
+    });
+
+    this.freeCell = snapshot.freeCell;
+  }
+
   draw(): Card[] {
     if (this.stock.length === 0) {
       return [];
@@ -67,10 +101,12 @@ export class SolitaireGame {
       }
     }
 
-    // This small reversal is present in Hikone: when none of the next three
-    // cards is currently playable, the first card stays accessible on top.
-    if (!drawn.some((card) => this.canPlayCardAnywhere(card))) {
-      drawn.reverse();
+    // Hikone tests only the third card, which would normally remain exposed.
+    // Empty tableau columns are deliberately excluded from this heuristic.
+    const exposedCard = drawn[2];
+
+    if (exposedCard !== undefined && !this.canPlayVisibleDrawCard(exposedCard)) {
+      [drawn[0], drawn[2]] = [drawn[2], drawn[0]];
     }
 
     this.waste.push(...drawn);
@@ -207,12 +243,12 @@ export class SolitaireGame {
       && card.rank === this.foundations[suit].length + 1;
   }
 
-  private canPlayCardAnywhere(card: Card): boolean {
+  private canPlayVisibleDrawCard(card: Card): boolean {
     return SUITS.some((suit) => this.canStackOnFoundation(card, suit))
       || this.tableau.some((pile) => {
         const destination = pile.at(-1);
-        return destination === undefined
-          || this.canStackOnTableau(card, destination);
+        return destination !== undefined
+          && this.canStackOnTableau(card, destination);
       });
   }
 

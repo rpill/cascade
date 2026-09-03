@@ -10,7 +10,7 @@ export const FOUNDATION_Y = [24, 205, 386, 567] as const;
 export const STOCK_X = 194;
 export const STOCK_Y = 62;
 export const WASTE_X = 328;
-export const TABLEAU_Y = 260;
+export const TABLEAU_Y = 236;
 export const TABLEAU_X = Array.from(
   { length: 7 },
   (_, index) => STOCK_X + index * 134,
@@ -22,6 +22,36 @@ export const WASTE_GAP = 26;
 export interface Point {
   readonly x: number;
   readonly y: number;
+}
+
+export type BoardSlotKind = 'foundation' | 'stock' | 'tableau';
+
+export interface BoardSlot extends Point {
+  readonly kind: BoardSlotKind;
+  readonly alpha: number;
+}
+
+export function getBoardSlots(): BoardSlot[] {
+  return [
+    ...FOUNDATION_Y.map((y) => ({
+      kind: 'foundation' as const,
+      x: FOUNDATION_X,
+      y,
+      alpha: 0.32,
+    })),
+    {
+      kind: 'stock' as const,
+      x: STOCK_X,
+      y: STOCK_Y,
+      alpha: 0.32,
+    },
+    ...TABLEAU_X.map((x) => ({
+      kind: 'tableau' as const,
+      x,
+      y: TABLEAU_Y,
+      alpha: 0.16,
+    })),
+  ];
 }
 
 export function tableauCardY(cardCount: number, index: number): number {

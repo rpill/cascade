@@ -1,0 +1,45 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+
+const sceneSource = readFileSync(
+  new URL('../src/game/scenes/GameScene.ts', import.meta.url),
+  'utf8',
+);
+const boardSource = readFileSync(
+  new URL('../src/game/view/BoardView.ts', import.meta.url),
+  'utf8',
+);
+
+test('the scene uses a persistent main menu and N starts immediately', () => {
+  assert.match(sceneSource, /MainMenuView/);
+  assert.match(sceneSource, /startNewInCurrentMode\(\)/);
+  assert.match(sceneSource, /openMainMenu\(\)/);
+  assert.match(sceneSource, /playSelectedMode\(\)/);
+  assert.doesNotMatch(sceneSource, /openNewGameMenu/);
+});
+
+test('board exposes separate menu, new game, undo, and restart controls', () => {
+  assert.match(boardSource, /readonly mainMenu:\s*\(\) => void/);
+  assert.match(boardSource, /В МЕНЮ/);
+  assert.match(boardSource, /НОВАЯ ИГРА\s+N/);
+  assert.match(boardSource, /ОТМЕНА\s+Z/);
+  assert.match(boardSource, /РЕСТАРТ\s+R/);
+});
+
+test('main menu has explicit Play and replaces the old mode prompt view', () => {
+  const mainMenuPath = new URL('../src/game/view/MainMenuView.ts', import.meta.url);
+  const oldMenuPath = new URL('../src/game/view/ModeMenuView.ts', import.meta.url);
+
+  assert.equal(existsSync(mainMenuPath), true);
+  assert.equal(existsSync(oldMenuPath), false);
+
+  if (!existsSync(mainMenuPath)) {
+    return;
+  }
+
+  const menuSource = readFileSync(mainMenuPath, 'utf8');
+  assert.match(menuSource, /ИГРАТЬ/);
+  assert.match(menuSource, /selectedMode/);
+  assert.match(menuSource, /canCancel/);
+});
