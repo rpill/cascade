@@ -6,6 +6,7 @@ import { SolitaireGame } from '../model/SolitaireGame.ts';
 import type { Deal, GameMode } from '../model/types.ts';
 import { BoardView } from '../view/BoardView.ts';
 import { DailyCompleteView } from '../view/DailyCompleteView.ts';
+import { GameCompleteView } from '../view/GameCompleteView.ts';
 import {
   MainMenuView,
   type DailyMenuState,
@@ -70,6 +71,7 @@ export class GameScene extends Phaser.Scene {
   private gameState: SolitaireGame | null = null;
   private mainMenu!: MainMenuView;
   private dailyCompleteView!: DailyCompleteView;
+  private gameCompleteView!: GameCompleteView;
 
   private activeGameRepository!: ActiveGameRepository;
   private pendingActiveSave: ActiveGameSaveV1 | null = null;
@@ -101,6 +103,10 @@ export class GameScene extends Phaser.Scene {
     this.dailyCompleteView = new DailyCompleteView(this, {
       retry: () => this.retryDaily(),
       menu: () => this.openMenuFromDailyComplete(),
+    });
+    this.gameCompleteView = new GameCompleteView(this, {
+      newGame: () => this.startNewDeal(),
+      menu: () => this.openMenuFromGameComplete(),
     });
 
     this.activeGameRepository = new ActiveGameRepository();
@@ -145,6 +151,9 @@ export class GameScene extends Phaser.Scene {
             && (loadedBest === undefined || completion.elapsedMs < loadedBest),
         },
       };
+      if (this.flow.state === 'playing' && this.gameState?.isWon) {
+        this.showOrdinaryCompletion();
+      }
     }
     void this.metaRepository.save(this.metaState);
 
@@ -274,6 +283,7 @@ export class GameScene extends Phaser.Scene {
 
     this.resetAttempt();
     this.dailyCompleteView.hide();
+    this.gameCompleteView.hide();
     this.history.clear();
     const gameState = new SolitaireGame(deal);
     this.gameState = gameState;
@@ -420,9 +430,26 @@ export class GameScene extends Phaser.Scene {
       elapsedMs,
       result: completion,
     };
+    this.showOrdinaryCompletion();
     void this.metaRepository?.save(this.metaState, true);
     this.activeGameRepository.clear();
     this.pendingActiveSave = null;
+  }
+
+  private showOrdinaryCompletion(): void {
+    const completion = this.lastOrdinaryCompletion;
+    if (completion === null) {
+      return;
+    }
+
+    this.gameCompleteView.show({
+      mode: completion.mode,
+      elapsedMs: completion.elapsedMs,
+      bestTimeMs: completion.result.stats.bestTimeMs ?? completion.elapsedMs,
+      improvedBest: completion.result.improvedBest,
+      wins: completion.result.stats.wins,
+      played: completion.result.stats.played,
+    });
   }
 
   private checkpointActiveGame(gameState: SolitaireGame): void {
@@ -589,6 +616,7 @@ export class GameScene extends Phaser.Scene {
       : this.flow.playSelectedMode();
     this.mainMenu.hide();
     this.dailyCompleteView.hide();
+    this.gameCompleteView.hide();
     this.board?.destroy();
     this.startDeal(deal);
   }
@@ -600,6 +628,11 @@ export class GameScene extends Phaser.Scene {
 
   private openMenuFromDailyComplete(): void {
     this.dailyCompleteView.hide();
+    this.openMainMenu();
+  }
+
+  private openMenuFromGameComplete(): void {
+    this.gameCompleteView.hide();
     this.openMainMenu();
   }
 
@@ -673,6 +706,7 @@ export class GameScene extends Phaser.Scene {
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     window.removeEventListener('pagehide', this.handlePageHide);
     this.attemptTimer.reset();
+    this.gameCompleteView.destroy();
     this.dailyCompleteView.destroy();
     this.mainMenu.destroy();
     this.board?.destroy();

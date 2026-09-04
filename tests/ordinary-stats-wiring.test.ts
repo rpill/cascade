@@ -98,3 +98,18 @@ test('pre-load ordinary completion snapshot is reconciled with merged cloud stat
     /settleLoadedState\(loaded\)[^]*lastOrdinaryCompletion[^]*loaded\.stats\[completion\.mode\][^]*this\.metaState\.stats\[completion\.mode\]/,
   );
 });
+
+
+test('ordinary completion is shown with merged stats and completion actions', () => {
+  assert.match(scene, /GameCompleteView/);
+  assert.match(scene, /gameCompleteView\.show\(/);
+  assert.match(scene, /lastOrdinaryCompletion/);
+  assert.match(scene, /elapsedMs: completion\.elapsedMs/);
+  assert.match(scene, /bestTimeMs: completion\.result\.stats\.bestTimeMs/);
+  assert.match(scene, /wins: completion\.result\.stats\.wins/);
+  assert.match(scene, /played: completion\.result\.stats\.played/);
+  assert.match(scene, /newGame: \(\) => this\.startNewDeal\(\)/);
+  assert.match(scene, /menu: \(\) => this\.openMenuFromGameComplete\(\)/);
+  assert.match(scene, /startDeal[^]*gameCompleteView\.hide\(\)/);
+  assert.match(scene, /shutdown[^]*gameCompleteView\.destroy\(\)/);
+});

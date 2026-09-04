@@ -669,3 +669,18 @@ canvas {
     padding-bottom: 8px;
   }
 }
+
+.game-complete-mode {
+  margin-bottom: 14px;
+  color: var(--ui-oxblood);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.game-complete-record[hidden] {
+  display: none;
+}
+
+.game-complete-stats {
+  font-weight: 700;
+}
