@@ -480,6 +480,7 @@ export class BoardView {
     }
 
     this.inputLocked = true;
+    this.stockVisual.sync(this.game.stock.length);
     this.sync('undo');
 
     const timer = this.scene.time.delayedCall(

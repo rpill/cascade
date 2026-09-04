@@ -26,3 +26,15 @@ test('undo is exposed through the board and Z shortcut without auto-foundation r
   assert.match(boardSource, /requestUndo\(\)/);
   assert.match(boardSource, /sync\('undo'\)/);
 });
+
+test('undo resyncs stock visuals after restoring an exhausted stock', () => {
+  const requestUndo = boardSource.match(
+    /requestUndo\(\): void \{([^]*?)\n  \}/,
+  )?.[1] ?? '';
+
+  assert.match(
+    requestUndo,
+    /stockVisual\.sync\(this\.game\.stock\.length\)[^]*sync\('undo'\)/,
+    'undo must restore the visual stock count before rendering the restored board state',
+  );
+});
