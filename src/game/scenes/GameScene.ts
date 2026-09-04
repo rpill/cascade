@@ -8,6 +8,10 @@ import { BoardView } from '../view/BoardView.ts';
 import { DailyCompleteView } from '../view/DailyCompleteView.ts';
 import { GameCompleteView } from '../view/GameCompleteView.ts';
 import {
+  LeaderboardView,
+  type LeaderboardViewState,
+} from '../view/LeaderboardView.ts';
+import {
   MainMenuView,
   type DailyMenuState,
 } from '../view/MainMenuView.ts';
@@ -79,6 +83,21 @@ export class GameScene extends Phaser.Scene {
   private statisticsOpen = false;
   private dailyCompleteView!: DailyCompleteView;
   private gameCompleteView!: GameCompleteView;
+  private leaderboardView!: LeaderboardView;
+  private leaderboardMode: OrdinaryGameMode = 'winnable';
+  private leaderboardOpen = false;
+  private leaderboardAuthPending = false;
+  private leaderboardRequestId = 0;
+  private unsubscribeAccountSelection: (() => void) | null = null;
+  private leaderboardViewState: LeaderboardViewState = {
+    mode: 'winnable',
+    status: 'unavailable',
+    entries: [],
+    authorized: false,
+    playerEntry: null,
+    authPending: false,
+    authorizationAllowed: true,
+  };
 
   private activeGameRepository!: ActiveGameRepository;
   private pendingActiveSave: ActiveGameSaveV1 | null = null;
@@ -107,7 +126,7 @@ export class GameScene extends Phaser.Scene {
     this.mainMenu = new MainMenuView(this, {
       play: (mode) => this.playMenuMode(mode),
       statistics: () => this.openStatistics(),
-      leaderboard: () => undefined,
+      leaderboard: () => this.openLeaderboard(),
       cancel: () => this.closeMainMenu(),
     });
     this.statisticsView = new StatisticsView(this, {
@@ -120,6 +139,11 @@ export class GameScene extends Phaser.Scene {
     this.gameCompleteView = new GameCompleteView(this, {
       newGame: () => this.startNewDeal(),
       menu: () => this.openMenuFromGameComplete(),
+    });
+    this.leaderboardView = new LeaderboardView(this, {
+      selectMode: (mode) => this.selectLeaderboardMode(mode),
+      authorize: () => { void this.authorizeLeaderboard(); },
+      close: () => this.closeLeaderboard(),
     });
 
     this.activeGameRepository = new ActiveGameRepository();
@@ -170,6 +194,16 @@ export class GameScene extends Phaser.Scene {
       }
     }
     void this.metaRepository.save(this.metaState);
+
+    this.leaderboardService = new LeaderboardService(this.platform);
+    this.unsubscribeAccountSelection?.();
+    this.unsubscribeAccountSelection = this.platform.auth.onAccountSelectionClosed(() => {
+      window.location.reload();
+    });
+    this.refreshMenuMeta();
+    if (this.leaderboardService.authorized) {
+      void this.syncHistoricalLeaderboardBests();
+    }
 
     const now = this.platform.trustedClock.nowMs();
     if (now !== null) {
@@ -642,7 +676,168 @@ export class GameScene extends Phaser.Scene {
     this.statisticsView.hide();
   }
 
+  private buildLeaderboardViewState(
+    overrides: Partial<LeaderboardViewState> = {},
+  ): LeaderboardViewState {
+    return {
+      ...this.leaderboardViewState,
+      mode: this.leaderboardMode,
+      authorized: this.leaderboardService?.authorized ?? false,
+      authPending: this.leaderboardAuthPending,
+      authorizationAllowed: this.canAuthorizeLeaderboard(),
+      ...overrides,
+    };
+  }
+
+  private renderLeaderboardState(
+    overrides: Partial<LeaderboardViewState> = {},
+  ): void {
+    this.leaderboardViewState = this.buildLeaderboardViewState(overrides);
+    this.leaderboardView.update(this.leaderboardViewState);
+  }
+
+  private openLeaderboard(): void {
+    const service = this.leaderboardService;
+    this.closeStatistics();
+    this.leaderboardOpen = true;
+    this.leaderboardMode = 'winnable';
+    this.leaderboardAuthPending = false;
+
+    if (service === null || !service.available) {
+      this.leaderboardViewState = this.buildLeaderboardViewState({
+        mode: 'winnable',
+        status: 'unavailable',
+        entries: [],
+        playerEntry: null,
+        message: undefined,
+      });
+      this.leaderboardView.show(this.leaderboardViewState);
+      return;
+    }
+
+    this.leaderboardViewState = this.buildLeaderboardViewState({
+      mode: 'winnable',
+      status: 'loading',
+      entries: [],
+      playerEntry: null,
+      message: undefined,
+    });
+    this.leaderboardView.show(this.leaderboardViewState);
+    void this.loadLeaderboard('winnable');
+  }
+
+  private closeLeaderboard(): void {
+    this.leaderboardOpen = false;
+    this.leaderboardAuthPending = false;
+    this.leaderboardRequestId += 1;
+    this.leaderboardView.hide();
+  }
+
+  private selectLeaderboardMode(mode: OrdinaryGameMode): void {
+    if (!this.leaderboardOpen || mode === this.leaderboardMode) {
+      return;
+    }
+
+    this.leaderboardMode = mode;
+    this.renderLeaderboardState({
+      mode,
+      status: 'loading',
+      entries: [],
+      playerEntry: null,
+      message: undefined,
+    });
+    void this.loadLeaderboard(mode);
+  }
+
+  private async loadLeaderboard(mode: OrdinaryGameMode): Promise<void> {
+    const service = this.leaderboardService;
+    if (service === null || !service.available) {
+      if (this.leaderboardOpen && mode === this.leaderboardMode) {
+        this.renderLeaderboardState({
+          status: 'unavailable',
+          entries: [],
+          playerEntry: null,
+        });
+      }
+      return;
+    }
+
+    const requestId = ++this.leaderboardRequestId;
+    const result = await service.load(mode);
+    if (
+      requestId !== this.leaderboardRequestId
+      || !this.leaderboardOpen
+      || mode !== this.leaderboardMode
+    ) {
+      return;
+    }
+
+    this.renderLeaderboardState({
+      status: result.status,
+      entries: result.entries,
+      authorized: result.authorized,
+      playerEntry: result.playerEntry,
+      authPending: false,
+      message: undefined,
+    });
+  }
+
+  private canAuthorizeLeaderboard(): boolean {
+    return this.gameState === null || this.gameState.isWon;
+  }
+
+  private async authorizeLeaderboard(): Promise<void> {
+    const service = this.leaderboardService;
+    if (
+      service === null
+      || this.leaderboardAuthPending
+      || !this.canAuthorizeLeaderboard()
+    ) {
+      return;
+    }
+
+    this.leaderboardAuthPending = true;
+    this.renderLeaderboardState({ authPending: true, message: undefined });
+
+    const authorized = await service.requestAuthorization();
+    this.leaderboardAuthPending = false;
+
+    if (!this.leaderboardOpen) {
+      return;
+    }
+
+    if (!authorized) {
+      this.renderLeaderboardState({
+        authPending: false,
+        message: 'Вход не выполнен',
+      });
+      return;
+    }
+
+    await this.syncHistoricalLeaderboardBests();
+    if (this.leaderboardOpen) {
+      await this.loadLeaderboard(this.leaderboardMode);
+    }
+  }
+
+  private async syncHistoricalLeaderboardBests(): Promise<void> {
+    const service = this.leaderboardService;
+    if (service === null || !service.authorized) {
+      return;
+    }
+
+    await Promise.all([
+      service.syncBest('winnable', this.metaState.stats.winnable.bestTimeMs),
+      service.syncBest('original', this.metaState.stats.original.bestTimeMs),
+    ]);
+  }
+
   private handleEscape = (): void => {
+    if (this.leaderboardOpen) {
+      this.closeLeaderboard();
+      return;
+    }
+
     if (this.statisticsOpen) {
       this.closeStatistics();
       return;
@@ -652,6 +847,11 @@ export class GameScene extends Phaser.Scene {
   };
 
   private closeMainMenu(): void {
+    if (this.leaderboardOpen) {
+      this.closeLeaderboard();
+      return;
+    }
+
     if (this.statisticsOpen) {
       this.closeStatistics();
       return;
@@ -675,6 +875,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.closeStatistics();
+    this.closeLeaderboard();
     this.flow.selectMenuMode(mode);
     const deal = mode === 'daily'
       ? this.flow.playSelectedMode(this.dailyContext!.seed)
@@ -770,7 +971,12 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard?.off('keydown-ESC', this.handleEscape, this);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     window.removeEventListener('pagehide', this.handlePageHide);
+    this.unsubscribeAccountSelection?.();
+    this.unsubscribeAccountSelection = null;
+    this.leaderboardOpen = false;
+    this.leaderboardRequestId += 1;
     this.attemptTimer.reset();
+    this.leaderboardView.destroy();
     this.gameCompleteView.destroy();
     this.dailyCompleteView.destroy();
     this.statisticsView.destroy();
