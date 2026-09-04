@@ -43,3 +43,17 @@ test('main menu has explicit Play and replaces the old mode prompt view', () => 
   assert.match(menuSource, /selectedMode/);
   assert.match(menuSource, /canCancel/);
 });
+
+test('main menu exposes Standard Classic and Daily with weekly progress', () => {
+  const menuSource = readFileSync(
+    new URL('../src/game/view/MainMenuView.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(menuSource, /СТАНДАРТ/);
+  assert.match(menuSource, /КЛАССИКА/);
+  assert.match(menuSource, /ИСПЫТАНИЕ ДНЯ/);
+  assert.match(menuSource, /main-menu-weekly/);
+  assert.match(menuSource, /bestTimeMs/);
+  assert.doesNotMatch(menuSource, /ГАРАНТИРОВАННО РЕШАЕМЫЙ/);
+});
