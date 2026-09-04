@@ -6,11 +6,13 @@ cascade/
 │       │   ├── 2026-09-02-sawayama-game-modes.md
 │       │   ├── 2026-09-02-visual-undo-main-menu.md
 │       │   ├── 2026-09-03-responsive-fullscreen-layout.md
-│       │   └── 2026-09-04-daily-weekly-retention-foundation.md
+│       │   ├── 2026-09-04-daily-weekly-retention-foundation.md
+│       │   └── 2026-09-04-session-persistence-stats-win-summary.md
 │       └── specs/
 │           ├── 2026-09-02-sawayama-game-modes-design.md
 │           ├── 2026-09-02-visual-undo-main-menu-design.md
 │           ├── 2026-09-03-responsive-fullscreen-layout-design.md
+│           ├── 2026-09-04-persistent-stats-win-summary-design.md
 │           └── 2026-09-04-retention-meta-progression-design.md
 ├── public/
 │   └── assets/
@@ -46,33 +48,42 @@ cascade/
 │   │       ├── CardMotionDepth.ts
 │   │       ├── DailyCompleteView.ts
 │   │       ├── DropGeometry.ts
+│   │       ├── GameCompleteView.ts
 │   │       ├── layout.ts
 │   │       ├── LayoutMetrics.ts
 │   │       ├── MainMenuView.ts
 │   │       ├── RenderQuality.ts
 │   │       └── StockVisualState.ts
 │   ├── meta/
-│   │   ├── DailyAttemptTimer.ts
+│   │   ├── AttemptTimer.ts
 │   │   ├── DailyCalendar.ts
 │   │   ├── DailyProgress.ts
+│   │   ├── GameStats.ts
+│   │   ├── MetaMutationQueue.ts
 │   │   ├── MetaRepository.ts
 │   │   └── MetaSave.ts
+│   ├── persistence/
+│   │   ├── ActiveGameRepository.ts
+│   │   └── ActiveGameSave.ts
 │   ├── platform/
 │   │   ├── services.ts
 │   │   └── yandex.ts
 │   ├── main.ts
 │   └── styles.css
 ├── tests/
+│   ├── active-game-repository.test.ts
+│   ├── active-game-save.test.ts
+│   ├── attempt-timer.test.ts
 │   ├── board-layout.test.ts
 │   ├── card-animation.test.ts
 │   ├── card-assets.test.ts
 │   ├── card-flight.test.ts
 │   ├── card-motion.test.ts
 │   ├── chatgpt-context.test.mjs
-│   ├── daily-attempt-timer.test.ts
 │   ├── daily-calendar.test.ts
 │   ├── daily-complete-view.test.ts
 │   ├── daily-progress.test.ts
+│   ├── daily-restore-wiring.test.ts
 │   ├── daily-scene-wiring.test.ts
 │   ├── deal-original.test.ts
 │   ├── deal-seed.test.ts
@@ -80,17 +91,22 @@ cascade/
 │   ├── drag-snap.test.ts
 │   ├── drop-geometry.test.ts
 │   ├── foundation-visibility.test.ts
+│   ├── game-complete-view.test.ts
 │   ├── game-controls.test.ts
 │   ├── game-history.test.ts
 │   ├── game-session.test.ts
+│   ├── game-stats.test.ts
 │   ├── game.test.ts
 │   ├── main-menu-wiring.test.ts
+│   ├── meta-mutation-queue.test.ts
 │   ├── meta-repository.test.ts
 │   ├── meta-save.test.ts
+│   ├── ordinary-stats-wiring.test.ts
 │   ├── platform-services.test.ts
 │   ├── render-config.test.ts
 │   ├── render-quality.test.ts
 │   ├── responsive-layout.test.ts
+│   ├── session-persistence-wiring.test.ts
 │   ├── stock-visual.test.ts
 │   ├── undo-wiring.test.ts
 │   ├── visual-theme.test.mjs
