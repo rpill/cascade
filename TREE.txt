@@ -12,7 +12,11 @@ cascade/
 │           └── 2026-09-03-responsive-fullscreen-layout-design.md
 ├── public/
 │   └── assets/
-│       └── cards/ [contents omitted]
+│       ├── cards/ [contents omitted]
+│       ├── licenses/
+│       │   └── vintage-demo-license.txt
+│       └── theme/
+│           └── fine-grained-wood.jpg
 ├── scripts/
 │   ├── chatgpt-context-lib.mjs
 │   └── chatgpt-context.mjs
@@ -71,6 +75,7 @@ cascade/
 │   ├── responsive-layout.test.ts
 │   ├── stock-visual.test.ts
 │   ├── undo-wiring.test.ts
+│   ├── visual-theme.test.mjs
 │   └── winnable-pool.test.ts
 ├── tools/
 │   └── sawayama_solver.cpp
@@ -84,5 +89,6 @@ cascade/
 ├── PROJECT.md
 ├── README.md
 ├── TECH.md
+├── THIRD_PARTY_ASSETS.md
 ├── TREE.txt
 └── tsconfig.json
