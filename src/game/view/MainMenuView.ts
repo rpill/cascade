@@ -4,6 +4,7 @@ import type { GameMode } from '../model/types.ts';
 
 interface MainMenuActions {
   readonly play: (mode: GameMode) => void;
+  readonly statistics: () => void;
   readonly leaderboard: () => void;
   readonly cancel: () => void;
 }
@@ -18,23 +19,11 @@ export interface DailyMenuState {
   readonly completedDailyIds: readonly string[];
 }
 
-export interface MenuModeStats {
-  readonly played: number;
-  readonly wins: number;
-  readonly bestTimeMs: number | null;
-}
-
-export interface OrdinaryMenuState {
-  readonly winnable: MenuModeStats;
-  readonly original: MenuModeStats;
-  readonly leaderboardsAvailable: boolean;
-}
-
 interface MainMenuShowOptions {
   readonly canCancel: boolean;
   readonly selectedMode: GameMode | null;
   readonly daily: DailyMenuState;
-  readonly ordinary: OrdinaryMenuState;
+  readonly leaderboardsAvailable: boolean;
 }
 
 const UNAVAILABLE_DAILY_STATE: DailyMenuState = {
@@ -47,12 +36,6 @@ const UNAVAILABLE_DAILY_STATE: DailyMenuState = {
   completedDailyIds: [],
 };
 
-const UNAVAILABLE_ORDINARY_STATE: OrdinaryMenuState = {
-  winnable: { played: 0, wins: 0, bestTimeMs: null },
-  original: { played: 0, wins: 0, bestTimeMs: null },
-  leaderboardsAvailable: false,
-};
-
 const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] as const;
 const WEEKLY_MILESTONES = [3, 5, 7] as const;
 
@@ -61,14 +44,6 @@ function formatDuration(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function getWinRate({ played, wins }: MenuModeStats): number {
-  return played === 0 ? 0 : Math.round((wins / played) * 100);
-}
-
-function formatBest(bestTimeMs: number | null): string {
-  return bestTimeMs === null ? '—' : formatDuration(bestTimeMs);
 }
 
 function formatWeekLabel(weekId: string): string {
@@ -83,8 +58,6 @@ export class MainMenuView {
   private readonly leaderboardButton: HTMLButtonElement;
   private readonly modeButtons = new Map<GameMode, HTMLButtonElement>();
   private readonly modeCopies = new Map<GameMode, HTMLSpanElement>();
-  private readonly statSummaries = new Map<'winnable' | 'original', HTMLDivElement>();
-  private readonly statBests = new Map<'winnable' | 'original', HTMLDivElement>();
   private readonly weekly: HTMLElement;
   private readonly weeklyTitle: HTMLDivElement;
   private readonly weeklyDays: HTMLDivElement;
@@ -151,20 +124,18 @@ export class MainMenuView {
       this.weeklyMilestones,
     );
 
-    const stats = document.createElement('section');
-    stats.className = 'main-menu-stats';
-    stats.setAttribute('aria-label', 'Статистика');
+    const metaActions = document.createElement('div');
+    metaActions.className = 'main-menu-meta-actions';
 
-    const statsTitle = document.createElement('div');
-    statsTitle.className = 'main-menu-stats-title';
-    statsTitle.textContent = 'СТАТИСТИКА';
-
-    const standardStats = this.createStatMode('winnable', 'СТАНДАРТ');
-    const classicStats = this.createStatMode('original', 'КЛАССИКА');
+    const statisticsButton = document.createElement('button');
+    statisticsButton.type = 'button';
+    statisticsButton.className = 'main-menu-meta-button';
+    statisticsButton.textContent = 'СТАТИСТИКА';
+    statisticsButton.addEventListener('click', () => this.actions.statistics());
 
     this.leaderboardButton = document.createElement('button');
     this.leaderboardButton.type = 'button';
-    this.leaderboardButton.className = 'main-menu-leaderboard';
+    this.leaderboardButton.className = 'main-menu-meta-button main-menu-leaderboard';
     this.leaderboardButton.textContent = 'ТАБЛИЦА ЛИДЕРОВ';
     this.leaderboardButton.addEventListener('click', () => {
       if (!this.leaderboardButton.disabled) {
@@ -172,12 +143,7 @@ export class MainMenuView {
       }
     });
 
-    stats.append(
-      statsTitle,
-      standardStats,
-      classicStats,
-      this.leaderboardButton,
-    );
+    metaActions.append(statisticsButton, this.leaderboardButton);
 
     this.cancelButton = document.createElement('button');
     this.cancelButton.type = 'button';
@@ -194,7 +160,7 @@ export class MainMenuView {
       original,
       daily,
       this.weekly,
-      stats,
+      metaActions,
       this.cancelButton,
     );
     this.root.append(backdrop, panel);
@@ -207,7 +173,7 @@ export class MainMenuView {
 
     host.append(this.root);
     this.updateDailyState(UNAVAILABLE_DAILY_STATE);
-    this.updateOrdinaryState(UNAVAILABLE_ORDINARY_STATE);
+    this.updateLeaderboardsAvailable(false);
     this.hide();
   }
 
@@ -215,11 +181,11 @@ export class MainMenuView {
     canCancel,
     selectedMode,
     daily,
-    ordinary,
+    leaderboardsAvailable,
   }: MainMenuShowOptions): void {
     this.selectedMode = selectedMode;
     this.updateDailyState(daily);
-    this.updateOrdinaryState(ordinary);
+    this.updateLeaderboardsAvailable(leaderboardsAvailable);
     this.cancelButton.hidden = !canCancel;
     this.root.hidden = false;
     this.root.style.pointerEvents = 'auto';
@@ -273,11 +239,9 @@ export class MainMenuView {
     this.updateModeVisuals();
   }
 
-  updateOrdinaryState(state: OrdinaryMenuState): void {
-    this.updateModeStats('winnable', state.winnable);
-    this.updateModeStats('original', state.original);
-    this.leaderboardButton.disabled = !state.leaderboardsAvailable;
-    this.leaderboardButton.classList.toggle('is-disabled', !state.leaderboardsAvailable);
+  updateLeaderboardsAvailable(available: boolean): void {
+    this.leaderboardButton.disabled = !available;
+    this.leaderboardButton.classList.toggle('is-disabled', !available);
   }
 
   hide(): void {
@@ -321,45 +285,6 @@ export class MainMenuView {
     this.modeButtons.set(mode, button);
     this.modeCopies.set(mode, copy);
     return button;
-  }
-
-  private createStatMode(
-    mode: 'winnable' | 'original',
-    title: string,
-  ): HTMLElement {
-    const block = document.createElement('div');
-    block.className = 'main-menu-stat-mode';
-
-    const heading = document.createElement('div');
-    heading.className = 'main-menu-stat-heading';
-    heading.textContent = title;
-
-    const summary = document.createElement('div');
-    summary.className = 'main-menu-stat-line';
-
-    const best = document.createElement('div');
-    best.className = 'main-menu-stat-line main-menu-stat-best';
-
-    block.append(heading, summary, best);
-    this.statSummaries.set(mode, summary);
-    this.statBests.set(mode, best);
-    return block;
-  }
-
-  private updateModeStats(
-    mode: 'winnable' | 'original',
-    stats: MenuModeStats,
-  ): void {
-    const summary = this.statSummaries.get(mode);
-    const best = this.statBests.get(mode);
-
-    if (summary !== undefined) {
-      summary.textContent = `${stats.played} партий · ${stats.wins} побед · ${getWinRate(stats)}%`;
-    }
-
-    if (best !== undefined) {
-      best.textContent = `Лучшее время: ${formatBest(stats.bestTimeMs)}`;
-    }
   }
 
   private updateModeVisuals(): void {

@@ -10,6 +10,10 @@ const menuSource = readFileSync(
   new URL('../src/game/view/MainMenuView.ts', import.meta.url),
   'utf8',
 );
+const statisticsSource = readFileSync(
+  new URL('../src/game/view/StatisticsView.ts', import.meta.url),
+  'utf8',
+);
 const stylesSource = readFileSync(
   new URL('../src/styles.css', import.meta.url),
   'utf8',
@@ -39,7 +43,17 @@ test('DOM UI has explicit crisp browser typography and stacking', () => {
   assert.match(stylesSource, /\.game-controls/);
   assert.match(stylesSource, /\.game-control-button/);
   assert.match(stylesSource, /\.main-menu-dom/);
-  assert.match(stylesSource, /\.main-menu-stats/);
+  assert.match(stylesSource, /\.main-menu-meta-actions/);
+  assert.match(stylesSource, /\.meta-modal-panel/);
   assert.match(stylesSource, /font-smoothing/);
   assert.match(stylesSource, /z-index:\s*100/);
+});
+
+test('statistics is a native screen-space DOM modal and UI surfaces do not scroll', () => {
+  assert.match(statisticsSource, /statistics-dom/);
+  assert.match(statisticsSource, /meta-modal-panel/);
+  assert.match(statisticsSource, /canvas\.parentElement/);
+  assert.doesNotMatch(stylesSource, /\.main-menu-panel\s*\{[^}]*overflow\s*:\s*(?:auto|scroll)/s);
+  assert.doesNotMatch(stylesSource, /\.meta-modal-panel\s*\{[^}]*overflow\s*:\s*(?:auto|scroll)/s);
+  assert.match(stylesSource, /html,[^]*body,[^]*#game[^]*overflow:\s*hidden/);
 });

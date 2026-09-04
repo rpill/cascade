@@ -6,6 +6,10 @@ const menuSource = readFileSync(
   new URL('../src/game/view/MainMenuView.ts', import.meta.url),
   'utf8',
 );
+const statisticsSource = readFileSync(
+  new URL('../src/game/view/StatisticsView.ts', import.meta.url),
+  'utf8',
+);
 const sceneSource = readFileSync(
   new URL('../src/game/scenes/GameScene.ts', import.meta.url),
   'utf8',
@@ -15,47 +19,62 @@ const stylesSource = readFileSync(
   'utf8',
 );
 
-test('menu renders local ordinary stats independently of leaderboard availability', () => {
+test('main menu keeps statistics and leaderboards as compact secondary actions', () => {
   assert.match(menuSource, /СТАТИСТИКА/);
-  assert.match(menuSource, /СТАНДАРТ/);
-  assert.match(menuSource, /КЛАССИКА/);
-  assert.match(menuSource, /Лучшее время:/);
-  assert.match(menuSource, /Math\.round\([^]*wins[^]*played[^]*100/);
-  assert.match(menuSource, /played === 0[^]*0/);
-  assert.match(menuSource, /bestTimeMs === null[^]*—/);
   assert.match(menuSource, /ТАБЛИЦА ЛИДЕРОВ/);
-});
-
-test('menu exposes a leaderboard action but keeps the button disabled when unavailable', () => {
-  assert.match(menuSource, /readonly leaderboard:\s*\(\) => void/);
+  assert.match(menuSource, /readonly statistics:\s*\(\) => void/);
+  assert.match(menuSource, /actions\.statistics\(\)/);
   assert.match(menuSource, /actions\.leaderboard\(\)/);
-  assert.match(menuSource, /leaderboardsAvailable/);
-  assert.match(menuSource, /disabled = !state\.leaderboardsAvailable/);
-  assert.match(menuSource, /classList\.toggle\(['"]is-disabled['"], !state\.leaderboardsAvailable\)/);
+  assert.match(menuSource, /main-menu-meta-actions/);
+  assert.doesNotMatch(menuSource, /Лучшее время:/);
+  assert.doesNotMatch(menuSource, /main-menu-stat-mode/);
+  assert.doesNotMatch(menuSource, /statSummaries|statBests/);
 });
 
-test('scene supplies ordinary stats and leaderboard availability through refreshMenuMeta', () => {
-  assert.match(sceneSource, /LeaderboardService/);
-  assert.match(sceneSource, /private leaderboardService: LeaderboardService \| null = null/);
-  assert.match(sceneSource, /private buildOrdinaryMenuState\(\): OrdinaryMenuState/);
+test('leaderboard action stays disabled until leaderboard service is available', () => {
+  assert.match(menuSource, /updateLeaderboardsAvailable\(available: boolean\)/);
+  assert.match(menuSource, /disabled = !available/);
+  assert.match(menuSource, /classList\.toggle\(['"]is-disabled['"], !available\)/);
+});
+
+test('scene owns a separate statistics modal backed by MetaSave V2 stats', () => {
+  assert.match(sceneSource, /StatisticsView/);
+  assert.match(sceneSource, /private statisticsView!: StatisticsView/);
+  assert.match(sceneSource, /private statisticsOpen = false/);
+  assert.match(sceneSource, /statistics: \(\) => this\.openStatistics\(\)/);
+  assert.match(sceneSource, /private buildStatisticsViewState\(\): StatisticsViewState/);
   assert.match(sceneSource, /const \{ winnable, original \} = this\.metaState\.stats/);
-  assert.match(sceneSource, /leaderboardsAvailable: this\.leaderboardService\?\.available \?\? false/);
+  assert.match(sceneSource, /private openStatistics\(\): void/);
+  assert.match(sceneSource, /this\.statisticsView\.show\(this\.buildStatisticsViewState\(\)\)/);
+  assert.match(sceneSource, /private closeStatistics\(\): void/);
+  assert.match(sceneSource, /this\.statisticsView\.hide\(\)/);
+});
+
+test('meta refresh keeps the statistics modal current without putting stats back into the menu', () => {
   assert.match(
     sceneSource,
-    /refreshMenuMeta\(\): void \{[^]*updateDailyState\(this\.buildDailyMenuState\(\)\)[^]*updateOrdinaryState\(this\.buildOrdinaryMenuState\(\)\)/,
+    /refreshMenuMeta\(\): void \{[^]*updateDailyState\(this\.buildDailyMenuState\(\)\)[^]*updateLeaderboardsAvailable\([^]*statisticsView\.update\(this\.buildStatisticsViewState\(\)\)/,
   );
+  assert.doesNotMatch(sceneSource, /updateOrdinaryState\(/);
 });
 
-test('ordinary stats refresh after attempts begin and after ordinary completion', () => {
-  assert.match(sceneSource, /beginModeAttempt\(state, mode\)[^]*refreshMenuMeta\(\)/);
-  assert.match(sceneSource, /finishOrdinaryAttempt[^]*completeModeAttempt[^]*refreshMenuMeta\(\)/);
+test('Escape closes statistics before it can cancel the underlying menu', () => {
+  assert.match(sceneSource, /private handleEscape = \(\): void =>/);
+  assert.match(sceneSource, /if \(this\.statisticsOpen\)[^]*this\.closeStatistics\(\)[^]*return/);
+  assert.match(sceneSource, /this\.closeMainMenu\(\)/);
+  assert.match(sceneSource, /keydown-ESC['"], this\.handleEscape/);
 });
 
-test('statistics styles preserve the existing scrollable menu geometry', () => {
-  assert.match(stylesSource, /\.main-menu-stats/);
-  assert.match(stylesSource, /\.main-menu-stats-title/);
-  assert.match(stylesSource, /\.main-menu-stat-mode/);
-  assert.match(stylesSource, /\.main-menu-stat-line/);
-  assert.match(stylesSource, /\.main-menu-leaderboard/);
-  assert.match(stylesSource, /overflow:\s*auto/);
+test('menu and reusable modal shell explicitly forbid scroll containers', () => {
+  assert.doesNotMatch(
+    stylesSource,
+    /\.main-menu-panel\s*\{[^}]*overflow\s*:\s*(?:auto|scroll)/s,
+  );
+  assert.match(stylesSource, /\.main-menu-panel\s*\{[^}]*overflow\s*:\s*hidden/s);
+  assert.match(stylesSource, /\.meta-modal-panel\s*\{[^}]*overflow\s*:\s*hidden/s);
+  assert.doesNotMatch(
+    stylesSource,
+    /\.meta-modal-panel\s*\{[^}]*overflow\s*:\s*(?:auto|scroll)/s,
+  );
+  assert.match(statisticsSource, /meta-modal-panel/);
 });

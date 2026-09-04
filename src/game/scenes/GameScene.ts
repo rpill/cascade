@@ -10,8 +10,11 @@ import { GameCompleteView } from '../view/GameCompleteView.ts';
 import {
   MainMenuView,
   type DailyMenuState,
-  type OrdinaryMenuState,
 } from '../view/MainMenuView.ts';
+import {
+  StatisticsView,
+  type StatisticsViewState,
+} from '../view/StatisticsView.ts';
 import { calculateLayoutMetrics } from '../view/LayoutMetrics.ts';
 import { AttemptTimer } from '../../meta/AttemptTimer.ts';
 import {
@@ -72,6 +75,8 @@ export class GameScene extends Phaser.Scene {
   private board: BoardView | null = null;
   private gameState: SolitaireGame | null = null;
   private mainMenu!: MainMenuView;
+  private statisticsView!: StatisticsView;
+  private statisticsOpen = false;
   private dailyCompleteView!: DailyCompleteView;
   private gameCompleteView!: GameCompleteView;
 
@@ -101,8 +106,12 @@ export class GameScene extends Phaser.Scene {
     this.flow = new GameFlow();
     this.mainMenu = new MainMenuView(this, {
       play: (mode) => this.playMenuMode(mode),
+      statistics: () => this.openStatistics(),
       leaderboard: () => undefined,
       cancel: () => this.closeMainMenu(),
+    });
+    this.statisticsView = new StatisticsView(this, {
+      close: () => this.closeStatistics(),
     });
     this.dailyCompleteView = new DailyCompleteView(this, {
       retry: () => this.retryDaily(),
@@ -125,14 +134,14 @@ export class GameScene extends Phaser.Scene {
         canCancel: false,
         selectedMode: this.flow.selectedMode,
         daily: this.buildDailyMenuState(),
-        ordinary: this.buildOrdinaryMenuState(),
+        leaderboardsAvailable: this.leaderboardService?.available ?? false,
       });
     }
 
     this.input.keyboard?.on('keydown-R', this.restartDeal, this);
     this.input.keyboard?.on('keydown-Z', this.undoLastAction, this);
     this.input.keyboard?.on('keydown-N', this.startNewDeal, this);
-    this.input.keyboard?.on('keydown-ESC', this.closeMainMenu, this);
+    this.input.keyboard?.on('keydown-ESC', this.handleEscape, this);
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
     window.addEventListener('pagehide', this.handlePageHide);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
@@ -212,7 +221,7 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  private buildOrdinaryMenuState(): OrdinaryMenuState {
+  private buildStatisticsViewState(): StatisticsViewState {
     const { winnable, original } = this.metaState.stats;
 
     return {
@@ -226,13 +235,15 @@ export class GameScene extends Phaser.Scene {
         wins: original.wins,
         bestTimeMs: original.bestTimeMs ?? null,
       },
-      leaderboardsAvailable: this.leaderboardService?.available ?? false,
     };
   }
 
   private refreshMenuMeta(): void {
     this.mainMenu.updateDailyState(this.buildDailyMenuState());
-    this.mainMenu.updateOrdinaryState(this.buildOrdinaryMenuState());
+    this.mainMenu.updateLeaderboardsAvailable(
+      this.leaderboardService?.available ?? false,
+    );
+    this.statisticsView.update(this.buildStatisticsViewState());
   }
 
   private tryRestoreOrdinarySession(): boolean {
@@ -256,7 +267,7 @@ export class GameScene extends Phaser.Scene {
         canCancel: this.flow.canCancelMenu,
         selectedMode: this.flow.selectedMode,
         daily: this.buildDailyMenuState(),
-        ordinary: this.buildOrdinaryMenuState(),
+        leaderboardsAvailable: this.leaderboardService?.available ?? false,
       });
     } else {
       this.mainMenu.hide();
@@ -295,7 +306,7 @@ export class GameScene extends Phaser.Scene {
         canCancel: this.flow.canCancelMenu,
         selectedMode: this.flow.selectedMode,
         daily: this.buildDailyMenuState(),
-        ordinary: this.buildOrdinaryMenuState(),
+        leaderboardsAvailable: this.leaderboardService?.available ?? false,
       });
     } else {
       this.mainMenu.hide();
@@ -617,11 +628,35 @@ export class GameScene extends Phaser.Scene {
       canCancel: this.flow.canCancelMenu,
       selectedMode: this.flow.selectedMode,
       daily: this.buildDailyMenuState(),
-      ordinary: this.buildOrdinaryMenuState(),
+      leaderboardsAvailable: this.leaderboardService?.available ?? false,
     });
   }
 
+  private openStatistics(): void {
+    this.statisticsOpen = true;
+    this.statisticsView.show(this.buildStatisticsViewState());
+  }
+
+  private closeStatistics(): void {
+    this.statisticsOpen = false;
+    this.statisticsView.hide();
+  }
+
+  private handleEscape = (): void => {
+    if (this.statisticsOpen) {
+      this.closeStatistics();
+      return;
+    }
+
+    this.closeMainMenu();
+  };
+
   private closeMainMenu(): void {
+    if (this.statisticsOpen) {
+      this.closeStatistics();
+      return;
+    }
+
     if (this.flow.cancelMenu()) {
       this.mainMenu.hide();
       this.resumeAttemptTimerIfPlayable();
@@ -639,6 +674,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    this.closeStatistics();
     this.flow.selectMenuMode(mode);
     const deal = mode === 'daily'
       ? this.flow.playSelectedMode(this.dailyContext!.seed)
@@ -731,12 +767,13 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard?.off('keydown-R', this.restartDeal, this);
     this.input.keyboard?.off('keydown-Z', this.undoLastAction, this);
     this.input.keyboard?.off('keydown-N', this.startNewDeal, this);
-    this.input.keyboard?.off('keydown-ESC', this.closeMainMenu, this);
+    this.input.keyboard?.off('keydown-ESC', this.handleEscape, this);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     window.removeEventListener('pagehide', this.handlePageHide);
     this.attemptTimer.reset();
     this.gameCompleteView.destroy();
     this.dailyCompleteView.destroy();
+    this.statisticsView.destroy();
     this.mainMenu.destroy();
     this.board?.destroy();
     this.gameState = null;
