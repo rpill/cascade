@@ -85,9 +85,9 @@ export class BoardView {
   private readonly stockVisual: StockVisualState;
   private layout: LayoutMetrics;
   private boardSurface!: Phaser.GameObjects.TileSprite;
-  private utilityPanel!: Phaser.GameObjects.Rectangle;
   private utilityDivider!: Phaser.GameObjects.Rectangle;
   private readonly slotRects: Phaser.GameObjects.Rectangle[] = [];
+  private foundationFrameGraphics!: Phaser.GameObjects.Graphics;
   private readonly foundationSymbols: Phaser.GameObjects.Text[] = [];
   private freeArrow!: Phaser.GameObjects.Text;
 
@@ -184,12 +184,9 @@ export class BoardView {
       metrics.utilityDividerX,
     );
 
-    this.utilityPanel
-      .setPosition(0, 0)
-      .setDisplaySize(railRight, metrics.viewportHeight);
     this.utilityDivider
       .setPosition(railRight, 0)
-      .setDisplaySize(2, metrics.viewportHeight);
+      .setDisplaySize(1, metrics.viewportHeight);
 
     const slots = getBoardSlots(metrics);
     this.slotRects.forEach((slot, index) => {
@@ -206,6 +203,8 @@ export class BoardView {
         )
         .setDisplaySize(metrics.cardWidth, metrics.cardHeight);
     });
+
+    this.redrawFoundationFrames(metrics);
 
     this.foundationSymbols.forEach((symbol, index) => {
       symbol
@@ -250,39 +249,36 @@ export class BoardView {
       getBoardTexture(this.scene),
     ).setOrigin(0).setDepth(0);
 
-    this.utilityPanel = this.scene.add.rectangle(
-      0,
-      0,
-      1,
-      1,
-      0x242b2a,
-      1,
-    ).setOrigin(0).setDepth(1);
+    this.boardSurface.setTint(0x8a7b6d);
+
     this.utilityDivider = this.scene.add.rectangle(
       0,
       0,
-      2,
       1,
-      0x738280,
-      0.8,
+      1,
+      0x8a7047,
+      0.5,
     ).setOrigin(0.5, 0).setDepth(2);
 
     this.ownedObjects.push(
       this.boardSurface,
-      this.utilityPanel,
       this.utilityDivider,
     );
   }
 
   private createSlots(): void {
     getBoardSlots(this.layout).forEach((slot) => {
-      this.createSlot(slot.x, slot.y, slot.alpha);
+      this.createSlot(slot.kind, slot.x, slot.y, slot.alpha);
     });
+
+    this.foundationFrameGraphics = this.scene.add.graphics().setDepth(7);
+    this.ownedObjects.push(this.foundationFrameGraphics);
+    this.redrawFoundationFrames(this.layout);
 
     SUITS.forEach((suit, index) => {
       const color = suit === 'diamonds' || suit === 'hearts'
-        ? '#8c514a'
-        : '#66706e';
+        ? '#7a312a'
+        : '#9a7b4f';
 
       const symbol = this.scene.add.text(
         this.layout.foundationX + this.layout.cardWidth / 2,
@@ -304,7 +300,7 @@ export class BoardView {
       this.layout.stock.y + this.layout.cardHeight / 2,
       '↓',
       {
-        color: '#67716f',
+        color: '#9a7b4f',
         fontFamily: 'Arial, sans-serif',
         fontSize: '42px',
       },
@@ -313,18 +309,73 @@ export class BoardView {
     this.ownedObjects.push(this.freeArrow);
   }
 
-  private createSlot(x: number, y: number, alpha = 0.32): void {
+  private createSlot(
+    kind: 'foundation' | 'stock' | 'tableau',
+    x: number,
+    y: number,
+    alpha = 0.32,
+  ): void {
     const slot = this.scene.add.rectangle(
       x + this.layout.cardWidth / 2,
       y + this.layout.cardHeight / 2,
       this.layout.cardWidth,
       this.layout.cardHeight,
-      0x151b1a,
-      alpha,
-    ).setStrokeStyle(2, 0x667370, 0.58).setDepth(5);
+      0x1a140f,
+      kind === 'tableau' ? alpha * 0.22 : alpha * 0.34,
+    ).setDepth(5);
+
+    if (kind !== 'foundation') {
+      slot.setStrokeStyle(1, 0x8a7047, kind === 'stock' ? 0.48 : 0.24);
+    }
 
     this.slotRects.push(slot);
     this.ownedObjects.push(slot);
+  }
+
+  private redrawFoundationFrames(metrics: LayoutMetrics): void {
+    const graphics = this.foundationFrameGraphics;
+    const lineColor = 0x8a7047;
+    const lineAlpha = 0.58;
+    const accentAlpha = 0.72;
+    const inset = Math.max(2, Math.round(metrics.cardWidth * 0.018));
+    const corner = Math.max(7, Math.round(metrics.cardWidth * 0.07));
+    const tick = Math.max(4, Math.round(metrics.cardWidth * 0.045));
+
+    graphics.clear();
+    graphics.lineStyle(1, lineColor, lineAlpha);
+
+    metrics.foundationY.forEach((y) => {
+      const left = metrics.foundationX + inset;
+      const top = y + inset;
+      const right = metrics.foundationX + metrics.cardWidth - inset;
+      const bottom = y + metrics.cardHeight - inset;
+
+      graphics.strokeRect(left, top, right - left, bottom - top);
+      graphics.lineStyle(1, lineColor, accentAlpha);
+
+      graphics.beginPath();
+      graphics.moveTo(left, top + corner);
+      graphics.lineTo(left + tick, top + corner);
+      graphics.moveTo(left + corner, top);
+      graphics.lineTo(left + corner, top + tick);
+
+      graphics.moveTo(right, top + corner);
+      graphics.lineTo(right - tick, top + corner);
+      graphics.moveTo(right - corner, top);
+      graphics.lineTo(right - corner, top + tick);
+
+      graphics.moveTo(left, bottom - corner);
+      graphics.lineTo(left + tick, bottom - corner);
+      graphics.moveTo(left + corner, bottom);
+      graphics.lineTo(left + corner, bottom - tick);
+
+      graphics.moveTo(right, bottom - corner);
+      graphics.lineTo(right - tick, bottom - corner);
+      graphics.moveTo(right - corner, bottom);
+      graphics.lineTo(right - corner, bottom - tick);
+      graphics.strokePath();
+      graphics.lineStyle(1, lineColor, lineAlpha);
+    });
   }
 
   private createGameButtons(): void {

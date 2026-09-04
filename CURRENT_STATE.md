@@ -24,7 +24,8 @@
 ## Current visual/input state
 
 - Runtime card faces use stable `public/assets/cards/*.png` files; Phaser does not load SVG cards at runtime.
-- The current Horizontal2 runtime PNGs are pre-resampled to 216×302. Responsive desktop display width is constrained to 84..180 px, so these textures retain resolution headroom without runtime SVG rasterization.
+- The runtime deck is now the unmodified Vintage set (360×480 PNGs). Card geometry and responsive sizing are unchanged.
+- The board surface now uses the supplied Fine Grained Wood color texture as a fullscreen tiled surface; gameplay layout and camera behavior are unchanged.
 - Desktop uses `Phaser.Scale.RESIZE`: the real canvas fills the browser viewport 1:1 instead of being CSS-stretched.
 - `LayoutMetrics.ts` calculates card size and all board coordinates directly from the live viewport. The main camera stays at `zoom = 1` and `scroll = 0`; `ResponsiveViewport.ts` has been removed.
 - Desktop layout is hybrid: the foundation utility rail stays attached to the left edge, cards grow moderately while tableau columns keep a compact gap of about 30% of card width (hard-capped at 40%), and excess widescreen/ultrawide space centers the tableau inside the remaining play region instead of stretching it edge-to-edge.
@@ -71,4 +72,7 @@ C++20 toolchain configured in `package.json` is available.
 
 ## Current next focus
 
-Playtest the new true responsive desktop layout at 16:9, resized browser windows, and ultrawide. Confirm cards/columns use the available viewport naturally, camera remains identity, DOM controls/menu stay anchored to the viewport, drag/drop still feels unchanged, resize does not restart the current game, and foundation cards remain visible beneath incoming automatic cards. Mobile layout is intentionally a later separate pass.
+Visually verify the first historical reskin checkpoint: Fine Grained Wood board + unmodified Vintage cards. If approved, the next isolated pass is foundation styling, followed by parchment/bronze HUD controls. Mobile layout remains a later separate pass.
+
+- Runtime card faces use stable PNG files; Phaser does not load SVG cards at runtime.
+- Historical gameplay visual pass is active on the clean post-commit base: the Fine Grained Wood surface is darkened non-destructively at runtime, the foundation rail no longer has a solid dark fill, a thin bronze divider and responsive vector foundation frames sit directly over the wood, and the top gameplay controls use parchment/bronze plaques with clipped corners. Main menu styling is intentionally deferred.
