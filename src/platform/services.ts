@@ -13,21 +13,77 @@ export interface PlatformServices {
   readonly ready: () => void;
 }
 
-class MemoryPlayerStorage implements PlayerStorage {
-  private data: Record<string, unknown> = {};
+export interface BrowserStorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
 
-  async load(): Promise<unknown> {
-    return structuredClone(this.data);
-  }
+const PLAYER_DATA_KEY = 'cascadePlayerData';
 
-  async save(data: Record<string, unknown>): Promise<void> {
-    this.data = structuredClone(data);
+function cloneData(data: Record<string, unknown>): Record<string, unknown> {
+  return structuredClone(data);
+}
+
+function isPlayerData(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function resolveBrowserStorage(): BrowserStorageLike | null {
+  try {
+    return (globalThis as { localStorage?: BrowserStorageLike }).localStorage ?? null;
+  } catch {
+    return null;
   }
 }
 
-export function createUnavailablePlatformServices(): PlatformServices {
+export function createBrowserPlayerStorage(
+  storage: BrowserStorageLike | null = resolveBrowserStorage(),
+): PlayerStorage {
+  let memoryData: Record<string, unknown> = {};
+
   return {
-    playerStorage: new MemoryPlayerStorage(),
+    async load(): Promise<unknown> {
+      if (storage !== null) {
+        try {
+          const serialized = storage.getItem(PLAYER_DATA_KEY);
+
+          if (serialized !== null) {
+            const parsed = JSON.parse(serialized) as unknown;
+
+            if (isPlayerData(parsed)) {
+              memoryData = cloneData(parsed);
+              return cloneData(memoryData);
+            }
+          }
+        } catch {
+          // Browser persistence can be blocked or corrupted; keep playing from memory.
+        }
+      }
+
+      return cloneData(memoryData);
+    },
+
+    async save(data: Record<string, unknown>): Promise<void> {
+      memoryData = cloneData(data);
+
+      if (storage !== null) {
+        try {
+          storage.setItem(PLAYER_DATA_KEY, JSON.stringify(data));
+        } catch {
+          // Memory remains the last-resort fallback for this page lifetime.
+        }
+      }
+    },
+  };
+}
+
+export function createUnavailablePlatformServices(
+  storage?: BrowserStorageLike | null,
+): PlatformServices {
+  const browserStorage = storage === undefined ? resolveBrowserStorage() : storage;
+
+  return {
+    playerStorage: createBrowserPlayerStorage(browserStorage),
     trustedClock: { nowMs: () => null },
     ready: () => undefined,
   };
