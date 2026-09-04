@@ -9,17 +9,29 @@
 - `src/game/view/BoardView.ts` — Phaser board input, card sync, target selection and motion.
 - `src/game/view/DropGeometry.ts` — renderer-independent drop commitment geometry.
 - `src/game/view/CardFlight.ts` — quadratic flight path math.
-- `src/game/view/MainMenuView.ts` — native DOM main menu and pending mode selection.
+- `src/game/view/MainMenuView.ts` — native DOM main menu, pending mode selection, Daily status, and current-week 3/5/7 progress.
+- `src/game/view/DailyCompleteView.ts` — native DOM Daily result overlay with retry/menu actions.
 - `src/game/view/RenderQuality.ts` — high-resolution Phaser Text settings.
 - `src/game/view/LayoutMetrics.ts` — pure responsive desktop card sizing and board coordinates.
 - `src/game/view/layout.ts` — pure derived slot/tableau/waste placement helpers that consume `LayoutMetrics`.
-- `src/game/scenes/GameScene.ts` — wiring between flow, history, model and views.
+- `src/game/scenes/GameScene.ts` — coordinator for flow, history, model, Daily/meta state, platform initialization, timers, and views.
+- `src/meta/MetaSave.ts` — versioned structured player save plus runtime normalization/migration.
+- `src/meta/MetaRepository.ts` — queued platform persistence that keeps the newest unsaved snapshot for retry after write failure.
+- `src/meta/DailyCalendar.ts` — trusted-UTC Daily IDs, ISO week IDs/dates, and deterministic Daily seed mapping.
+- `src/meta/DailyProgress.ts` — pure attempt, completion, personal-best, and weekly progress rules.
+- `src/meta/DailyAttemptTimer.ts` — pause-aware per-attempt elapsed timer.
+- `src/platform/services.ts` — platform-neutral player storage and trusted-clock interfaces plus unavailable fallbacks.
+- `src/platform/yandex.ts` — cached Yandex SDK adapter for Player data, server time, and LoadingAPI readiness.
 - `scripts/chatgpt-context-lib.mjs` — testable tree/Git/context-bundle core.
 - `scripts/chatgpt-context.mjs` — CLI used by `pnpm context*`.
 
 ## Development constraints
 
 - Keep gameplay rules in model code rather than Phaser objects where practical.
+- `src/game/model/**` must stay platform-neutral: never import Yandex SDK or `src/platform/**` there. `GameScene` is the coordinator between solitaire flow and meta/platform services.
+- Daily identity must come from trusted Yandex server time and UTC calendar boundaries; when trusted time is unavailable, disable Daily instead of falling back to the device clock.
+- Daily seed selection is deterministic from Daily ID + algorithm version into the frozen solver-proven pool; Daily restart/New Game must replay that fixed seed.
+- Daily elapsed time excludes main-menu and hidden-tab time.
 - Keep undo transactional; auto-foundation steps are part of the triggering player action.
 - Do not run auto-foundation again immediately after undo restore.
 - Keep deal-mode selection in the main menu; New Game keeps the active mode.

@@ -21,6 +21,17 @@
 - Persistent main menu; New Game no longer asks for a deal mode.
 - `В МЕНЮ`, `N`, `Z`, `R`, and `Esc` controls are wired.
 
+## Daily / weekly retention foundation
+
+- Daily is a technical third deal mode backed by a deterministic seed from the frozen solver-proven pool. The UTC Daily ID and `dailyAlgorithmVersion` choose the same deal for every attempt that day.
+- Yandex Player structured data and Yandex server time are isolated behind platform-neutral persistence/time interfaces; Standard and Classic remain playable while platform initialization is unavailable or still loading.
+- Daily attempts are unlimited. Restart and New Game in Daily replay the same Daily seed, while each settled new board counts as a new attempt.
+- A completed Daily stores a personal best completion time; slower replays keep the previous best and faster replays replace it.
+- The current UTC ISO week is shown in the main menu with completed Daily dates and 3/5/7 completion checkpoints. Missing a day does not erase other completions in the week.
+- The Daily timer starts only after the opening/automatic chain has settled, pauses while the main menu is open or the browser tab is hidden, and stops on win.
+- Daily is disabled when trusted server time is unavailable; the game never mints a production Daily from the local device clock.
+- Daily completion uses a native DOM result overlay with elapsed time, personal best, weekly progress, retry, and menu actions.
+
 ## Current visual/input state
 
 - Runtime card faces use stable `public/assets/cards/*.png` files; Phaser does not load SVG cards at runtime.
@@ -72,7 +83,4 @@ C++20 toolchain configured in `package.json` is available.
 
 ## Current next focus
 
-Visually verify the first historical reskin checkpoint: Fine Grained Wood board + unmodified Vintage cards. If approved, the next isolated pass is foundation styling, followed by parchment/bronze HUD controls. Mobile layout remains a later separate pass.
-
-- Runtime card faces use stable PNG files; Phaser does not load SVG cards at runtime.
-- Historical gameplay visual pass is active on the clean post-commit base: the Fine Grained Wood surface is darkened non-destructively at runtime, the foundation rail no longer has a solid dark fill, a thin bronze divider and responsive vector foundation frames sit directly over the wood, and the top gameplay controls use parchment/bronze plaques with clipped corners. Main menu styling is intentionally deferred.
+The next product phase is persistent player statistics plus a generic win summary for ordinary games. Economy systems (XP, coins, shop), achievements, ads, and purchases are intentionally not part of the completed Daily/Weekly foundation. Mobile layout remains a later separate pass.

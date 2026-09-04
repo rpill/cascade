@@ -5,11 +5,13 @@ cascade/
 │       ├── plans/
 │       │   ├── 2026-09-02-sawayama-game-modes.md
 │       │   ├── 2026-09-02-visual-undo-main-menu.md
-│       │   └── 2026-09-03-responsive-fullscreen-layout.md
+│       │   ├── 2026-09-03-responsive-fullscreen-layout.md
+│       │   └── 2026-09-04-daily-weekly-retention-foundation.md
 │       └── specs/
 │           ├── 2026-09-02-sawayama-game-modes-design.md
 │           ├── 2026-09-02-visual-undo-main-menu-design.md
-│           └── 2026-09-03-responsive-fullscreen-layout-design.md
+│           ├── 2026-09-03-responsive-fullscreen-layout-design.md
+│           └── 2026-09-04-retention-meta-progression-design.md
 ├── public/
 │   └── assets/
 │       ├── cards/ [contents omitted]
@@ -42,13 +44,21 @@ cascade/
 │   │       ├── CardAnimation.ts
 │   │       ├── CardFlight.ts
 │   │       ├── CardMotionDepth.ts
+│   │       ├── DailyCompleteView.ts
 │   │       ├── DropGeometry.ts
 │   │       ├── layout.ts
 │   │       ├── LayoutMetrics.ts
 │   │       ├── MainMenuView.ts
 │   │       ├── RenderQuality.ts
 │   │       └── StockVisualState.ts
+│   ├── meta/
+│   │   ├── DailyAttemptTimer.ts
+│   │   ├── DailyCalendar.ts
+│   │   ├── DailyProgress.ts
+│   │   ├── MetaRepository.ts
+│   │   └── MetaSave.ts
 │   ├── platform/
+│   │   ├── services.ts
 │   │   └── yandex.ts
 │   ├── main.ts
 │   └── styles.css
@@ -59,6 +69,11 @@ cascade/
 │   ├── card-flight.test.ts
 │   ├── card-motion.test.ts
 │   ├── chatgpt-context.test.mjs
+│   ├── daily-attempt-timer.test.ts
+│   ├── daily-calendar.test.ts
+│   ├── daily-complete-view.test.ts
+│   ├── daily-progress.test.ts
+│   ├── daily-scene-wiring.test.ts
 │   ├── deal-original.test.ts
 │   ├── deal-seed.test.ts
 │   ├── dom-ui.test.ts
@@ -70,6 +85,9 @@ cascade/
 │   ├── game-session.test.ts
 │   ├── game.test.ts
 │   ├── main-menu-wiring.test.ts
+│   ├── meta-repository.test.ts
+│   ├── meta-save.test.ts
+│   ├── platform-services.test.ts
 │   ├── render-config.test.ts
 │   ├── render-quality.test.ts
 │   ├── responsive-layout.test.ts
@@ -88,6 +106,7 @@ cascade/
 ├── pnpm-workspace.yaml
 ├── PROJECT.md
 ├── README.md
+├── README.txt
 ├── TECH.md
 ├── THIRD_PARTY_ASSETS.md
 ├── TREE.txt
