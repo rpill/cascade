@@ -87,10 +87,11 @@ test('Yandex adapter reads trusted time and structured player data through one p
 });
 
 
-test('platform initialization caches YaGames.init and the player adapter for readiness', async () => {
+test('platform loads the proxied SDK before YaGames.init and caches initialization', async () => {
   let initCalls = 0;
   let getPlayerCalls = 0;
   let readyCalls = 0;
+  let appendedSrc = '';
   const player = {
     getData: async () => ({}),
     setData: async () => undefined,
@@ -104,14 +105,39 @@ test('platform initialization caches YaGames.init and the player adapter for rea
     features: { LoadingAPI: { ready: () => { readyCalls += 1; } } },
   };
 
-  (globalThis as { window: unknown }).window = {
-    YaGames: {
-      init: async () => {
-        initCalls += 1;
-        return ysdk;
+  const fakeWindow: {
+    location: { protocol: string };
+    YaGames?: { init(): Promise<typeof ysdk> };
+  } = {
+    location: { protocol: 'https:' },
+  };
+
+  const fakeDocument = {
+    createElement: (tag: string) => {
+      assert.equal(tag, 'script');
+      return {
+        src: '',
+        async: false,
+        onload: null as null | (() => void),
+        onerror: null as null | (() => void),
+      };
+    },
+    head: {
+      appendChild: (script: { src: string; onload: null | (() => void) }) => {
+        appendedSrc = script.src;
+        fakeWindow.YaGames = {
+          init: async () => {
+            initCalls += 1;
+            return ysdk;
+          },
+        };
+        script.onload?.();
       },
     },
   };
+
+  (globalThis as { window: unknown }).window = fakeWindow;
+  (globalThis as { document: unknown }).document = fakeDocument;
 
   const first = initializePlatform();
   const second = initializePlatform();
@@ -120,7 +146,20 @@ test('platform initialization caches YaGames.init and the player adapter for rea
   await first;
   await notifyPlatformReady();
 
+  assert.equal(appendedSrc, '/sdk.js');
   assert.equal(initCalls, 1);
   assert.equal(getPlayerCalls, 1);
   assert.equal(readyCalls, 1);
+});
+
+test('package exposes one-command Yandex dev proxy launch', async () => {
+  const packageJson = JSON.parse(
+    await import('node:fs/promises').then(({ readFile }) =>
+      readFile(new URL('../package.json', import.meta.url), 'utf8'),
+    ),
+  ) as { scripts?: Record<string, string> };
+
+  assert.match(packageJson.scripts?.['yandex:dev'] ?? '', /sdk-dev-proxy/);
+  assert.match(packageJson.scripts?.['yandex:dev'] ?? '', /--dev-mode=true/);
+  assert.match(packageJson.scripts?.['yandex:dev'] ?? '', /pnpm build/);
 });
