@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 
+import { createCard } from '../src/game/model/cards.ts';
 import { GameSession } from '../src/game/model/GameSession.ts';
+import type { Deal } from '../src/game/model/types.ts';
 
 function entropySequence(values: bigint[]): () => bigint {
   let index = 0;
@@ -30,6 +32,51 @@ test('winnable new games select only pool members and avoid repeats', () => {
   assert.equal(session.startNew('winnable').seed, 11n);
   assert.equal(session.startNew('winnable').seed, 22n);
   assert.ok(pool.includes(session.currentSeed as 11n | 22n));
+});
+
+
+
+test('resume installs an exact cloned saved deal without re-dealing', () => {
+  const savedDeal: Deal = {
+    seed: 77n,
+    mode: 'original',
+    tableau: [[createCard('clubs', 4)], [], [], [], [], [], []],
+    stock: [createCard('hearts', 9)],
+    waste: [createCard('spades', 7)],
+    freeCell: createCard('diamonds', 6),
+    foundations: { clubs: [createCard('clubs', 1)] },
+  };
+  const session = new GameSession({
+    nextSeed: () => 999n,
+    winnableSeeds: [101n],
+  });
+
+  const resumed = session.resume(savedDeal);
+
+  assert.equal(resumed.seed, savedDeal.seed);
+  assert.equal(resumed.mode, savedDeal.mode);
+  assert.deepEqual(resumed.tableau, savedDeal.tableau);
+  assert.deepEqual(resumed.stock, savedDeal.stock);
+  assert.deepEqual(resumed.waste, savedDeal.waste);
+  assert.deepEqual(resumed.foundations, savedDeal.foundations);
+  assert.equal(resumed.freeCell?.id, savedDeal.freeCell?.id);
+  assert.notEqual(resumed, savedDeal);
+  assert.notEqual(resumed.tableau, savedDeal.tableau);
+  assert.notEqual(resumed.tableau[0], savedDeal.tableau[0]);
+  assert.notEqual(resumed.stock, savedDeal.stock);
+  assert.notEqual(resumed.waste, savedDeal.waste);
+  assert.notEqual(resumed.foundations, savedDeal.foundations);
+  assert.notEqual(resumed.foundations?.clubs, savedDeal.foundations?.clubs);
+
+  savedDeal.tableau[0].length = 0;
+  savedDeal.stock.length = 0;
+  savedDeal.waste!.length = 0;
+  savedDeal.foundations!.clubs!.length = 0;
+
+  assert.equal(session.currentDeal?.tableau[0].length, 1);
+  assert.equal(session.currentDeal?.stock.length, 1);
+  assert.equal(session.currentDeal?.waste?.length, 1);
+  assert.equal(session.currentDeal?.foundations?.clubs?.length, 1);
 });
 
 test('restart preserves mode, seed, tableau, and stock order', () => {

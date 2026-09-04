@@ -1,10 +1,32 @@
 import { createDealForMode } from './deal.ts';
-import type { Deal, GameMode } from './types.ts';
+import { SUITS, type Deal, type Foundations, type GameMode } from './types.ts';
 import { WINNABLE_SEEDS } from './winnableSeeds.ts';
 
 interface GameSessionOptions {
   readonly nextSeed?: () => bigint;
   readonly winnableSeeds?: readonly bigint[];
+}
+
+
+function cloneDeal(deal: Deal): Deal {
+  const foundations = deal.foundations === undefined
+    ? undefined
+    : Object.fromEntries(
+        SUITS.flatMap((suit) => {
+          const pile = deal.foundations?.[suit];
+          return pile === undefined ? [] : [[suit, [...pile]]];
+        }),
+      ) as Partial<Foundations>;
+
+  return {
+    seed: deal.seed,
+    mode: deal.mode,
+    tableau: deal.tableau.map((pile) => [...pile]),
+    stock: [...deal.stock],
+    ...(deal.waste === undefined ? {} : { waste: [...deal.waste] }),
+    ...(deal.freeCell === undefined ? {} : { freeCell: deal.freeCell }),
+    ...(foundations === undefined ? {} : { foundations }),
+  };
 }
 
 function nonZeroUint64(value: bigint): bigint {
@@ -65,6 +87,11 @@ export class GameSession {
     }
 
     this.activeDeal = createDealForMode('daily', seed);
+    return this.activeDeal;
+  }
+
+  resume(deal: Deal): Deal {
+    this.activeDeal = cloneDeal(deal);
     return this.activeDeal;
   }
 

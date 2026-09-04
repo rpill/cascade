@@ -54,6 +54,20 @@ export class GameFlow {
     return deal;
   }
 
+  resume(
+    deal: Deal,
+    state: 'playing' | 'menu-paused',
+  ): Deal {
+    if (state !== 'playing' && state !== 'menu-paused') {
+      throw new Error('Resume state must be playing or menu-paused.');
+    }
+
+    const resumed = this.session.resume(deal);
+    this.pendingMode = resumed.mode;
+    this.flowState = state;
+    return resumed;
+  }
+
   startNewInCurrentMode(): Deal {
     if (this.flowState !== 'playing' || this.session.currentDeal === null) {
       throw new Error('Cannot start a new game without an active deal.');

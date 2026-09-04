@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { GameFlow } from '../src/game/model/GameFlow.ts';
 import { GameSession } from '../src/game/model/GameSession.ts';
+import { createDealForMode } from '../src/game/model/deal.ts';
 
 function createFlow(): GameFlow {
   return new GameFlow(new GameSession({
@@ -13,6 +14,43 @@ function createFlow(): GameFlow {
     winnableSeeds: [1n, 2n],
   }));
 }
+
+
+
+test('resume restores a saved deal directly into playing state', () => {
+  const flow = createFlow();
+  const savedDeal = createDealForMode('original', 123n);
+
+  const resumed = flow.resume(savedDeal, 'playing');
+
+  assert.equal(flow.state, 'playing');
+  assert.equal(flow.selectedMode, savedDeal.mode);
+  assert.equal(flow.currentDeal, resumed);
+  assert.equal(resumed.seed, savedDeal.seed);
+});
+
+test('resume restores a saved deal into menu-paused state', () => {
+  const flow = createFlow();
+  const savedDeal = createDealForMode('winnable', 456n);
+
+  flow.resume(savedDeal, 'menu-paused');
+
+  assert.equal(flow.state, 'menu-paused');
+  assert.equal(flow.selectedMode, savedDeal.mode);
+  assert.equal(flow.canCancelMenu, true);
+  assert.equal(flow.cancelMenu(), true);
+  assert.equal(flow.state, 'playing');
+});
+
+test('resume rejects menu-required as a restore target', () => {
+  const flow = createFlow();
+  const savedDeal = createDealForMode('original', 789n);
+
+  assert.throws(
+    () => flow.resume(savedDeal, 'menu-required' as 'playing'),
+    /resume state|playing|menu-paused/i,
+  );
+});
 
 test('launch requires selecting a mode before Play can start a deal', () => {
   const flow = createFlow();
