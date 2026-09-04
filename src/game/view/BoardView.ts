@@ -37,6 +37,7 @@ interface BoardActions {
   readonly move: (source: CardSource, target: MoveTarget) => boolean;
   readonly autoFoundation: (source: CardSource) => boolean;
   readonly autoFoundationStep: () => Card | null;
+  readonly settled: () => void;
   readonly undo: () => boolean;
   readonly restart: () => void;
   readonly newGame: () => void;
@@ -113,6 +114,15 @@ export class BoardView {
     this.createCardImages();
     this.createStockStack();
     this.relayout(metrics);
+  }
+
+  showRestoredState(): void {
+    this.activeFlights.forEach((flight) => flight.stop());
+    this.activeFlights.clear();
+    this.dragState = null;
+    this.stockVisual.sync(this.game.stock.length);
+    this.inputLocked = false;
+    this.sync(null);
   }
 
   playInitialDeal(): void {
@@ -488,6 +498,7 @@ export class BoardView {
       () => {
         this.inputLocked = false;
         this.sync(null);
+        this.actions.settled();
       },
     );
 

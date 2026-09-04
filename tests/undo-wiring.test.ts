@@ -25,6 +25,8 @@ test('undo is exposed through the board and Z shortcut without auto-foundation r
   assert.match(boardSource, /ОТМЕНА\s+Z/);
   assert.match(boardSource, /requestUndo\(\)/);
   assert.match(boardSource, /sync\('undo'\)/);
+  assert.match(boardSource, /readonly settled:\s*\(\) => void/);
+  assert.match(boardSource, /requestUndo\(\): void \{[^]*actions\.settled\(\)/);
 });
 
 test('undo resyncs stock visuals after restoring an exhausted stock', () => {
