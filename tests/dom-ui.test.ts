@@ -57,3 +57,15 @@ test('statistics is a native screen-space DOM modal and UI surfaces do not scrol
   assert.doesNotMatch(stylesSource, /\.meta-modal-panel\s*\{[^}]*overflow\s*:\s*(?:auto|scroll)/s);
   assert.match(stylesSource, /html,[^]*body,[^]*#game[^]*overflow:\s*hidden/);
 });
+
+test('leaderboard modal reuses the no-scroll shell with truncated names', () => {
+  const leaderboardSource = readFileSync(
+    new URL('../src/game/view/LeaderboardView.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(leaderboardSource, /meta-modal-dom/);
+  assert.match(leaderboardSource, /meta-modal-panel/);
+  assert.match(stylesSource, /\.leaderboard-panel/);
+  assert.match(stylesSource, /\.leaderboard-name\s*\{[^}]*overflow:\s*hidden[^}]*text-overflow:\s*ellipsis[^}]*white-space:\s*nowrap/s);
+  assert.doesNotMatch(stylesSource, /\.leaderboard-[^{]+\{[^}]*overflow\s*:\s*(?:auto|scroll)/s);
+});

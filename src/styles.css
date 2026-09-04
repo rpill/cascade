@@ -971,3 +971,244 @@ canvas {
 .game-complete-stats {
   font-weight: 700;
 }
+
+.leaderboard-panel {
+  width: min(560px, calc(100vw - 40px));
+  overflow: hidden;
+}
+
+.leaderboard-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.leaderboard-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 auto 14px;
+}
+
+.leaderboard-tab,
+.leaderboard-auth-button {
+  height: 38px;
+  border: 1px solid rgba(113, 85, 49, 0.66);
+  border-radius: 0;
+  background: rgba(245, 231, 192, 0.34);
+  color: rgba(42, 36, 30, 0.72);
+  font: 700 13px/36px Georgia, "Times New Roman", serif;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  appearance: none;
+}
+
+.leaderboard-tab-selected {
+  border-color: var(--ui-oxblood);
+  box-shadow: inset 0 -2px 0 var(--ui-oxblood);
+  color: var(--ui-ink);
+}
+
+.leaderboard-status {
+  min-height: 28px;
+  margin: 8px 0;
+  color: rgba(42, 36, 30, 0.68);
+  font: 400 14px/1.4 Georgia, "Times New Roman", serif;
+}
+
+.leaderboard-status[hidden] {
+  display: none;
+}
+
+.leaderboard-list {
+  display: grid;
+  min-height: 220px;
+  align-content: start;
+  gap: 2px;
+  padding: 6px 0;
+  border-top: 1px solid rgba(92, 69, 44, 0.3);
+  border-bottom: 1px solid rgba(92, 69, 44, 0.3);
+}
+
+.leaderboard-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 34px minmax(0, 1fr) 72px;
+  gap: 8px;
+  align-items: center;
+  min-height: 20px;
+  color: rgba(42, 36, 30, 0.76);
+  font: 400 13px/1.2 Georgia, "Times New Roman", serif;
+  text-align: left;
+}
+
+.leaderboard-rank {
+  text-align: right;
+}
+
+.leaderboard-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-time {
+  color: var(--ui-ink);
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.leaderboard-player-result {
+  min-height: 22px;
+  margin: 10px 0 0;
+  color: var(--ui-ink);
+  font: 700 13px/1.35 Georgia, "Times New Roman", serif;
+}
+
+.leaderboard-player-result[hidden],
+.leaderboard-auth[hidden] {
+  display: none;
+}
+
+.leaderboard-auth {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 116px;
+  gap: 12px;
+  align-items: center;
+  margin: 10px 0 0;
+}
+
+.leaderboard-auth-copy {
+  color: rgba(42, 36, 30, 0.7);
+  font: 400 12px/1.3 Georgia, "Times New Roman", serif;
+  text-align: left;
+}
+
+.leaderboard-auth-button {
+  width: 116px;
+}
+
+.leaderboard-auth-button:disabled {
+  cursor: default;
+  opacity: 0.52;
+}
+
+.leaderboard-close {
+  margin-top: 14px;
+}
+
+@media (max-height: 620px) {
+  .leaderboard-panel {
+    padding-top: 20px;
+    padding-bottom: 18px;
+  }
+
+  .leaderboard-panel .meta-modal-title {
+    margin-bottom: 10px;
+    font-size: 22px;
+  }
+
+  .leaderboard-tabs {
+    margin-bottom: 8px;
+  }
+
+  .leaderboard-tab,
+  .leaderboard-auth-button {
+    height: 32px;
+    font-size: 11px;
+    line-height: 30px;
+  }
+
+  .leaderboard-list {
+    min-height: 190px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .leaderboard-row {
+    min-height: 17px;
+    font-size: 11px;
+  }
+
+  .leaderboard-player-result,
+  .leaderboard-auth {
+    margin-top: 7px;
+  }
+
+  .leaderboard-auth-copy {
+    font-size: 10px;
+  }
+
+  .leaderboard-close {
+    margin-top: 9px;
+  }
+}
+
+@media (max-height: 520px) {
+  .leaderboard-panel {
+    width: min(540px, calc(100vw - 28px));
+    padding: 14px 28px 12px;
+  }
+
+  .leaderboard-panel .meta-modal-title {
+    margin-bottom: 7px;
+    font-size: 19px;
+  }
+
+  .leaderboard-tabs {
+    gap: 6px;
+    margin-bottom: 5px;
+  }
+
+  .leaderboard-tab,
+  .leaderboard-auth-button {
+    height: 28px;
+    line-height: 26px;
+  }
+
+  .leaderboard-status {
+    min-height: 20px;
+    margin: 4px 0;
+    font-size: 11px;
+  }
+
+  .leaderboard-list {
+    min-height: 160px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+
+  .leaderboard-row {
+    min-height: 15px;
+    grid-template-columns: 30px minmax(0, 1fr) 64px;
+    font-size: 10px;
+  }
+
+  .leaderboard-player-result {
+    min-height: 18px;
+    margin-top: 4px;
+    font-size: 10px;
+  }
+
+  .leaderboard-auth {
+    grid-template-columns: minmax(0, 1fr) 104px;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .leaderboard-auth-copy {
+    font-size: 9px;
+  }
+
+  .leaderboard-auth-button {
+    width: 104px;
+  }
+
+  .leaderboard-close {
+    height: 30px;
+    margin-top: 5px;
+    font-size: 11px;
+    line-height: 28px;
+  }
+}
