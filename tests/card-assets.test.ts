@@ -44,3 +44,14 @@ test('all 52 runtime card faces exist as high-resolution PNG files', () => {
 
   assert.deepEqual(missingOrInvalid, []);
 });
+
+
+test('Phaser runtime card URLs are relative for nested Yandex hosting', () => {
+  const bootScene = readFileSync(
+    new URL('../src/game/scenes/BootScene.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.doesNotMatch(bootScene, /['"`]\/assets\//);
+  assert.match(bootScene, /CARD_ASSET_ROOT = ['"]\.\/assets\/cards['"]/);
+});

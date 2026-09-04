@@ -9,6 +9,9 @@ const SUIT_FILE: Record<Suit, string> = {
   spades: 'spade',
 };
 
+const CARD_ASSET_ROOT = './assets/cards';
+const BOARD_SURFACE_ASSET = './assets/theme/fine-grained-wood.jpg';
+
 const FACE_FILE: Partial<Record<number, string>> = {
   1: 'Ace',
   11: 'Jack',
@@ -22,10 +25,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.image(
-      'cascade-board-surface',
-      '/assets/theme/fine-grained-wood.jpg',
-    );
+    this.load.image('board-surface', BOARD_SURFACE_ASSET);
 
     SUITS.forEach((suit) => {
       for (let rank = 1; rank <= 13; rank += 1) {
@@ -34,14 +34,14 @@ export class BootScene extends Phaser.Scene {
 
         this.load.image(
           `${suit}-${rank}`,
-          `/assets/cards/${fileName}`,
+          `${CARD_ASSET_ROOT}/${fileName}`,
         );
       }
     });
 
     this.load.image(
       'card-back',
-      '/assets/cards/redBack.png',
+      `${CARD_ASSET_ROOT}/redBack.png`,
     );
   }
 

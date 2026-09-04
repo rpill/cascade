@@ -37,7 +37,7 @@ test('desktop rendering resizes the real canvas to the viewport instead of CSS-s
 
 test('boot loads stable raster card textures instead of runtime SVGs', () => {
   assert.match(bootSource, /this\.load\.image\(/);
-  assert.match(bootSource, /\/assets\/cards\//);
+  assert.match(bootSource, /CARD_ASSET_ROOT = ['"]\.\/assets\/cards['"]/);
   assert.doesNotMatch(bootSource, /this\.load\.svg\(|cards-vector/);
 });
 
