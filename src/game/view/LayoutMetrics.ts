@@ -15,8 +15,8 @@ const MIN_FOUNDATION_GAP = 12;
 const MAX_FOUNDATION_GAP = 42;
 const MIN_TABLEAU_ROW_GAP = 28;
 const MAX_TABLEAU_ROW_GAP = 64;
-const MIN_TABLEAU_CARD_GAP = 24;
-const MAX_TABLEAU_CARD_GAP = 52;
+const MIN_TABLEAU_CARD_GAP = 20;
+const MAX_TABLEAU_CARD_GAP = 46;
 const MIN_WASTE_GAP = 18;
 const MAX_WASTE_GAP = 40;
 
@@ -117,7 +117,7 @@ export function calculateLayoutMetrics(
   const tableauY = topMargin + cardHeight + tableauRowGap;
   const tableauCardGap = clamp(
     MIN_TABLEAU_CARD_GAP,
-    cardHeight * (36 / 151),
+    cardHeight * (28 / 151),
     MAX_TABLEAU_CARD_GAP,
   );
   const wasteGap = clamp(
