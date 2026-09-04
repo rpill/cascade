@@ -113,3 +113,18 @@ test('ordinary completion is shown with merged stats and completion actions', ()
   assert.match(scene, /startDeal[^]*gameCompleteView\.hide\(\)/);
   assert.match(scene, /shutdown[^]*gameCompleteView\.destroy\(\)/);
 });
+
+
+test('ordinary best sync is gated by improvedBest and does not gate local completion', () => {
+  const start = scene.indexOf('private finishOrdinaryAttempt');
+  assert.notEqual(start, -1);
+  const next = scene.indexOf('\n  private ', start + 1);
+  const ordinary = scene.slice(start, next === -1 ? scene.length : next);
+
+  assert.match(ordinary, /completion\.improvedBest/);
+  assert.match(ordinary, /void this\.leaderboardService\?\.syncBest\(mode, bestTimeMs\)/);
+  assert.ok(
+    ordinary.indexOf('this.metaRepository?.save(this.metaState, true)')
+      < ordinary.indexOf('syncBest(mode, bestTimeMs)'),
+  );
+});

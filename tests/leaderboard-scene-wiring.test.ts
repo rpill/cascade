@@ -121,3 +121,23 @@ test('Escape and menu close dismiss leaderboard before the underlying menu', () 
 test('GameScene never reaches into raw Yandex SDK APIs', () => {
   assert.doesNotMatch(sceneSource, /openAuthDialog|ysdk\.leaderboards|YaGames/);
 });
+
+
+test('only an improved ordinary best requests fire-and-forget leaderboard synchronization', () => {
+  const ordinary = extractMethod(sceneSource, 'finishOrdinaryAttempt');
+  assert.match(
+    ordinary,
+    /completion\.improvedBest[\s\S]*bestTimeMs[\s\S]*void this\.leaderboardService\?\.syncBest\(mode, bestTimeMs\)/,
+  );
+  assert.match(ordinary, /if \(completion\.improvedBest && bestTimeMs !== undefined\)/);
+  assert.ok(
+    ordinary.indexOf('this.metaRepository?.save(this.metaState, true)')
+      < ordinary.indexOf('this.leaderboardService?.syncBest(mode, bestTimeMs)'),
+    'local meta flush must not wait on leaderboard synchronization',
+  );
+  assert.ok(
+    ordinary.indexOf('this.activeGameRepository.clear()')
+      < ordinary.indexOf('this.leaderboardService?.syncBest(mode, bestTimeMs)'),
+    'active checkpoint cleanup must not wait on leaderboard synchronization',
+  );
+});

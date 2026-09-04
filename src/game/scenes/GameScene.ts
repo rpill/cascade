@@ -507,6 +507,11 @@ export class GameScene extends Phaser.Scene {
     void this.metaRepository?.save(this.metaState, true);
     this.activeGameRepository.clear();
     this.pendingActiveSave = null;
+
+    const bestTimeMs = completion.stats.bestTimeMs;
+    if (completion.improvedBest && bestTimeMs !== undefined) {
+      void this.leaderboardService?.syncBest(mode, bestTimeMs);
+    }
   }
 
   private showOrdinaryCompletion(): void {

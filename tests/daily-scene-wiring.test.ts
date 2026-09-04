@@ -29,3 +29,12 @@ test('the shared attempt timer only resumes when gameplay is active visible and 
   assert.match(scene, /attemptTimer\.resume\(performance\.now\(\)\)/);
   assert.doesNotMatch(scene, /dailyTimer|dailyAttemptStarted/);
 });
+
+
+test('Daily completion never writes ordinary leaderboards', () => {
+  const start = scene.indexOf('private finishDailyAttempt');
+  assert.notEqual(start, -1);
+  const next = scene.indexOf('\n  private ', start + 1);
+  const dailyFinish = scene.slice(start, next === -1 ? scene.length : next);
+  assert.doesNotMatch(dailyFinish, /leaderboardService|syncBest/);
+});
