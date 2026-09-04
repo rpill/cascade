@@ -62,3 +62,26 @@ test('an empty winnable pool never falls back to an unverified seed', () => {
 
   assert.throws(() => session.startNew('winnable'), /winnable seed pool is empty/iu);
 });
+
+test('Daily starts only from a seed in the frozen solver-proven pool', () => {
+  const session = new GameSession({ nextSeed: () => 1n, winnableSeeds: [11n, 22n] });
+
+  assert.equal(session.startDaily(22n).mode, 'daily');
+  assert.equal(session.currentSeed, 22n);
+  assert.throws(() => session.startDaily(99n), /solver-proven/i);
+});
+
+test('Daily restart preserves its fixed seed', () => {
+  const session = new GameSession({ nextSeed: () => 1n, winnableSeeds: [11n] });
+  const first = session.startDaily(11n);
+  const restarted = session.restart();
+
+  assert.equal(restarted.mode, 'daily');
+  assert.equal(restarted.seed, first.seed);
+});
+
+test('Daily cannot accidentally use the ordinary entropy-based new-game path', () => {
+  const session = new GameSession({ nextSeed: () => 11n, winnableSeeds: [11n] });
+
+  assert.throws(() => session.startNew('daily'), /startDaily/i);
+});

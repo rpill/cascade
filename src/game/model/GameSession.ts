@@ -47,11 +47,24 @@ export class GameSession {
   }
 
   startNew(mode: GameMode): Deal {
+    if (mode === 'daily') {
+      throw new Error('Use startDaily() with the deterministic Daily seed.');
+    }
+
     const seed = mode === 'winnable'
       ? this.selectWinnableSeed()
       : this.selectOriginalSeed();
 
     this.activeDeal = createDealForMode(mode, seed);
+    return this.activeDeal;
+  }
+
+  startDaily(seed: bigint): Deal {
+    if (!this.winnableSeeds.includes(seed)) {
+      throw new Error('Daily seed must come from the solver-proven seed pool.');
+    }
+
+    this.activeDeal = createDealForMode('daily', seed);
     return this.activeDeal;
   }
 

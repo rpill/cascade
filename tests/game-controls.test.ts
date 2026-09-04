@@ -94,3 +94,16 @@ test('restart preserves the active seed and mode', () => {
   assert.equal(restarted.seed, first.seed);
   assert.equal(restarted.mode, first.mode);
 });
+
+test('Daily requires its deterministic seed and New Game replays the same deal', () => {
+  const flow = createFlow();
+  flow.selectMenuMode('daily');
+
+  assert.throws(() => flow.playSelectedMode(), /Daily seed/i);
+  const first = flow.playSelectedMode(1n);
+  const second = flow.startNewInCurrentMode();
+
+  assert.equal(first.mode, 'daily');
+  assert.equal(second.mode, 'daily');
+  assert.equal(second.seed, first.seed);
+});

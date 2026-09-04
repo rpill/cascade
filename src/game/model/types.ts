@@ -7,7 +7,7 @@ export const SUITS = [
 
 export type Suit = (typeof SUITS)[number];
 export type CardColor = 'black' | 'red';
-export type GameMode = 'original' | 'winnable';
+export type GameMode = 'original' | 'winnable' | 'daily';
 
 export interface Card {
   readonly id: string;

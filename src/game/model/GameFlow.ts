@@ -36,7 +36,7 @@ export class GameFlow {
     this.pendingMode = mode;
   }
 
-  playSelectedMode(): Deal {
+  playSelectedMode(dailySeed?: bigint): Deal {
     if (this.flowState === 'playing') {
       throw new Error('Cannot start from the main menu while gameplay is active.');
     }
@@ -45,7 +45,11 @@ export class GameFlow {
       throw new Error('Select a game mode before playing.');
     }
 
-    const deal = this.session.startNew(this.pendingMode);
+    const deal = this.pendingMode === 'daily'
+      ? this.session.startDaily(
+          dailySeed ?? (() => { throw new Error('Daily seed is required.'); })(),
+        )
+      : this.session.startNew(this.pendingMode);
     this.flowState = 'playing';
     return deal;
   }
@@ -55,7 +59,9 @@ export class GameFlow {
       throw new Error('Cannot start a new game without an active deal.');
     }
 
-    const deal = this.session.startNew(this.session.currentDeal.mode);
+    const deal = this.session.currentDeal.mode === 'daily'
+      ? this.session.restart()
+      : this.session.startNew(this.session.currentDeal.mode);
     this.pendingMode = deal.mode;
     return deal;
   }
