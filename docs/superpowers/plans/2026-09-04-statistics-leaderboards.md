@@ -34,6 +34,9 @@
 - The game model remains persistence/platform-neutral.
 - Plain `pnpm dev` must keep Standard/Classic statistics functional when Yandex services are unavailable.
 - Tests assert behavior/copy/wiring, not exact pixels/colors.
+- The game UI must never use vertical or horizontal scrolling; main menu and modal overlays must fit the viewport without `overflow:auto` or `overflow:scroll`.
+- Short viewports are handled by responsive spacing/typography reductions; future larger datasets use tabs/pagination, never scroll.
+- Secondary systems such as Statistics, Leaderboards, and future Shop open dedicated fixed modals instead of appending long sections to the main menu.
 
 ---
 
@@ -52,9 +55,10 @@
 
 ### UI
 
-- `src/game/view/MainMenuView.ts` — visible local Standard/Classic statistics and leaderboard action.
-- `src/game/view/LeaderboardView.ts` — passive DOM overlay for top 10, tabs, guest CTA, personal result, loading/error/unavailable states.
-- `src/styles.css` — statistics/menu and leaderboard overlay styling using the existing parchment/bronze system.
+- `src/game/view/MainMenuView.ts` — primary modes plus compact secondary actions (`СТАТИСТИКА`, `ТАБЛИЦА ЛИДЕРОВ`); no inline stat rows and no scrolling.
+- `src/game/view/StatisticsView.ts` — passive no-scroll DOM modal for local Standard/Classic statistics.
+- `src/game/view/LeaderboardView.ts` — passive no-scroll DOM modal for top 10, tabs, guest CTA, personal result, loading/error/unavailable states.
+- `src/styles.css` — responsive no-scroll menu/modal geometry using the existing parchment/bronze system.
 
 ### Scene coordination
 
@@ -888,35 +892,53 @@ git commit -m "feat: add safe ordinary leaderboard service"
 
 ---
 
-### Task 4: Main-menu Standard/Classic statistics
+### Task 4: No-scroll main menu + Statistics modal
 
 **Files:**
 - Modify: `src/game/view/MainMenuView.ts`
+- Create: `src/game/view/StatisticsView.ts`
 - Modify: `src/game/scenes/GameScene.ts`
 - Modify: `src/styles.css`
 - Modify: `tests/main-menu-wiring.test.ts`
 - Modify: `tests/dom-ui.test.ts`
-- Create: `tests/menu-stats-wiring.test.ts`
+- Replace: `tests/menu-stats-wiring.test.ts`
+- Create: `tests/statistics-view.test.ts`
 
 **Interfaces:**
 - Consumes: `MetaSave.stats`, current `MainMenuView`, `GameScene.refreshMenuMeta()`.
-- Produces in `MainMenuView.ts`:
+- Produces in `StatisticsView.ts`:
 
 ```ts
-export interface MenuModeStats {
+export interface StatisticsModeState {
   readonly played: number;
   readonly wins: number;
   readonly bestTimeMs: number | null;
 }
 
-export interface OrdinaryMenuState {
-  readonly winnable: MenuModeStats;
-  readonly original: MenuModeStats;
-  readonly leaderboardsAvailable: boolean;
+export interface StatisticsViewState {
+  readonly winnable: StatisticsModeState;
+  readonly original: StatisticsModeState;
 }
 
+export interface StatisticsViewActions {
+  readonly close: () => void;
+}
+
+export class StatisticsView {
+  constructor(scene: Phaser.Scene, actions: StatisticsViewActions);
+  show(state: StatisticsViewState): void;
+  update(state: StatisticsViewState): void;
+  hide(): void;
+  destroy(): void;
+}
+```
+
+`MainMenuView` no longer consumes ordinary stat rows. It gains compact secondary actions:
+
+```ts
 interface MainMenuActions {
   readonly play: (mode: GameMode) => void;
+  readonly statistics: () => void;
   readonly leaderboard: () => void;
   readonly cancel: () => void;
 }
@@ -925,71 +947,70 @@ interface MainMenuShowOptions {
   readonly canCancel: boolean;
   readonly selectedMode: GameMode | null;
   readonly daily: DailyMenuState;
-  readonly ordinary: OrdinaryMenuState;
+  readonly leaderboardsAvailable: boolean;
 }
 
-updateOrdinaryState(state: OrdinaryMenuState): void;
+updateLeaderboardsAvailable(available: boolean): void;
 ```
 
-- [ ] **Step 1: Write menu-stat RED tests**
+- [ ] **Step 1: Write no-scroll/modal RED tests**
 
-`tests/menu-stats-wiring.test.ts` source-contract tests must verify:
+`tests/menu-stats-wiring.test.ts` must verify:
+
+```text
+MainMenuView contains compact СТАТИСТИКА and ТАБЛИЦА ЛИДЕРОВ actions
+MainMenuView does not render played/wins/best rows directly
+statistics action calls actions.statistics()
+leaderboard button remains disabled when unavailable
+GameScene constructs StatisticsView once
+GameScene builds StatisticsViewState from metaState.stats
+openStatistics()/closeStatistics() only show/hide modal and do not alter deal
+refreshMenuMeta() updates hidden/open statistics state
+Esc closes StatisticsView before closing/cancelling MainMenu
+```
+
+`tests/statistics-view.test.ts` verifies:
 
 ```text
 СТАТИСТИКА
-СТАНДАРТ
-КЛАССИКА
-Лучшее время:
+СТАНДАРТ / КЛАССИКА
+Партий / Побед / Процент побед / Лучшее время
 Math.round(wins / played * 100)
-played === 0 -> 0
-bestTimeMs === null -> em dash
-ТАБЛИЦА ЛИДЕРОВ
-leaderboard action wiring
-leaderboard button disabled when unavailable
+played === 0 -> 0%
+bestTimeMs === null -> —
+ЗАКРЫТЬ -> actions.close()
+no platform/MetaRepository imports
 ```
 
-Example:
+`tests/dom-ui.test.ts` adds hard no-scroll assertions:
 
-```ts
-test('menu renders local ordinary stats independently of leaderboard availability', () => {
-  assert.match(menuSource, /СТАТИСТИКА/);
-  assert.match(menuSource, /Лучшее время:/);
-  assert.match(menuSource, /Math\.round\([^]*wins[^]*played[^]*100/);
-  assert.match(menuSource, /played === 0[^]*0/);
-  assert.match(menuSource, /ТАБЛИЦА ЛИДЕРОВ/);
-  assert.match(menuSource, /actions\.leaderboard\(\)/);
-});
+```text
+.main-menu-panel must not use overflow:auto or overflow:scroll
+.meta-modal-panel/statistics panel must not use overflow:auto or overflow:scroll
+html/body/game remain overflow:hidden
 ```
-
-Scene source test verifies `refreshMenuMeta()` supplies both `updateDailyState(...)` and `updateOrdinaryState(...)` from `this.metaState.stats` and current platform/service availability.
 
 - [ ] **Step 2: Run RED**
 
 ```bash
-pnpm test -- tests/menu-stats-wiring.test.ts tests/main-menu-wiring.test.ts tests/dom-ui.test.ts
+pnpm test -- tests/menu-stats-wiring.test.ts tests/statistics-view.test.ts tests/main-menu-wiring.test.ts tests/dom-ui.test.ts
 ```
 
-Expected: FAIL because ordinary statistics UI/action do not exist.
+Expected: FAIL because `StatisticsView.ts` does not exist, statistics are still inline in the menu, and `.main-menu-panel` still uses `overflow:auto`.
 
-- [ ] **Step 3: Implement passive ordinary stats DOM**
+- [ ] **Step 3: Implement passive StatisticsView**
 
-Add a `main-menu-stats` section after the weekly block and before `ЗАКРЫТЬ`:
-
-```text
-СТАТИСТИКА
-СТАНДАРТ
-12 партий · 7 побед · 58%
-Лучшее время: 03:58
-КЛАССИКА
-5 партий · 2 победы · 40%
-Лучшее время: 07:21
-ТАБЛИЦА ЛИДЕРОВ
-```
-
-Use existing `formatDuration(ms)` for best time. Use helpers:
+Attach regular DOM to `scene.game.canvas.parentElement`, following `DailyCompleteView` / `GameCompleteView`. Render two mode blocks and one `ЗАКРЫТЬ` button. Helpers:
 
 ```ts
-function getWinRate({ played, wins }: MenuModeStats): number {
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function getWinRate({ played, wins }: StatisticsModeState): number {
   return played === 0 ? 0 : Math.round((wins / played) * 100);
 }
 
@@ -998,76 +1019,73 @@ function formatBest(bestTimeMs: number | null): string {
 }
 ```
 
-The leaderboard button remains in the DOM when unavailable, but is disabled and adds `is-disabled`; local statistics remain fully visible. Add an `UNAVAILABLE_ORDINARY_STATE` with zeroed stats and `leaderboardsAvailable:false`, call `updateOrdinaryState(UNAVAILABLE_ORDINARY_STATE)` in the constructor, and keep the view valid before asynchronous platform/meta initialization finishes.
+The view owns no persistence/platform/network state. `show(state)` makes it visible and calls `update(state)`; `hide()` only hides; `destroy()` removes the root.
 
-- [ ] **Step 4: Coordinate state from GameScene**
+- [ ] **Step 4: Collapse MainMenuView back to primary navigation**
+
+Remove the inline `.main-menu-stats` section and stat maps/helpers. Add a compact `.main-menu-meta-actions` row after Weekly with:
+
+```text
+[ СТАТИСТИКА ] [ ТАБЛИЦА ЛИДЕРОВ ]
+```
+
+`СТАТИСТИКА` is always enabled and calls `actions.statistics()`. `ТАБЛИЦА ЛИДЕРОВ` keeps the current disabled/unavailable behavior via `updateLeaderboardsAvailable(available)`. Keep `ЗАКРЫТЬ` below the row only when `canCancel`.
+
+- [ ] **Step 5: Wire StatisticsView in GameScene**
 
 Add:
 
 ```ts
-private buildOrdinaryMenuState(): OrdinaryMenuState {
-  const { winnable, original } = this.metaState.stats;
-  return {
-    winnable: {
-      played: winnable.played,
-      wins: winnable.wins,
-      bestTimeMs: winnable.bestTimeMs ?? null,
-    },
-    original: {
-      played: original.played,
-      wins: original.wins,
-      bestTimeMs: original.bestTimeMs ?? null,
-    },
-    leaderboardsAvailable: this.leaderboardService?.available ?? false,
-  };
-}
+private statisticsView!: StatisticsView;
+private statisticsOpen = false;
+
+private buildStatisticsViewState(): StatisticsViewState;
+private openStatistics(): void;
+private closeStatistics(): void;
+private handleEscape = (): void => {
+  if (this.statisticsOpen) {
+    this.closeStatistics();
+    return;
+  }
+  this.closeMainMenu();
+};
 ```
 
-For this task, add a nullable field declaration only:
+Construct the view once in `create()`, wire `MainMenuView.statistics` to `openStatistics()`, replace the ESC listener with `handleEscape`, and destroy the view on shutdown. `refreshMenuMeta()` updates Daily state, leaderboard availability, and `statisticsView.update(this.buildStatisticsViewState())`. Every `mainMenu.show(...)` passes only `leaderboardsAvailable`.
 
-```ts
-private leaderboardService: LeaderboardService | null = null;
-```
+Opening/closing Statistics must not call `flow.openMainMenu()`, `flow.cancelMenu()`, start/restart a deal, or touch the timer: it is a child modal of the already-open menu. Starting a deal defensively hides the StatisticsView.
 
-and import the type/class from Task 3. Do not construct it until Task 6.
+- [ ] **Step 6: Enforce no-scroll responsive geometry**
 
-Change `refreshMenuMeta()`:
+In `src/styles.css`:
 
-```ts
-private refreshMenuMeta(): void {
-  this.mainMenu.updateDailyState(this.buildDailyMenuState());
-  this.mainMenu.updateOrdinaryState(this.buildOrdinaryMenuState());
-}
-```
+- change `.main-menu-panel` from `overflow:auto` to `overflow:hidden`;
+- remove the long inline-stat styles;
+- add `.main-menu-meta-actions` / `.main-menu-meta-button`;
+- add reusable `.meta-modal-dom`, `.meta-modal-backdrop`, `.meta-modal-panel`, `.meta-modal-close` plus small `statistics-*` classes;
+- use `@media (max-height: ...)` rules to reduce panel padding, mode spacing, title size, and button heights instead of adding scrolling;
+- modal panel must also use `overflow:hidden`.
 
-Every `mainMenu.show(...)` call passes `ordinary: this.buildOrdinaryMenuState()`.
+No `overflow:auto` or `overflow:scroll` may be introduced for these UI surfaces.
 
-After an ordinary `beginModeAttempt()` and after ordinary completion, call `refreshMenuMeta()` so the hidden menu state is current before the next open.
-
-- [ ] **Step 5: Style statistics without replacing existing menu geometry**
-
-In `src/styles.css`, add `.main-menu-stats`, `.main-menu-stats-title`, `.main-menu-stat-mode`, `.main-menu-stat-line`, `.main-menu-leaderboard` using existing `--ui-*` variables. Do not remove current `max-height`/`overflow:auto`; the panel is already scrollable and this phase relies on that for short screens.
-
-Add `.main-menu-stats` and `.main-menu-leaderboard` to the current z-index selector group with `.main-menu-title`, `.main-menu-weekly`, etc.
-
-- [ ] **Step 6: Run GREEN/full regression**
+- [ ] **Step 7: Run GREEN/full regression**
 
 ```bash
-pnpm test -- tests/menu-stats-wiring.test.ts tests/main-menu-wiring.test.ts tests/dom-ui.test.ts tests/ordinary-stats-wiring.test.ts
+pnpm test -- tests/menu-stats-wiring.test.ts tests/statistics-view.test.ts tests/main-menu-wiring.test.ts tests/dom-ui.test.ts tests/ordinary-stats-wiring.test.ts
 pnpm test
 pnpm build
 ```
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit replacement Task 4**
 
 ```bash
-git add src/game/view/MainMenuView.ts src/game/scenes/GameScene.ts src/styles.css tests/menu-stats-wiring.test.ts tests/main-menu-wiring.test.ts tests/dom-ui.test.ts
-git commit -m "feat: show ordinary statistics in main menu"
+git add src/game/view/MainMenuView.ts src/game/view/StatisticsView.ts src/game/scenes/GameScene.ts src/styles.css tests/menu-stats-wiring.test.ts tests/statistics-view.test.ts tests/main-menu-wiring.test.ts tests/dom-ui.test.ts
+git commit -m "feat: move statistics into no-scroll modal"
 ```
 
 ---
 
-### Task 5: Passive leaderboard DOM overlay
+### Task 5: Passive no-scroll leaderboard DOM modal
 
 **Files:**
 - Create: `src/game/view/LeaderboardView.ts`
@@ -1180,7 +1198,7 @@ For an authorized user with `playerEntry === null`, render `Ваш резуль�
 
 - [ ] **Step 4: Style overlay in existing visual language**
 
-Add `leaderboard-*` classes reusing parchment/bronze variables. Long names must use:
+Reuse the `.meta-modal-*` shell created in Task 4 and add `leaderboard-*` classes for the fixed top-10 layout. The modal must fit the viewport with `overflow:hidden`; do not add any scroll container. Long names must use:
 
 ```css
 .leaderboard-name {
@@ -1191,7 +1209,7 @@ Add `leaderboard-*` classes reusing parchment/bronze variables. Long names must 
 }
 ```
 
-Do not add avatars, CSS pixel assertions, or a new visual theme.
+Do not add avatars, CSS pixel assertions, a new visual theme, `overflow:auto`, or `overflow:scroll`. If more than top 10 is ever required, add pagination in a future task instead of scrolling.
 
 - [ ] **Step 5: Run GREEN/full regression**
 
@@ -1219,7 +1237,7 @@ git commit -m "feat: add leaderboard overlay view"
 - Modify: `tests/platform-services.test.ts` only if a fake helper needs to expose newly used auth state.
 
 **Interfaces:**
-- Consumes: `LeaderboardService`, `LeaderboardView`, `OrdinaryGameMode`, `MetaSave.stats`, generic `PlatformServices.auth`.
+- Consumes: `LeaderboardService`, `LeaderboardView`, existing no-scroll StatisticsView/modal lifecycle, `OrdinaryGameMode`, `MetaSave.stats`, generic `PlatformServices.auth`.
 - Produces these `GameScene` fields:
 
 ```ts
@@ -1673,7 +1691,7 @@ B. played/wins/win-rate/best values match completed/started games.
 C. no-best renders as — and zero played renders 0%.
 D. leaderboard button is unavailable/disabled without Yandex SDK, but stats remain readable.
 E. no auth dialog ever appears automatically.
-F. short viewport can scroll the menu without shrinking/cutting statistics.
+F. short viewport shows the complete main menu without any scrollbar; spacing/typography compress responsively.
 ```
 
 - [ ] **Step 6: Create the two leaderboards in Yandex Games Console**
@@ -1764,7 +1782,7 @@ The user applies each ZIP at project root, runs the listed verification commands
 
 ## Self-Review Against Spec
 
-- **Statistics in menu:** Task 4 covers Standard/Classic played/wins/derived win-rate/best time, zero/no-best states, local fallback, leaderboard action, and short-screen scrolling.
+- **No-scroll secondary UI:** Task 4 keeps the main menu compact, moves Standard/Classic statistics into a dedicated modal, covers zero/no-best states/local fallback, and establishes the reusable no-scroll modal shell for Leaderboards and future Shop.
 - **Exactly two leaderboards:** Task 2 freezes exact technical names and excludes Daily at the type boundary; Task 8 freezes Console settings.
 - **Guest behavior:** Tasks 1, 3, 5, and 6 allow top-10 reads without auth and keep the CTA explicit.
 - **Authorization:** Tasks 1, 5, and 6 ensure only the overlay action calls generic authorization, block account switching while an unfinished browser-local active game exists, and let the Yandex adapter bridge account-selection close so the scene safely reloads the progress chosen by the player.

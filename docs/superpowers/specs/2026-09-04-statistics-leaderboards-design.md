@@ -9,7 +9,7 @@ Expose the ordinary-mode statistics already persisted in `MetaSave V2` and add c
 
 Phase C in this spec covers:
 
-- persistent Standard/Classic statistics visible from the main menu;
+- persistent Standard/Classic statistics available from a dedicated no-scroll statistics modal opened from the main menu;
 - two Yandex Games best-time leaderboards;
 - a native DOM leaderboard overlay;
 - explicit opt-in Yandex ID authorization from that overlay;
@@ -20,24 +20,48 @@ This phase does **not** change solitaire rules, Daily seed generation, Daily/Wee
 
 ## 2. Product decisions
 
-### 2.1 Statistics live in the main menu
+### 2.1 No-scroll menu and modal navigation
 
-Do not add a separate statistics screen.
+The game UI must never rely on vertical or horizontal scrolling. The main menu must fit entirely inside the current viewport, and modal overlays must also fit without scrollbars. On shorter viewports, reduce spacing, padding, and typography with responsive CSS rather than introducing `overflow:auto` or `overflow:scroll`.
 
-Below the existing Daily/Weekly area, the main menu gets a compact `СТАТИСТИКА` section with one row/block per ordinary mode:
+The main menu remains focused on primary navigation:
+
+```text
+ГЛАВНОЕ МЕНЮ
+
+СТАНДАРТ
+КЛАССИКА
+ИСПЫТАНИЕ ДНЯ
+
+НЕДЕЛЯ 36 · 0/7
+
+[ СТАТИСТИКА ] [ ТАБЛИЦА ЛИДЕРОВ ]
+
+[ ЗАКРЫТЬ ]  // only when a board can be resumed
+```
+
+Future secondary systems such as `МАГАЗИН` follow the same pattern: a compact main-menu action opens a dedicated fixed modal. Do not append large secondary sections to the main menu.
+
+### 2.2 Statistics modal
+
+`СТАТИСТИКА` opens a separate native DOM modal in the same parchment/bronze visual language as the existing menu/completion UI. It displays the ordinary statistics already stored in `MetaSave V2`:
 
 ```text
 СТАТИСТИКА
 
 СТАНДАРТ
-12 партий · 7 побед · 58%
+Партий: 12
+Побед: 7
+Процент побед: 58%
 Лучшее время: 03:58
 
 КЛАССИКА
-5 партий · 2 победы · 40%
+Партий: 5
+Побед: 2
+Процент побед: 40%
 Лучшее время: 07:21
 
-[ ТАБЛИЦА ЛИДЕРОВ ]
+[ ЗАКРЫТЬ ]
 ```
 
 Rules:
@@ -47,10 +71,12 @@ Rules:
 - win rate is derived as `Math.round(wins / played * 100)`; it is not persisted separately.
 - when `played === 0`, display `0%`.
 - when there is no successful completion, display `Лучшее время: —`.
-- local statistics remain visible even if Yandex services are unavailable.
-- the added content must remain usable on short screens; the menu panel may scroll vertically rather than shrinking text or overflowing the viewport.
+- local statistics remain available even if Yandex services are unavailable.
+- opening/closing the modal does not alter the active deal or flow state.
+- `Esc` closes the statistics modal before it closes/cancels the underlying main menu.
+- the modal itself must never scroll.
 
-### 2.2 Two ordinary leaderboards only
+### 2.3 Two ordinary leaderboards only
 
 Create exactly two Yandex Games leaderboards:
 
@@ -65,7 +91,7 @@ Scores are elapsed milliseconds.
 
 No Daily leaderboard is added in this phase. A permanent Yandex leaderboard would mix different Daily seeds/dates and produce a misleading comparison. Daily competition remains a future custom-backend feature if needed.
 
-### 2.3 Leaderboard overlay
+### 2.4 Leaderboard overlay
 
 `ТАБЛИЦА ЛИДЕРОВ` opens a separate native DOM overlay in the same parchment/bronze visual language as `MainMenuView`, `DailyCompleteView`, and `GameCompleteView`.
 
@@ -96,6 +122,7 @@ Behavior:
 - score formatting is owned by the game UI, not copied from localized SDK text;
 - no avatars in the first version; show public name, rank, and time only;
 - long names must truncate rather than distort the overlay;
+- the top-10 layout must fit in the modal without any scrollbars; if a future version needs more rows, use pagination rather than scrolling;
 - loading, empty, unavailable, and error states must be explicit and non-blocking;
 - closing the overlay returns to the underlying menu/game state without starting or replacing a deal.
 
@@ -289,18 +316,23 @@ Responsibilities:
 
 It must not know Phaser or DOM.
 
-### 5.4 Main menu
+### 5.4 Main menu and statistics view
 
-`MainMenuView` gains:
+`MainMenuView` gains only compact secondary actions:
 
-- ordinary stats state;
-- a compact statistics section;
+- `statistics` action/button;
 - `leaderboard` action/button;
 - platform leaderboard availability state.
 
-The menu is still a passive DOM view. It does not read MetaSave or call the platform itself.
+It does **not** render ordinary stat rows directly. The main menu remains a passive, no-scroll DOM view.
 
-`GameScene.refreshMenuMeta()` becomes the coordinator that supplies both Daily state and ordinary stats state.
+Create:
+
+```text
+src/game/view/StatisticsView.ts
+```
+
+`StatisticsView` receives plain Standard/Classic statistics state and a `close` action. It owns formatting/rendering only and never reads MetaSave or platform services. `GameScene` builds the statistics state from `MetaSave V2.stats`, opens the modal from the main-menu action, keeps it current when MetaSave changes, and ensures `Esc` closes the modal before the underlying menu.
 
 ### 5.5 Leaderboard view
 
@@ -356,7 +388,7 @@ Leaderboard network failures must never block or roll back MetaSave completion/s
 
 ### Platform unavailable
 
-Main-menu stats remain fully functional. Leaderboard button is disabled or clearly marked unavailable. No errors leak into gameplay.
+Statistics modal remains fully functional. Leaderboard button is disabled or clearly marked unavailable. No errors leak into gameplay.
 
 ### Leaderboard not configured / SDK 404
 
