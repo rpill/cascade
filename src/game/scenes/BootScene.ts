@@ -25,7 +25,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.image('board-surface', BOARD_SURFACE_ASSET);
+    this.load.image('cascade-board-surface', BOARD_SURFACE_ASSET);
 
     SUITS.forEach((suit) => {
       for (let rank = 1; rank <= 13; rank += 1) {
