@@ -56,7 +56,7 @@ test('load requests top 10 and converts SDK ranks to one-based rows', async () =
     playerEntry: null,
   });
   assert.deepEqual(calls, [{
-    name: 'standard_best_time',
+    name: 'standardbesttime',
     options: { quantityTop: 10 },
   }]);
 });
@@ -105,8 +105,8 @@ test('authorized load also requests and normalizes the player entry', async () =
     playerEntry: { rank: 11, scoreMs: 5500, publicName: 'Me' },
   });
   assert.deepEqual(calls, [
-    'top:classic_best_time',
-    'player:classic_best_time',
+    'top:classicbesttime',
+    'player:classicbesttime',
   ]);
 });
 
@@ -200,7 +200,7 @@ test('syncBest submits when local time is faster than server', async () => {
   }));
 
   assert.equal(await service.syncBest('winnable', 5000), 'submitted');
-  assert.deepEqual(writes, [['standard_best_time', 5000]]);
+  assert.deepEqual(writes, [['standardbesttime', 5000]]);
 });
 
 test('syncBest keeps a faster server score unchanged', async () => {
@@ -233,7 +233,7 @@ test('syncBest submits when the authorized player has no server entry', async ()
   }));
 
   assert.equal(await service.syncBest('original', 5000), 'submitted');
-  assert.deepEqual(writes, [['classic_best_time', 5000]]);
+  assert.deepEqual(writes, [['classicbesttime', 5000]]);
 });
 
 test('syncBest skips unauthorized and invalid local best values without reads or writes', async () => {

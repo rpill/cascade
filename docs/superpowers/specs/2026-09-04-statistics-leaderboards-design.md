@@ -82,12 +82,12 @@ Create exactly two Yandex Games leaderboards:
 
 | Game mode | Technical name | Console type | Sort | Main |
 | --- | --- | --- | --- | --- |
-| Standard (`winnable`) | `standard_best_time` | `time` | ascending (`ASC`) | yes |
-| Classic (`original`) | `classic_best_time` | `time` | ascending (`ASC`) | no |
+| Standard (`winnable`) | `standardbesttime` | `time` | ascending (`ASC`) | yes |
+| Classic (`original`) | `classicbesttime` | `time` | ascending (`ASC`) | no |
 
-Scores are elapsed milliseconds.
+Scores are elapsed milliseconds. Technical leaderboard names must satisfy the Yandex Console restriction `^[a-zA-Z0-9]+$`; do not use underscores, hyphens, or spaces.
 
-`standard_best_time` is the primary leaderboard shown on the game card because Standard is the default/recommended ordinary mode.
+`standardbesttime` is the primary leaderboard shown on the game card because Standard is the default/recommended ordinary mode.
 
 No Daily leaderboard is added in this phase. A permanent Yandex leaderboard would mix different Daily seeds/dates and produce a misleading comparison. Daily competition remains a future custom-backend feature if needed.
 
@@ -306,8 +306,8 @@ src/leaderboards/LeaderboardConfig.ts
 
 Responsibilities:
 
-- map `winnable -> standard_best_time`;
-- map `original -> classic_best_time`;
+- map `winnable -> standardbesttime`;
+- map `original -> classicbesttime`;
 - reject `daily` at the type boundary;
 - normalize top entries into UI-safe data;
 - sync local best to server without overwriting a better server score;
@@ -415,8 +415,8 @@ Disable `ВОЙТИ` while the auth dialog is pending. On success, sync and relo
 Before real leaderboard calls can succeed in a Yandex draft, create both leaderboard definitions in the Yandex Games Console with the exact technical names:
 
 ```text
-standard_best_time
-classic_best_time
+standardbesttime
+classicbesttime
 ```
 
 Both:
@@ -426,7 +426,7 @@ Both:
 - sort: ascending;
 - decimal part: 0.
 
-Mark only `standard_best_time` as the main leaderboard.
+Mark only `standardbesttime` as the main leaderboard.
 
 If the console technical name differs from the code constant, Yandex returns 404; therefore these names are treated as release configuration constants and must be documented in the moderation/release checklist.
 
@@ -511,9 +511,9 @@ Verify:
 - guest sees login explanation and `ВОЙТИ`;
 - pressing `ВОЙТИ` is the only path that opens auth dialog;
 - after login, existing best is synchronized and personal place appears;
-- new faster Standard result updates `standard_best_time`;
+- new faster Standard result updates `standardbesttime`;
 - slower Standard result does not replace it;
-- Classic writes only to `classic_best_time`;
+- Classic writes only to `classicbesttime`;
 - Daily never writes either leaderboard;
 - two historical bests at login/bootstrap do not violate the one-write-per-second limit;
 - a missing/misnamed Console leaderboard yields a graceful unavailable/error state, not a crash.

@@ -10,7 +10,7 @@ Create both entries exactly as below.
 
 ### 1. Standard best time
 
-- Technical name: `standard_best_time`
+- Technical name: `standardbesttime`
 - Russian display name: `Стандарт — лучшее время`
 - English display name: `Standard — Best Time`
 - Main leaderboard: **Yes**
@@ -20,7 +20,7 @@ Create both entries exactly as below.
 
 ### 2. Classic best time
 
-- Technical name: `classic_best_time`
+- Technical name: `classicbesttime`
 - Russian display name: `Классика — лучшее время`
 - English display name: `Classic — Best Time`
 - Main leaderboard: **No**
@@ -29,6 +29,7 @@ Create both entries exactly as below.
 - Decimal part size: `0`
 
 The technical names must match `src/leaderboards/LeaderboardConfig.ts` exactly.
+Yandex Console accepts only Latin letters and digits for these technical names (`^[a-zA-Z0-9]+$`); underscores, hyphens, and spaces are not allowed.
 Scores are sent in milliseconds.
 
 ## Why these settings
@@ -47,10 +48,10 @@ Run a real draft / production-like Yandex environment after the two leaderboards
 3. With no unfinished game, press `ВОЙТИ`. Authorization must appear only after this explicit button press.
 4. Complete account/progress selection if Yandex shows it. The game is allowed to reload after `ACCOUNT_SELECTION_DIALOG_CLOSED`.
 5. Reopen the leaderboard. The authorized player row (`Ваш результат`) should appear when the account has a score.
-6. Win Standard with a new personal best. Verify `standard_best_time` receives the time in milliseconds and the in-game row formats it as time.
+6. Win Standard with a new personal best. Verify `standardbesttime` receives the time in milliseconds and the in-game row formats it as time.
 7. Win Standard more slowly. Verify the faster server score is preserved.
 8. Improve Standard again. Verify the server score updates to the faster value.
-9. Repeat the same checks for Classic and `classic_best_time`.
+9. Repeat the same checks for Classic and `classicbesttime`.
 10. Switch Standard/Classic rapidly while loading. Stale responses must not overwrite the selected tab.
 11. Start an unfinished ordinary game, open the menu and leaderboard. Top-10 remains readable, but `ВОЙТИ` is disabled until the unfinished game is no longer active.
 12. Confirm Daily never writes to either ordinary leaderboard.

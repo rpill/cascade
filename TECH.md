@@ -27,7 +27,7 @@
 - `src/meta/AttemptTimer.ts` — generic pause-aware attempt timer with restored elapsed-duration support.
 - `src/meta/GameStats.ts` — pure Standard/Classic `played` / `wins` / `bestTimeMs` mutations; Daily is intentionally excluded.
 - `src/meta/MetaMutationQueue.ts` — pure pre-load mutation queue that replays local meta events once over the asynchronously loaded player save.
-- `src/leaderboards/LeaderboardConfig.ts` — fixed ordinary-mode to Yandex technical leaderboard name mapping (`standard_best_time`, `classic_best_time`).
+- `src/leaderboards/LeaderboardConfig.ts` — fixed ordinary-mode to Yandex technical leaderboard name mapping (`standardbesttime`, `classicbesttime`).
 - `src/leaderboards/LeaderboardSubmissionQueue.ts` — global serialized leaderboard write queue; coalesces pending best times and enforces a 1100 ms submission interval.
 - `src/leaderboards/LeaderboardService.ts` — gameplay-safe top/personal-entry loading, authorization delegation, and best-time synchronization that never overwrites a faster server result.
 - `src/platform/services.ts` — platform-neutral PlayerStorage/trusted-clock/auth/leaderboard interfaces plus persistent browser fallback (`cascadePlayerData`) and memory last resort.
@@ -69,7 +69,7 @@ Do not merge the active board checkpoint into `cascadeMeta` or upload a full boa
 
 - Statistics and leaderboards live in separate fixed native DOM modals; do not expand their full contents inline in the main menu.
 - Main menu and all meta modals are no-scroll UI. Do not introduce `overflow: auto` / `scroll`; use responsive compression, tabs, or pagination when content grows.
-- Built-in Yandex leaderboards are ordinary-mode only: `winnable -> standard_best_time`, `original -> classic_best_time`. Daily must never map to either board.
+- Built-in Yandex leaderboards are ordinary-mode only: `winnable -> standardbesttime`, `original -> classicbesttime`. Daily must never map to either board.
 - Both Console leaderboards are `time` values in milliseconds and sort ascending. Standard is the single main leaderboard. See `docs/YANDEX_LEADERBOARDS_SETUP.md`.
 - Public top-10 (`getEntries`) may load without authorization. Personal rank and `setScore` require authorization. Never trigger `openAuthDialog()` automatically.
 - Authorization remains unavailable while an unfinished active-game checkpoint/board is active. This prevents a guest board from being finalized against a different account's cloud meta after account/progress selection.

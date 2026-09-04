@@ -122,14 +122,14 @@ test('unavailable platform exposes inert auth and unavailable leaderboards', asy
   assert.equal(selectionClosed, 0);
   assert.equal(platform.leaderboards.available, false);
   assert.deepEqual(
-    await platform.leaderboards.getEntries('standard_best_time', { quantityTop: 10 }),
+    await platform.leaderboards.getEntries('standardbesttime', { quantityTop: 10 }),
     [],
   );
   assert.equal(
-    await platform.leaderboards.getPlayerEntry('standard_best_time'),
+    await platform.leaderboards.getPlayerEntry('standardbesttime'),
     null,
   );
-  await platform.leaderboards.setScore('standard_best_time', 5000);
+  await platform.leaderboards.setScore('standardbesttime', 5000);
 });
 
 test('Yandex adapter reads trusted time and structured player data through one player object', async () => {
@@ -253,17 +253,17 @@ test('Yandex adapter uses direct leaderboard APIs and normalizes entries', async
   const platform = await createYandexPlatformServices(ysdk);
   assert.equal(platform.leaderboards.available, true);
   assert.deepEqual(
-    await platform.leaderboards.getEntries('standard_best_time', { quantityTop: 10 }),
+    await platform.leaderboards.getEntries('standardbesttime', { quantityTop: 10 }),
     [{ rank: 0, score: 3210, playerId: 'player-1', publicName: 'Ada' }],
   );
   assert.deepEqual(
-    await platform.leaderboards.getPlayerEntry('standard_best_time'),
+    await platform.leaderboards.getPlayerEntry('standardbesttime'),
     { rank: 4, score: 6000, playerId: 'me', publicName: 'Me' },
   );
-  await platform.leaderboards.setScore('standard_best_time', 2500);
+  await platform.leaderboards.setScore('standardbesttime', 2500);
   assert.deepEqual(calls, [
-    'entries:standard_best_time:10',
-    'score:standard_best_time:2500',
+    'entries:standardbesttime:10',
+    'score:standardbesttime:2500',
   ]);
 });
 
@@ -287,12 +287,12 @@ test('protected leaderboard methods use availability checks while public entries
     }),
   }));
 
-  await platform.leaderboards.getEntries('standard_best_time', { quantityTop: 10 });
+  await platform.leaderboards.getEntries('standardbesttime', { quantityTop: 10 });
   assert.equal(getEntriesCalls, 1);
   assert.deepEqual(checkedMethods, []);
 
-  await platform.leaderboards.getPlayerEntry('standard_best_time');
-  await platform.leaderboards.setScore('standard_best_time', 900);
+  await platform.leaderboards.getPlayerEntry('standardbesttime');
+  await platform.leaderboards.setScore('standardbesttime', 900);
   assert.deepEqual(checkedMethods, [
     'leaderboards.getPlayerEntry',
     'leaderboards.setScore',
@@ -308,7 +308,7 @@ test('missing leaderboard player entry normalizes to null', async () => {
   );
 
   assert.equal(
-    await platform.leaderboards.getPlayerEntry('standard_best_time'),
+    await platform.leaderboards.getPlayerEntry('standardbesttime'),
     null,
   );
 });
@@ -320,11 +320,11 @@ test('Yandex adapter keeps leaderboard capability inert when namespace is absent
 
   assert.equal(platform.leaderboards.available, false);
   assert.deepEqual(
-    await platform.leaderboards.getEntries('standard_best_time', { quantityTop: 10 }),
+    await platform.leaderboards.getEntries('standardbesttime', { quantityTop: 10 }),
     [],
   );
-  assert.equal(await platform.leaderboards.getPlayerEntry('standard_best_time'), null);
-  await platform.leaderboards.setScore('standard_best_time', 1000);
+  assert.equal(await platform.leaderboards.getPlayerEntry('standardbesttime'), null);
+  await platform.leaderboards.setScore('standardbesttime', 1000);
 });
 
 test('Yandex leaderboard score rejects invalid values before SDK call', async () => {
@@ -335,11 +335,11 @@ test('Yandex leaderboard score rejects invalid values before SDK call', async ()
   }));
 
   await assert.rejects(
-    platform.leaderboards.setScore('standard_best_time', Number.NaN),
+    platform.leaderboards.setScore('standardbesttime', Number.NaN),
     /finite non-negative/,
   );
   await assert.rejects(
-    platform.leaderboards.setScore('standard_best_time', -1),
+    platform.leaderboards.setScore('standardbesttime', -1),
     /finite non-negative/,
   );
   assert.equal(setScoreCalls, 0);

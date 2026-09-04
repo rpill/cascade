@@ -13,8 +13,9 @@
 ## Global Constraints
 
 - Standard maps to `winnable`; Classic maps to `original`.
-- Create exactly two leaderboard technical names: `standard_best_time` and `classic_best_time`.
-- Both Yandex Console leaderboards are type `time`, milliseconds, ascending sort, decimal part `0`; only `standard_best_time` is main.
+- Create exactly two leaderboard technical names: `standardbesttime` and `classicbesttime`.
+- Technical leaderboard names must satisfy `^[a-zA-Z0-9]+$`; underscores, hyphens, and spaces are forbidden by the Yandex Console.
+- Both Yandex Console leaderboards are type `time`, milliseconds, ascending sort, decimal part `0`; only `standardbesttime` is main.
 - No Daily leaderboard in this phase.
 - `MetaSave V2.stats` remains authoritative for `played`, `wins`, and `bestTimeMs`; leaderboard data never overwrites those fields.
 - Win rate is derived as `Math.round(wins / played * 100)` and is never persisted.
@@ -229,14 +230,14 @@ test('unavailable platform exposes inert auth and unavailable leaderboards', asy
   assert.equal(selectionClosed, 0);
   assert.equal(platform.leaderboards.available, false);
   assert.deepEqual(
-    await platform.leaderboards.getEntries('standard_best_time', { quantityTop: 10 }),
+    await platform.leaderboards.getEntries('standardbesttime', { quantityTop: 10 }),
     [],
   );
   assert.equal(
-    await platform.leaderboards.getPlayerEntry('standard_best_time'),
+    await platform.leaderboards.getPlayerEntry('standardbesttime'),
     null,
   );
-  await platform.leaderboards.setScore('standard_best_time', 5000);
+  await platform.leaderboards.setScore('standardbesttime', 5000);
 });
 ```
 
@@ -307,17 +308,17 @@ test('Yandex adapter uses direct leaderboard APIs and normalizes entries', async
   const platform = await createYandexPlatformServices(ysdk);
   assert.equal(platform.leaderboards.available, true);
   assert.deepEqual(
-    await platform.leaderboards.getEntries('standard_best_time', { quantityTop: 10 }),
+    await platform.leaderboards.getEntries('standardbesttime', { quantityTop: 10 }),
     [{ rank: 0, score: 3210, playerId: 'player-1', publicName: 'Ada' }],
   );
   assert.deepEqual(
-    await platform.leaderboards.getPlayerEntry('standard_best_time'),
+    await platform.leaderboards.getPlayerEntry('standardbesttime'),
     { rank: 4, score: 6000, playerId: 'me', publicName: 'Me' },
   );
-  await platform.leaderboards.setScore('standard_best_time', 2500);
+  await platform.leaderboards.setScore('standardbesttime', 2500);
   assert.deepEqual(calls, [
-    'entries:standard_best_time:10',
-    'score:standard_best_time:2500',
+    'entries:standardbesttime:10',
+    'score:standardbesttime:2500',
   ]);
 });
 ```
@@ -336,7 +337,7 @@ test('missing leaderboard player entry normalizes to null', async () => {
   );
 
   assert.equal(
-    await platform.leaderboards.getPlayerEntry('standard_best_time'),
+    await platform.leaderboards.getPlayerEntry('standardbesttime'),
     null,
   );
 });
@@ -472,8 +473,8 @@ git commit -m "feat: expose Yandex auth and leaderboard services"
 
 ```ts
 export const LEADERBOARD_NAMES = {
-  winnable: 'standard_best_time',
-  original: 'classic_best_time',
+  winnable: 'standardbesttime',
+  original: 'classicbesttime',
 } as const satisfies Record<OrdinaryGameMode, string>;
 
 export function getLeaderboardName(mode: OrdinaryGameMode): string;
@@ -511,10 +512,10 @@ import assert from 'node:assert/strict';
 import { getLeaderboardName, LEADERBOARD_NAMES } from '../src/leaderboards/LeaderboardConfig.ts';
 
 test('ordinary modes map to exact Yandex technical names', () => {
-  assert.equal(LEADERBOARD_NAMES.winnable, 'standard_best_time');
-  assert.equal(LEADERBOARD_NAMES.original, 'classic_best_time');
-  assert.equal(getLeaderboardName('winnable'), 'standard_best_time');
-  assert.equal(getLeaderboardName('original'), 'classic_best_time');
+  assert.equal(LEADERBOARD_NAMES.winnable, 'standardbesttime');
+  assert.equal(LEADERBOARD_NAMES.original, 'classicbesttime');
+  assert.equal(getLeaderboardName('winnable'), 'standardbesttime');
+  assert.equal(getLeaderboardName('original'), 'classicbesttime');
 });
 ```
 
@@ -542,8 +543,8 @@ test('submission queue serializes writes at least 1100 ms apart', async () => {
   );
 
   await Promise.all([
-    queue.enqueue('standard_best_time', 5000),
-    queue.enqueue('classic_best_time', 6000),
+    queue.enqueue('standardbesttime', 5000),
+    queue.enqueue('classicbesttime', 6000),
   ]);
 
   assert.equal(calls.length, 2);
@@ -561,14 +562,14 @@ test('pending writes for one board coalesce to the smallest score', async () => 
     calls.push({ name, score });
   }, async () => undefined, () => 0);
 
-  const first = queue.enqueue('standard_best_time', 7000);
-  const second = queue.enqueue('standard_best_time', 5000);
-  const third = queue.enqueue('standard_best_time', 6000);
+  const first = queue.enqueue('standardbesttime', 7000);
+  const second = queue.enqueue('standardbesttime', 5000);
+  const third = queue.enqueue('standardbesttime', 6000);
 
   await Promise.all([first, second, third]);
 
   assert.deepEqual(calls, [
-    { name: 'standard_best_time', score: 5000 },
+    { name: 'standardbesttime', score: 5000 },
   ]);
 });
 ```
@@ -591,8 +592,8 @@ Expected: FAIL because the files do not exist.
 import type { OrdinaryGameMode } from '../meta/GameStats.ts';
 
 export const LEADERBOARD_NAMES = {
-  winnable: 'standard_best_time',
-  original: 'classic_best_time',
+  winnable: 'standardbesttime',
+  original: 'classicbesttime',
 } as const satisfies Record<OrdinaryGameMode, string>;
 
 export function getLeaderboardName(mode: OrdinaryGameMode): string {
@@ -760,7 +761,7 @@ test('load requests top 10 and converts SDK ranks to one-based rows', async () =
     playerEntry: null,
   });
   assert.deepEqual(calls, [{
-    name: 'standard_best_time',
+    name: 'standardbesttime',
     options: { quantityTop: 10 },
   }]);
 });
@@ -793,7 +794,7 @@ test('syncBest submits when local time is faster than server', async () => {
   }));
 
   assert.equal(await service.syncBest('winnable', 5000), 'submitted');
-  assert.deepEqual(writes, [['standard_best_time', 5000]]);
+  assert.deepEqual(writes, [['standardbesttime', 5000]]);
 });
 ```
 
@@ -1660,8 +1661,8 @@ MetaSave V2 remains authoritative for in-game stats
 Document exact Yandex Console configuration:
 
 ```text
-standard_best_time: time, milliseconds, ASC, decimal part 0, main=true
-classic_best_time:  time, milliseconds, ASC, decimal part 0, main=false
+standardbesttime: time, milliseconds, ASC, decimal part 0, main=true
+classicbesttime:  time, milliseconds, ASC, decimal part 0, main=false
 ```
 
 - [ ] **Step 4: Full automated verification**
@@ -1699,8 +1700,8 @@ F. short viewport shows the complete main menu without any scrollbar; spacing/ty
 Before live calls, create exact technical names:
 
 ```text
-standard_best_time
-classic_best_time
+standardbesttime
+classicbesttime
 ```
 
 Both:
@@ -1712,7 +1713,7 @@ sort = ascending
 fraction/decimal part = 0
 ```
 
-Only `standard_best_time` is marked main.
+Only `standardbesttime` is marked main.
 
 Do not change code constants to compensate for a typo in Console; fix the Console name to match the committed constants.
 
@@ -1732,9 +1733,9 @@ K. Cancelled/failed auth leaves public top visible and gameplay usable.
 L. Successful auth without an account-selection switch reacquires Player, syncs existing Standard/Classic bests, reloads current tab, and shows personal result if present.
 L2. If Yandex shows the account/progress selection dialog, closing it reloads the page; the selected progress is loaded through the normal bootstrap and the previously paused active game remains recoverable from its checkpoint when that selected save is the guest progress.
 M. Two historical bests do not trigger setScore faster than one request per 1100 ms.
-N. Faster local Standard time updates only standard_best_time.
+N. Faster local Standard time updates only standardbesttime.
 O. Slower Standard win does not overwrite a faster server result.
-P. Classic best writes only classic_best_time.
+P. Classic best writes only classicbesttime.
 Q. Daily completion never writes either ordinary leaderboard.
 R. Rapid Standard -> Classic -> Standard switching cannot let a stale earlier response overwrite the current tab.
 S. Closing while loading never reopens/mutates the hidden overlay.
@@ -1745,7 +1746,7 @@ T. Temporarily rename/remove a Console leaderboard: UI shows non-fatal unavailab
 
 ```bash
 rg "getLeaderboards\(|openAuthDialog\(" src/game src/leaderboards
-rg "standard_best_time|classic_best_time" src/leaderboards CURRENT_STATE.md TECH.md
+rg "standardbesttime|classicbesttime" src/leaderboards CURRENT_STATE.md TECH.md
 ```
 
 Expected:
