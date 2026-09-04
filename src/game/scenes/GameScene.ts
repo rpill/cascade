@@ -10,6 +10,7 @@ import { GameCompleteView } from '../view/GameCompleteView.ts';
 import {
   MainMenuView,
   type DailyMenuState,
+  type OrdinaryMenuState,
 } from '../view/MainMenuView.ts';
 import { calculateLayoutMetrics } from '../view/LayoutMetrics.ts';
 import { AttemptTimer } from '../../meta/AttemptTimer.ts';
@@ -46,6 +47,7 @@ import {
   initializePlatform,
 } from '../../platform/yandex.ts';
 import type { PlatformServices } from '../../platform/services.ts';
+import { LeaderboardService } from '../../leaderboards/LeaderboardService.ts';
 
 interface DailyContext {
   readonly dailyId: string;
@@ -83,6 +85,7 @@ export class GameScene extends Phaser.Scene {
   private lastOrdinaryCompletion: OrdinaryCompletionSnapshot | null = null;
 
   private platform: PlatformServices | null = null;
+  private leaderboardService: LeaderboardService | null = null;
   private metaRepository: MetaRepository | null = null;
   private metaState: MetaSave = createDefaultMetaSave();
   private dailyContext: DailyContext | null = null;
@@ -98,6 +101,7 @@ export class GameScene extends Phaser.Scene {
     this.flow = new GameFlow();
     this.mainMenu = new MainMenuView(this, {
       play: (mode) => this.playMenuMode(mode),
+      leaderboard: () => undefined,
       cancel: () => this.closeMainMenu(),
     });
     this.dailyCompleteView = new DailyCompleteView(this, {
@@ -121,6 +125,7 @@ export class GameScene extends Phaser.Scene {
         canCancel: false,
         selectedMode: this.flow.selectedMode,
         daily: this.buildDailyMenuState(),
+        ordinary: this.buildOrdinaryMenuState(),
       });
     }
 
@@ -207,8 +212,27 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
+  private buildOrdinaryMenuState(): OrdinaryMenuState {
+    const { winnable, original } = this.metaState.stats;
+
+    return {
+      winnable: {
+        played: winnable.played,
+        wins: winnable.wins,
+        bestTimeMs: winnable.bestTimeMs ?? null,
+      },
+      original: {
+        played: original.played,
+        wins: original.wins,
+        bestTimeMs: original.bestTimeMs ?? null,
+      },
+      leaderboardsAvailable: this.leaderboardService?.available ?? false,
+    };
+  }
+
   private refreshMenuMeta(): void {
     this.mainMenu.updateDailyState(this.buildDailyMenuState());
+    this.mainMenu.updateOrdinaryState(this.buildOrdinaryMenuState());
   }
 
   private tryRestoreOrdinarySession(): boolean {
@@ -232,6 +256,7 @@ export class GameScene extends Phaser.Scene {
         canCancel: this.flow.canCancelMenu,
         selectedMode: this.flow.selectedMode,
         daily: this.buildDailyMenuState(),
+        ordinary: this.buildOrdinaryMenuState(),
       });
     } else {
       this.mainMenu.hide();
@@ -270,6 +295,7 @@ export class GameScene extends Phaser.Scene {
         canCancel: this.flow.canCancelMenu,
         selectedMode: this.flow.selectedMode,
         daily: this.buildDailyMenuState(),
+        ordinary: this.buildOrdinaryMenuState(),
       });
     } else {
       this.mainMenu.hide();
@@ -379,6 +405,7 @@ export class GameScene extends Phaser.Scene {
           this.metaState,
           (state) => beginModeAttempt(state, mode),
         );
+        this.refreshMenuMeta();
       }
 
       void this.metaRepository?.save(this.metaState);
@@ -424,6 +451,7 @@ export class GameScene extends Phaser.Scene {
       this.metaState,
       (state) => completeModeAttempt(state, mode, elapsedMs).state,
     );
+    this.refreshMenuMeta();
 
     this.lastOrdinaryCompletion = {
       mode,
@@ -589,6 +617,7 @@ export class GameScene extends Phaser.Scene {
       canCancel: this.flow.canCancelMenu,
       selectedMode: this.flow.selectedMode,
       daily: this.buildDailyMenuState(),
+      ordinary: this.buildOrdinaryMenuState(),
     });
   }
 

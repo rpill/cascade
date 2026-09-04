@@ -66,6 +66,8 @@ test('main menu exposes Standard Classic and Daily with weekly progress', () => 
   assert.match(menuSource, /КЛАССИКА/);
   assert.match(menuSource, /ИСПЫТАНИЕ ДНЯ/);
   assert.match(menuSource, /main-menu-weekly/);
+  assert.match(menuSource, /main-menu-stats/);
+  assert.match(menuSource, /ТАБЛИЦА ЛИДЕРОВ/);
   assert.match(menuSource, /bestTimeMs/);
   assert.doesNotMatch(menuSource, /ГАРАНТИРОВАННО РЕШАЕМЫЙ/);
 });

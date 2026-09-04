@@ -39,6 +39,7 @@ test('DOM UI has explicit crisp browser typography and stacking', () => {
   assert.match(stylesSource, /\.game-controls/);
   assert.match(stylesSource, /\.game-control-button/);
   assert.match(stylesSource, /\.main-menu-dom/);
+  assert.match(stylesSource, /\.main-menu-stats/);
   assert.match(stylesSource, /font-smoothing/);
   assert.match(stylesSource, /z-index:\s*100/);
 });

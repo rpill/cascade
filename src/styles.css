@@ -252,6 +252,84 @@ canvas {
 .main-menu-divider,
 .main-menu-mode,
 .main-menu-weekly,
+.main-menu-stats,
+.main-menu-leaderboard,
+
+.main-menu-stats {
+  width: 100%;
+  margin: 2px auto 14px;
+  padding: 13px 18px 15px;
+  border-top: 1px solid rgba(92, 69, 44, 0.42);
+  border-bottom: 1px solid rgba(92, 69, 44, 0.42);
+  background: rgba(226, 211, 173, 0.16);
+  color: var(--ui-ink);
+}
+
+.main-menu-stats-title {
+  margin-bottom: 11px;
+  font: 700 14px/1.2 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.075em;
+}
+
+.main-menu-stat-mode {
+  padding: 8px 0;
+}
+
+.main-menu-stat-mode + .main-menu-stat-mode {
+  border-top: 1px solid rgba(92, 69, 44, 0.2);
+}
+
+.main-menu-stat-heading {
+  margin-bottom: 3px;
+  color: var(--ui-ink);
+  font: 700 14px/1.2 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.035em;
+}
+
+.main-menu-stat-line {
+  color: rgba(42, 36, 30, 0.72);
+  font: 400 13px/1.35 Georgia, "Times New Roman", serif;
+}
+
+.main-menu-stat-best {
+  margin-top: 2px;
+  color: rgba(92, 69, 44, 0.92);
+}
+
+.main-menu-leaderboard {
+  min-width: 220px;
+  height: 40px;
+  margin: 11px auto 0;
+  padding: 0 18px;
+  border: 1px solid var(--ui-bronze-dark);
+  border-radius: 0;
+  background:
+    linear-gradient(rgba(255, 248, 225, 0.16), rgba(83, 55, 28, 0.08)),
+    var(--ui-parchment-light);
+  box-shadow:
+    inset 0 0 0 1px rgba(239, 220, 172, 0.5),
+    0 2px 5px rgba(30, 19, 11, 0.16);
+  color: var(--ui-ink);
+  font: 700 13px/38px Georgia, "Times New Roman", serif;
+  letter-spacing: 0.045em;
+  cursor: pointer;
+  appearance: none;
+}
+
+.main-menu-leaderboard:hover:not(:disabled) {
+  border-color: var(--ui-oxblood);
+  color: var(--ui-oxblood);
+}
+
+.main-menu-leaderboard:disabled,
+.main-menu-leaderboard.is-disabled {
+  border-color: rgba(92, 69, 44, 0.3);
+  background: rgba(214, 195, 155, 0.28);
+  box-shadow: none;
+  color: rgba(42, 36, 30, 0.4);
+  cursor: default;
+}
+
 .main-menu-cancel {
   position: relative;
   z-index: 1;
@@ -419,6 +497,82 @@ canvas {
   font-weight: 700;
 }
 
+
+
+.main-menu-stats {
+  width: 100%;
+  margin: 2px auto 14px;
+  padding: 13px 18px 15px;
+  border-top: 1px solid rgba(92, 69, 44, 0.42);
+  border-bottom: 1px solid rgba(92, 69, 44, 0.42);
+  background: rgba(226, 211, 173, 0.16);
+  color: var(--ui-ink);
+}
+
+.main-menu-stats-title {
+  margin-bottom: 11px;
+  font: 700 14px/1.2 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.075em;
+}
+
+.main-menu-stat-mode {
+  padding: 8px 0;
+}
+
+.main-menu-stat-mode + .main-menu-stat-mode {
+  border-top: 1px solid rgba(92, 69, 44, 0.2);
+}
+
+.main-menu-stat-heading {
+  margin-bottom: 3px;
+  color: var(--ui-ink);
+  font: 700 14px/1.2 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.035em;
+}
+
+.main-menu-stat-line {
+  color: rgba(42, 36, 30, 0.72);
+  font: 400 13px/1.35 Georgia, "Times New Roman", serif;
+}
+
+.main-menu-stat-best {
+  margin-top: 2px;
+  color: rgba(92, 69, 44, 0.92);
+}
+
+.main-menu-leaderboard {
+  min-width: 220px;
+  height: 40px;
+  margin: 11px auto 0;
+  padding: 0 18px;
+  border: 1px solid var(--ui-bronze-dark);
+  border-radius: 0;
+  background:
+    linear-gradient(rgba(255, 248, 225, 0.16), rgba(83, 55, 28, 0.08)),
+    var(--ui-parchment-light);
+  box-shadow:
+    inset 0 0 0 1px rgba(239, 220, 172, 0.5),
+    0 2px 5px rgba(30, 19, 11, 0.16);
+  color: var(--ui-ink);
+  font: 700 13px/38px Georgia, "Times New Roman", serif;
+  letter-spacing: 0.045em;
+  cursor: pointer;
+  appearance: none;
+}
+
+.main-menu-leaderboard:hover:not(:disabled) {
+  border-color: var(--ui-oxblood);
+  color: var(--ui-oxblood);
+}
+
+.main-menu-leaderboard:disabled,
+.main-menu-leaderboard.is-disabled {
+  border-color: rgba(92, 69, 44, 0.3);
+  background: rgba(214, 195, 155, 0.28);
+  box-shadow: none;
+  color: rgba(42, 36, 30, 0.4);
+  cursor: default;
+}
 
 .main-menu-cancel {
   display: block;
@@ -667,6 +821,12 @@ canvas {
     margin-bottom: 10px;
     padding-top: 9px;
     padding-bottom: 8px;
+  }
+
+  .main-menu-stats {
+    margin-bottom: 10px;
+    padding-top: 9px;
+    padding-bottom: 10px;
   }
 }
 
