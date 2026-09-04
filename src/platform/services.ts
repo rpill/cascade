@@ -7,9 +7,34 @@ export interface TrustedClock {
   nowMs(): number | null;
 }
 
+export interface PlatformAuth {
+  isAuthorized(): boolean;
+  requestAuthorization(): Promise<boolean>;
+  onAccountSelectionClosed(listener: () => void): () => void;
+}
+
+export interface PlatformLeaderboardEntry {
+  readonly rank: number;
+  readonly score: number;
+  readonly playerId: string;
+  readonly publicName: string;
+}
+
+export interface PlatformLeaderboards {
+  readonly available: boolean;
+  getEntries(
+    technicalName: string,
+    options: { readonly quantityTop: number },
+  ): Promise<PlatformLeaderboardEntry[]>;
+  getPlayerEntry(technicalName: string): Promise<PlatformLeaderboardEntry | null>;
+  setScore(technicalName: string, score: number): Promise<void>;
+}
+
 export interface PlatformServices {
   readonly playerStorage: PlayerStorage;
   readonly trustedClock: TrustedClock;
+  readonly auth: PlatformAuth;
+  readonly leaderboards: PlatformLeaderboards;
   readonly ready: () => void;
 }
 
@@ -85,6 +110,17 @@ export function createUnavailablePlatformServices(
   return {
     playerStorage: createBrowserPlayerStorage(browserStorage),
     trustedClock: { nowMs: () => null },
+    auth: {
+      isAuthorized: () => false,
+      requestAuthorization: async () => false,
+      onAccountSelectionClosed: () => () => undefined,
+    },
+    leaderboards: {
+      available: false,
+      getEntries: async () => [],
+      getPlayerEntry: async () => null,
+      setScore: async () => undefined,
+    },
     ready: () => undefined,
   };
 }
