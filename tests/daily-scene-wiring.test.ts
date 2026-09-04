@@ -12,7 +12,7 @@ test('GameScene coordinates platform meta Daily timer and completion without put
   assert.match(scene, /MetaRepository/);
   assert.match(scene, /getDailyId/);
   assert.match(scene, /getDailySeed/);
-  assert.match(scene, /DailyAttemptTimer/);
+  assert.match(scene, /AttemptTimer/);
   assert.match(scene, /beginDailyAttempt/);
   assert.match(scene, /completeDailyAttempt/);
   assert.match(scene, /DailyCompleteView/);

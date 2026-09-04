@@ -1,4 +1,4 @@
-export class DailyAttemptTimer {
+export class AttemptTimer {
   private started = false;
   private activeStartedAt: number | null = null;
   private accumulatedMs = 0;
@@ -7,11 +7,29 @@ export class DailyAttemptTimer {
     return this.started;
   }
 
-  start(nowMs: number): void {
+  get paused(): boolean {
+    return this.started && this.activeStartedAt === null;
+  }
+
+  start(nowMs: number, initialElapsedMs = 0): void {
     this.assertTime(nowMs);
+    this.assertElapsed(initialElapsedMs);
     this.started = true;
     this.activeStartedAt = nowMs;
-    this.accumulatedMs = 0;
+    this.accumulatedMs = initialElapsedMs;
+  }
+
+  elapsed(nowMs: number): number {
+    if (!this.started) return 0;
+    if (this.activeStartedAt === null) {
+      return Math.max(0, Math.round(this.accumulatedMs));
+    }
+
+    this.assertForward(nowMs, this.activeStartedAt);
+    return Math.max(
+      0,
+      Math.round(this.accumulatedMs + nowMs - this.activeStartedAt),
+    );
   }
 
   pause(nowMs: number): void {
@@ -28,20 +46,22 @@ export class DailyAttemptTimer {
   }
 
   finish(nowMs: number): number {
-    if (!this.started) throw new Error('Daily timer was not started.');
-    if (this.activeStartedAt !== null) {
-      this.assertForward(nowMs, this.activeStartedAt);
-      this.accumulatedMs += nowMs - this.activeStartedAt;
-    }
-    const elapsed = Math.max(1, Math.round(this.accumulatedMs));
+    if (!this.started) throw new Error('Attempt timer was not started.');
+    const elapsedMs = Math.max(1, this.elapsed(nowMs));
     this.reset();
-    return elapsed;
+    return elapsedMs;
   }
 
   reset(): void {
     this.started = false;
     this.activeStartedAt = null;
     this.accumulatedMs = 0;
+  }
+
+  private assertElapsed(value: number): void {
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error('Timer initial elapsed duration must be finite and non-negative.');
+    }
   }
 
   private assertTime(value: number): void {

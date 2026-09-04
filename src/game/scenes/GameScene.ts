@@ -11,7 +11,7 @@ import {
   type DailyMenuState,
 } from '../view/MainMenuView.ts';
 import { calculateLayoutMetrics } from '../view/LayoutMetrics.ts';
-import { DailyAttemptTimer } from '../../meta/DailyAttemptTimer.ts';
+import { AttemptTimer } from '../../meta/AttemptTimer.ts';
 import {
   getDailyId,
   getDailySeed,
@@ -51,7 +51,7 @@ export class GameScene extends Phaser.Scene {
   private metaRepository: MetaRepository | null = null;
   private metaState: MetaSaveV1 = createDefaultMetaSave();
   private dailyContext: DailyContext | null = null;
-  private readonly dailyTimer = new DailyAttemptTimer();
+  private readonly dailyTimer = new AttemptTimer();
   private dailyAttemptStarted = false;
 
   constructor() {
