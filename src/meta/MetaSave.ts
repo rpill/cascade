@@ -1,4 +1,4 @@
-export const META_SAVE_VERSION = 1 as const;
+export const META_SAVE_VERSION = 2 as const;
 export const DAILY_ALGORITHM_VERSION = 1 as const;
 export const WEEKLY_MILESTONES = [3, 5, 7] as const;
 
@@ -8,31 +8,64 @@ export interface DailyRecord {
   attempts: number;
 }
 
-export interface MetaSaveV1 {
-  version: 1;
-  collection: {
-    ownedCardBacks: string[];
-    ownedTables: string[];
-    ownedThemes: string[];
-  };
-  equipped: {
-    cardBack: string;
-    table: string;
-    theme: string;
-  };
-  achievements: string[];
-  daily: {
-    algorithmVersion: number;
-    records: Record<string, DailyRecord>;
-  };
-  weekly: {
-    weekId: string;
-    completedDailyIds: string[];
-    claimedMilestones: number[];
-  };
+interface CollectionState {
+  ownedCardBacks: string[];
+  ownedTables: string[];
+  ownedThemes: string[];
 }
 
-export function createDefaultMetaSave(): MetaSaveV1 {
+interface EquippedState {
+  cardBack: string;
+  table: string;
+  theme: string;
+}
+
+interface DailyState {
+  algorithmVersion: number;
+  records: Record<string, DailyRecord>;
+}
+
+interface WeeklyState {
+  weekId: string;
+  completedDailyIds: string[];
+  claimedMilestones: number[];
+}
+
+interface MetaSaveV1 {
+  version: 1;
+  collection: CollectionState;
+  equipped: EquippedState;
+  achievements: string[];
+  daily: DailyState;
+  weekly: WeeklyState;
+}
+
+export interface ModeStats {
+  played: number;
+  wins: number;
+  bestTimeMs?: number;
+}
+
+export interface MetaSaveV2 {
+  version: 2;
+  collection: CollectionState;
+  equipped: EquippedState;
+  achievements: string[];
+  stats: {
+    original: ModeStats;
+    winnable: ModeStats;
+  };
+  daily: DailyState;
+  weekly: WeeklyState;
+}
+
+export type MetaSave = MetaSaveV2;
+
+function createDefaultModeStats(): ModeStats {
+  return { played: 0, wins: 0 };
+}
+
+export function createDefaultMetaSave(): MetaSaveV2 {
   return {
     version: META_SAVE_VERSION,
     collection: {
@@ -42,6 +75,10 @@ export function createDefaultMetaSave(): MetaSaveV1 {
     },
     equipped: { cardBack: '', table: '', theme: '' },
     achievements: [],
+    stats: {
+      original: createDefaultModeStats(),
+      winnable: createDefaultModeStats(),
+    },
     daily: { algorithmVersion: DAILY_ALGORITHM_VERSION, records: {} },
     weekly: { weekId: '', completedDailyIds: [], claimedMilestones: [] },
   };
@@ -74,7 +111,7 @@ function normalizeDailyRecord(value: unknown): DailyRecord | null {
 
   if (
     bestTimeMs !== undefined
-    && (!Number.isFinite(bestTimeMs) || (bestTimeMs as number) <= 0)
+    && (typeof bestTimeMs !== 'number' || !Number.isFinite(bestTimeMs) || bestTimeMs <= 0)
   ) {
     return null;
   }
@@ -82,62 +119,134 @@ function normalizeDailyRecord(value: unknown): DailyRecord | null {
   return {
     completed,
     attempts: attempts as number,
-    ...(bestTimeMs === undefined ? {} : { bestTimeMs: bestTimeMs as number }),
+    ...(bestTimeMs === undefined ? {} : { bestTimeMs }),
   };
 }
 
-export function normalizeMetaSave(raw: unknown): MetaSaveV1 {
-  const fallback = createDefaultMetaSave();
-  if (!isObject(raw) || raw.version !== META_SAVE_VERSION) return fallback;
+function normalizeCollection(value: unknown): CollectionState {
+  if (!isObject(value)) {
+    return { ownedCardBacks: [], ownedTables: [], ownedThemes: [] };
+  }
 
-  const daily = isObject(raw.daily) ? raw.daily : {};
+  return {
+    ownedCardBacks: uniqueStrings(value.ownedCardBacks),
+    ownedTables: uniqueStrings(value.ownedTables),
+    ownedThemes: uniqueStrings(value.ownedThemes),
+  };
+}
+
+function normalizeEquipped(value: unknown): EquippedState {
+  if (!isObject(value)) {
+    return { cardBack: '', table: '', theme: '' };
+  }
+
+  return {
+    cardBack: typeof value.cardBack === 'string' ? value.cardBack : '',
+    table: typeof value.table === 'string' ? value.table : '',
+    theme: typeof value.theme === 'string' ? value.theme : '',
+  };
+}
+
+function normalizeDaily(value: unknown): DailyState {
+  const daily = isObject(value) ? value : {};
   const rawRecords = isObject(daily.records) ? daily.records : {};
   const records: Record<string, DailyRecord> = {};
 
-  for (const [id, value] of Object.entries(rawRecords)) {
+  for (const [id, recordValue] of Object.entries(rawRecords)) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(id)) continue;
-    const record = normalizeDailyRecord(value);
+    const record = normalizeDailyRecord(recordValue);
     if (record !== null) records[id] = record;
   }
 
-  const weekly = isObject(raw.weekly) ? raw.weekly : {};
+  return {
+    algorithmVersion:
+      Number.isInteger(daily.algorithmVersion) && (daily.algorithmVersion as number) > 0
+        ? daily.algorithmVersion as number
+        : DAILY_ALGORITHM_VERSION,
+    records,
+  };
+}
+
+function normalizeWeekly(value: unknown): WeeklyState {
+  const weekly = isObject(value) ? value : {};
   const claimedMilestones = Array.isArray(weekly.claimedMilestones)
     ? [...new Set(weekly.claimedMilestones.filter(
-        (value): value is 3 | 5 | 7 => value === 3 || value === 5 || value === 7,
+        (milestone): milestone is 3 | 5 | 7 => milestone === 3 || milestone === 5 || milestone === 7,
       ))]
     : [];
 
-  const completedDailyIds = uniqueStrings(weekly.completedDailyIds)
-    .filter((id) => /^\d{4}-\d{2}-\d{2}$/.test(id));
+  return {
+    weekId: typeof weekly.weekId === 'string' ? weekly.weekId : '',
+    completedDailyIds: uniqueStrings(weekly.completedDailyIds)
+      .filter((id) => /^\d{4}-\d{2}-\d{2}$/.test(id)),
+    claimedMilestones,
+  };
+}
+
+function normalizeModeStats(value: unknown): ModeStats {
+  if (!isObject(value)) return createDefaultModeStats();
+
+  const played = Number.isInteger(value.played) && (value.played as number) >= 0
+    ? value.played as number
+    : 0;
+  const rawWins = Number.isInteger(value.wins) && (value.wins as number) >= 0
+    ? value.wins as number
+    : 0;
+  const wins = Math.min(rawWins, played);
+  const bestTimeMs = value.bestTimeMs;
+  const validBest = wins > 0
+    && typeof bestTimeMs === 'number'
+    && Number.isFinite(bestTimeMs)
+    && bestTimeMs > 0;
 
   return {
-    ...fallback,
-    collection: isObject(raw.collection)
-      ? {
-          ownedCardBacks: uniqueStrings(raw.collection.ownedCardBacks),
-          ownedTables: uniqueStrings(raw.collection.ownedTables),
-          ownedThemes: uniqueStrings(raw.collection.ownedThemes),
-        }
-      : fallback.collection,
-    equipped: isObject(raw.equipped)
-      ? {
-          cardBack: typeof raw.equipped.cardBack === 'string' ? raw.equipped.cardBack : '',
-          table: typeof raw.equipped.table === 'string' ? raw.equipped.table : '',
-          theme: typeof raw.equipped.theme === 'string' ? raw.equipped.theme : '',
-        }
-      : fallback.equipped,
+    played,
+    wins,
+    ...(validBest ? { bestTimeMs } : {}),
+  };
+}
+
+function normalizeLegacyV1(raw: Record<string, unknown>): MetaSaveV1 {
+  return {
+    version: 1,
+    collection: normalizeCollection(raw.collection),
+    equipped: normalizeEquipped(raw.equipped),
     achievements: uniqueStrings(raw.achievements),
-    daily: {
-      algorithmVersion:
-        Number.isInteger(daily.algorithmVersion) && (daily.algorithmVersion as number) > 0
-          ? daily.algorithmVersion as number
-          : DAILY_ALGORITHM_VERSION,
-      records,
+    daily: normalizeDaily(raw.daily),
+    weekly: normalizeWeekly(raw.weekly),
+  };
+}
+
+export function normalizeMetaSave(raw: unknown): MetaSaveV2 {
+  const fallback = createDefaultMetaSave();
+  if (!isObject(raw)) return fallback;
+
+  if (raw.version === 1) {
+    const legacy = normalizeLegacyV1(raw);
+    return {
+      version: META_SAVE_VERSION,
+      collection: legacy.collection,
+      equipped: legacy.equipped,
+      achievements: legacy.achievements,
+      stats: fallback.stats,
+      daily: legacy.daily,
+      weekly: legacy.weekly,
+    };
+  }
+
+  if (raw.version !== META_SAVE_VERSION) return fallback;
+
+  const stats = isObject(raw.stats) ? raw.stats : {};
+  return {
+    version: META_SAVE_VERSION,
+    collection: normalizeCollection(raw.collection),
+    equipped: normalizeEquipped(raw.equipped),
+    achievements: uniqueStrings(raw.achievements),
+    stats: {
+      original: normalizeModeStats(stats.original),
+      winnable: normalizeModeStats(stats.winnable),
     },
-    weekly: {
-      weekId: typeof weekly.weekId === 'string' ? weekly.weekId : '',
-      completedDailyIds,
-      claimedMilestones,
-    },
+    daily: normalizeDaily(raw.daily),
+    weekly: normalizeWeekly(raw.weekly),
   };
 }

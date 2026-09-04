@@ -69,3 +69,14 @@ test('3 5 and 7 completions are reported once as newly reached milestones', () =
   assert.equal(getWeeklyProgress(state, '2026-W36').completed, 7);
   assert.deepEqual(state.weekly.claimedMilestones, []);
 });
+
+test('Daily progress leaves ordinary mode statistics unchanged', () => {
+  const state = createDefaultMetaSave();
+  state.stats.original = { played: 4, wins: 2, bestTimeMs: 7_500 };
+  state.stats.winnable = { played: 3, wins: 1, bestTimeMs: 6_000 };
+
+  const started = beginDailyAttempt(state, '2026-09-04', '2026-W36');
+  const completed = completeDailyAttempt(started, '2026-09-04', '2026-W36', 5_000).state;
+
+  assert.deepEqual(completed.stats, state.stats);
+});

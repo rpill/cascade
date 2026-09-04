@@ -1,13 +1,13 @@
 import type { PlayerStorage } from '../platform/services.ts';
 import {
   normalizeMetaSave,
-  type MetaSaveV1,
+  type MetaSave,
 } from './MetaSave.ts';
 
 const META_KEY = 'cascadeMeta';
 
 export class MetaRepository {
-  private pending: MetaSaveV1 | null = null;
+  private pending: MetaSave | null = null;
   private writing: Promise<void> = Promise.resolve();
   private readonly storage: PlayerStorage;
 
@@ -15,7 +15,7 @@ export class MetaRepository {
     this.storage = storage;
   }
 
-  async load(): Promise<MetaSaveV1> {
+  async load(): Promise<MetaSave> {
     try {
       const raw = await this.storage.load();
       const root = raw !== null && typeof raw === 'object'
@@ -27,7 +27,7 @@ export class MetaRepository {
     }
   }
 
-  async save(state: MetaSaveV1, flush = false): Promise<void> {
+  async save(state: MetaSave, flush = false): Promise<void> {
     this.pending = structuredClone(state);
     this.writing = this.writing.then(async () => {
       const snapshot = this.pending;

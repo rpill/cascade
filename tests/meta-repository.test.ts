@@ -41,3 +41,34 @@ test('failed save keeps the newest snapshot pending and retry writes only that s
 
   assert.deepEqual(writes, [{ cascadeMeta: second }]);
 });
+
+test('repository migrates stored version 1 meta to version 2 on load', async () => {
+  const storage: PlayerStorage = {
+    load: async () => ({
+      cascadeMeta: {
+        version: 1,
+        daily: {
+          algorithmVersion: 1,
+          records: {
+            '2026-09-04': { completed: true, attempts: 1, bestTimeMs: 4_000 },
+          },
+        },
+        weekly: {
+          weekId: '2026-W36',
+          completedDailyIds: ['2026-09-04'],
+          claimedMilestones: [],
+        },
+      },
+    }),
+    save: async () => {},
+  };
+
+  const state = await new MetaRepository(storage).load();
+
+  assert.equal(state.version, 2);
+  assert.deepEqual(state.stats, {
+    original: { played: 0, wins: 0 },
+    winnable: { played: 0, wins: 0 },
+  });
+  assert.equal(state.daily.records['2026-09-04'].bestTimeMs, 4_000);
+});

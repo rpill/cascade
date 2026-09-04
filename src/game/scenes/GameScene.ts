@@ -26,7 +26,7 @@ import {
 import { MetaRepository } from '../../meta/MetaRepository.ts';
 import {
   createDefaultMetaSave,
-  type MetaSaveV1,
+  type MetaSave,
 } from '../../meta/MetaSave.ts';
 import { ActiveGameRepository } from '../../persistence/ActiveGameRepository.ts';
 import {
@@ -66,7 +66,7 @@ export class GameScene extends Phaser.Scene {
 
   private platform: PlatformServices | null = null;
   private metaRepository: MetaRepository | null = null;
-  private metaState: MetaSaveV1 = createDefaultMetaSave();
+  private metaState: MetaSave = createDefaultMetaSave();
   private dailyContext: DailyContext | null = null;
   private readonly dailyTimer = new AttemptTimer();
   private dailyAttemptStarted = false;

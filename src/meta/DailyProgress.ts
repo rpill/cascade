@@ -1,17 +1,17 @@
 import {
   WEEKLY_MILESTONES,
-  type MetaSaveV1,
+  type MetaSave,
 } from './MetaSave.ts';
 
 export interface DailyCompletionResult {
-  readonly state: MetaSaveV1;
+  readonly state: MetaSave;
   readonly firstCompletion: boolean;
   readonly improvedBest: boolean;
   readonly bestTimeMs: number;
   readonly newlyReachedMilestones: readonly number[];
 }
 
-function normalizeWeek(state: MetaSaveV1, weekId: string): MetaSaveV1['weekly'] {
+function normalizeWeek(state: MetaSave, weekId: string): MetaSave['weekly'] {
   return state.weekly.weekId === weekId
     ? {
         ...state.weekly,
@@ -22,10 +22,10 @@ function normalizeWeek(state: MetaSaveV1, weekId: string): MetaSaveV1['weekly'] 
 }
 
 export function beginDailyAttempt(
-  state: MetaSaveV1,
+  state: MetaSave,
   dailyId: string,
   weekId: string,
-): MetaSaveV1 {
+): MetaSave {
   const previous = state.daily.records[dailyId] ?? { completed: false, attempts: 0 };
 
   return {
@@ -42,7 +42,7 @@ export function beginDailyAttempt(
 }
 
 export function completeDailyAttempt(
-  state: MetaSaveV1,
+  state: MetaSave,
   dailyId: string,
   weekId: string,
   elapsedMs: number,
@@ -89,7 +89,7 @@ export function completeDailyAttempt(
   };
 }
 
-export function getWeeklyProgress(state: MetaSaveV1, weekId: string) {
+export function getWeeklyProgress(state: MetaSave, weekId: string) {
   const weekly = normalizeWeek(state, weekId);
 
   return {
