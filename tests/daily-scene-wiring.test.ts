@@ -17,11 +17,15 @@ test('GameScene coordinates platform meta Daily timer and completion without put
   assert.match(scene, /completeDailyAttempt/);
   assert.match(scene, /DailyCompleteView/);
   assert.match(scene, /visibilitychange/);
+  assert.match(scene, /pendingDailyRestore/);
+  assert.match(scene, /checkpointActiveGame/);
 });
 
-test('Daily timer only resumes when gameplay is active and the page is visible', () => {
+test('the shared attempt timer only resumes when gameplay is active visible and unfinished', () => {
   assert.match(scene, /document\.visibilityState === 'visible'/);
   assert.match(scene, /this\.flow\.state === 'playing'/);
-  assert.match(scene, /dailyTimer\.pause\(performance\.now\(\)\)/);
-  assert.match(scene, /dailyTimer\.resume\(performance\.now\(\)\)/);
+  assert.match(scene, /!this\.attemptFinalized/);
+  assert.match(scene, /attemptTimer\.pause\(performance\.now\(\)\)/);
+  assert.match(scene, /attemptTimer\.resume\(performance\.now\(\)\)/);
+  assert.doesNotMatch(scene, /dailyTimer|dailyAttemptStarted/);
 });

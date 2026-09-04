@@ -24,6 +24,13 @@ import {
   getWeeklyProgress,
 } from '../../meta/DailyProgress.ts';
 import { MetaRepository } from '../../meta/MetaRepository.ts';
+import { MetaMutationQueue } from '../../meta/MetaMutationQueue.ts';
+import {
+  beginModeAttempt,
+  completeModeAttempt,
+  type ModeCompletionResult,
+  type OrdinaryGameMode,
+} from '../../meta/GameStats.ts';
 import {
   createDefaultMetaSave,
   type MetaSave,
@@ -50,6 +57,12 @@ interface StartDealOptions {
   readonly restored?: ActiveGameSaveV1;
 }
 
+interface OrdinaryCompletionSnapshot {
+  readonly mode: OrdinaryGameMode;
+  readonly elapsedMs: number;
+  readonly result: ModeCompletionResult;
+}
+
 export class GameScene extends Phaser.Scene {
   private flow!: GameFlow;
   private readonly history = new GameHistory();
@@ -61,15 +74,16 @@ export class GameScene extends Phaser.Scene {
   private activeGameRepository!: ActiveGameRepository;
   private pendingActiveSave: ActiveGameSaveV1 | null = null;
   private pendingDailyRestore: ActiveGameSaveV1 | null = null;
+  private readonly metaMutations = new MetaMutationQueue();
   private readonly attemptTimer = new AttemptTimer();
   private attemptStarted = false;
+  private attemptFinalized = false;
+  private lastOrdinaryCompletion: OrdinaryCompletionSnapshot | null = null;
 
   private platform: PlatformServices | null = null;
   private metaRepository: MetaRepository | null = null;
   private metaState: MetaSave = createDefaultMetaSave();
   private dailyContext: DailyContext | null = null;
-  private readonly dailyTimer = new AttemptTimer();
-  private dailyAttemptStarted = false;
 
   constructor() {
     super('GameScene');
@@ -117,7 +131,22 @@ export class GameScene extends Phaser.Scene {
   private async initializeMeta(): Promise<void> {
     this.platform = await initializePlatform();
     this.metaRepository = new MetaRepository(this.platform.playerStorage);
-    this.metaState = await this.metaRepository.load();
+    const loaded = await this.metaRepository.load();
+    this.metaState = this.metaMutations.settleLoadedState(loaded);
+    if (this.lastOrdinaryCompletion !== null) {
+      const completion = this.lastOrdinaryCompletion;
+      const loadedBest = loaded.stats[completion.mode].bestTimeMs;
+      this.lastOrdinaryCompletion = {
+        ...completion,
+        result: {
+          state: this.metaState,
+          stats: { ...this.metaState.stats[completion.mode] },
+          improvedBest: completion.result.improvedBest
+            && (loadedBest === undefined || completion.elapsedMs < loadedBest),
+        },
+      };
+    }
+    void this.metaRepository.save(this.metaState);
 
     const now = this.platform.trustedClock.nowMs();
     if (now !== null) {
@@ -243,8 +272,7 @@ export class GameScene extends Phaser.Scene {
   private startDeal(deal: Deal, options: StartDealOptions = {}): void {
     const restored = options.restored;
 
-    this.resetDailyAttempt();
-    this.resetOrdinaryAttempt();
+    this.resetAttempt();
     this.dailyCompleteView.hide();
     this.history.clear();
     const gameState = new SolitaireGame(deal);
@@ -281,29 +309,15 @@ export class GameScene extends Phaser.Scene {
     }, metrics);
 
     if (restored !== undefined) {
-      if (deal.mode === 'daily') {
-        this.dailyAttemptStarted = restored.attemptStarted;
-        if (restored.attemptStarted) {
-          const now = performance.now();
-          this.dailyTimer.start(now, restored.elapsedMs);
-          if (
-            restored.uiState === 'menu-paused'
-            || document.visibilityState !== 'visible'
-          ) {
-            this.dailyTimer.pause(now);
-          }
-        }
-      } else {
-        this.attemptStarted = restored.attemptStarted;
-        if (restored.attemptStarted) {
-          const now = performance.now();
-          this.attemptTimer.start(now, restored.elapsedMs);
-          if (
-            restored.uiState === 'menu-paused'
-            || document.visibilityState !== 'visible'
-          ) {
-            this.attemptTimer.pause(now);
-          }
+      this.attemptStarted = restored.attemptStarted;
+      if (restored.attemptStarted) {
+        const now = performance.now();
+        this.attemptTimer.start(now, restored.elapsedMs);
+        if (
+          restored.uiState === 'menu-paused'
+          || document.visibilityState !== 'visible'
+        ) {
+          this.attemptTimer.pause(now);
         }
       }
 
@@ -319,75 +333,96 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onBoardSettled(gameState: SolitaireGame): void {
-    if (gameState.mode !== 'daily') {
-      this.onOrdinaryBoardSettled(gameState);
-      return;
-    }
-
+    const mode = gameState.mode;
+    const isDaily = mode === 'daily';
     const context = this.dailyContext;
-    if (context === null) {
-      return;
-    }
 
-    if (!this.dailyAttemptStarted) {
-      if (gameState.isWon) {
-        return;
-      }
-
-      this.metaState = beginDailyAttempt(
-        this.metaState,
-        context.dailyId,
-        context.weekId,
-      );
-      const now = performance.now();
-      this.dailyTimer.start(now);
-      this.dailyAttemptStarted = true;
-      if (
-        this.flow.state !== 'playing'
-        || document.visibilityState !== 'visible'
-      ) {
-        this.dailyTimer.pause(now);
-      }
-      void this.metaRepository?.save(this.metaState);
-      this.refreshMenuMeta();
-      this.checkpointActiveGame(gameState);
-      return;
-    }
-
-    if (gameState.isWon) {
-      this.dailyAttemptStarted = false;
-      this.finishDailyAttempt();
-      return;
-    }
-
-    this.checkpointActiveGame(gameState);
-  }
-
-  private onOrdinaryBoardSettled(gameState: SolitaireGame): void {
-    if (gameState.mode === 'daily') {
-      return;
-    }
-
-    if (gameState.isWon) {
-      this.activeGameRepository.clear();
-      this.pendingActiveSave = null;
-      this.resetOrdinaryAttempt();
+    if (isDaily && context === null) {
       return;
     }
 
     if (!this.attemptStarted) {
+      if (gameState.isWon) {
+        return;
+      }
+
       const now = performance.now();
       this.attemptTimer.start(now);
       this.attemptStarted = true;
+      this.attemptFinalized = false;
       if (
         this.flow.state !== 'playing'
         || document.visibilityState !== 'visible'
       ) {
         this.attemptTimer.pause(now);
       }
+
+      if (isDaily) {
+        this.metaState = beginDailyAttempt(
+          this.metaState,
+          context!.dailyId,
+          context!.weekId,
+        );
+        this.refreshMenuMeta();
+      } else {
+        this.metaState = this.metaMutations.apply(
+          this.metaState,
+          (state) => beginModeAttempt(state, mode),
+        );
+      }
+
+      void this.metaRepository?.save(this.metaState);
+      this.checkpointActiveGame(gameState);
+      return;
+    }
+
+    if (gameState.isWon) {
+      if (this.attemptFinalized) {
+        return;
+      }
+
+      if (isDaily) {
+        this.finishDailyAttempt();
+      } else {
+        this.finishOrdinaryAttempt(gameState);
+      }
+      return;
     }
 
     this.checkpointActiveGame(gameState);
+  }
+
+  private finishOrdinaryAttempt(gameState: SolitaireGame): void {
+    if (
+      gameState.mode === 'daily'
+      || !this.attemptStarted
+      || this.attemptFinalized
+      || !this.attemptTimer.running
+    ) {
+      return;
+    }
+
+    const mode = gameState.mode;
+    this.attemptFinalized = true;
+    const elapsedMs = this.attemptTimer.finish(performance.now());
+    const completion = completeModeAttempt(
+      this.metaState,
+      mode,
+      elapsedMs,
+    );
+    this.metaState = this.metaMutations.apply(
+      this.metaState,
+      (state) => completeModeAttempt(state, mode, elapsedMs).state,
+    );
+
+    this.lastOrdinaryCompletion = {
+      mode,
+      elapsedMs,
+      result: completion,
+    };
+    void this.metaRepository?.save(this.metaState, true);
+    this.activeGameRepository.clear();
+    this.pendingActiveSave = null;
   }
 
   private checkpointActiveGame(gameState: SolitaireGame): void {
@@ -410,8 +445,8 @@ export class GameScene extends Phaser.Scene {
         mode: gameState.mode,
         seed: gameState.seed,
         snapshot: gameState.snapshot(),
-        attemptStarted: this.dailyAttemptStarted,
-        elapsedMs: this.getDailyElapsedForCheckpoint(),
+        attemptStarted: this.attemptStarted,
+        elapsedMs: this.getElapsedForCheckpoint(),
         daily: {
           dailyId: context.dailyId,
           algorithmVersion: this.metaState.daily.algorithmVersion,
@@ -442,21 +477,20 @@ export class GameScene extends Phaser.Scene {
     return this.attemptTimer.elapsed(performance.now());
   }
 
-  private getDailyElapsedForCheckpoint(): number {
-    if (!this.dailyAttemptStarted || !this.dailyTimer.running) {
-      return 0;
-    }
-
-    return this.dailyTimer.elapsed(performance.now());
-  }
 
   private finishDailyAttempt(): void {
     const context = this.dailyContext;
-    if (context === null || !this.dailyTimer.running) {
+    if (
+      context === null
+      || !this.attemptStarted
+      || this.attemptFinalized
+      || !this.attemptTimer.running
+    ) {
       return;
     }
 
-    const elapsedMs = this.dailyTimer.finish(performance.now());
+    this.attemptFinalized = true;
+    const elapsedMs = this.attemptTimer.finish(performance.now());
     const result = completeDailyAttempt(
       this.metaState,
       context.dailyId,
@@ -482,14 +516,11 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private resetDailyAttempt(): void {
-    this.dailyAttemptStarted = false;
-    this.dailyTimer.reset();
-  }
-
-  private resetOrdinaryAttempt(): void {
+  private resetAttempt(): void {
     this.attemptStarted = false;
+    this.attemptFinalized = false;
     this.attemptTimer.reset();
+    this.lastOrdinaryCompletion = null;
   }
 
   private restartDeal(): void {
@@ -520,11 +551,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (this.attemptStarted) {
+    if (this.attemptStarted && !this.attemptFinalized) {
       this.attemptTimer.pause(performance.now());
-    }
-    if (this.dailyAttemptStarted) {
-      this.dailyTimer.pause(performance.now());
     }
     if (this.gameState !== null) {
       this.checkpointActiveGame(this.gameState);
@@ -541,7 +569,6 @@ export class GameScene extends Phaser.Scene {
     if (this.flow.cancelMenu()) {
       this.mainMenu.hide();
       this.resumeAttemptTimerIfPlayable();
-      this.resumeDailyTimerIfPlayable();
       if (this.gameState !== null) {
         this.checkpointActiveGame(this.gameState);
       }
@@ -587,15 +614,11 @@ export class GameScene extends Phaser.Scene {
   private handleVisibilityChange = (): void => {
     if (document.visibilityState === 'visible') {
       this.resumeAttemptTimerIfPlayable();
-      this.resumeDailyTimerIfPlayable();
       return;
     }
 
-    if (this.attemptStarted) {
+    if (this.attemptStarted && !this.attemptFinalized) {
       this.attemptTimer.pause(performance.now());
-    }
-    if (this.dailyAttemptStarted) {
-      this.dailyTimer.pause(performance.now());
     }
     if (this.gameState !== null) {
       this.checkpointActiveGame(this.gameState);
@@ -603,11 +626,8 @@ export class GameScene extends Phaser.Scene {
   };
 
   private handlePageHide = (): void => {
-    if (this.attemptStarted) {
+    if (this.attemptStarted && !this.attemptFinalized) {
       this.attemptTimer.pause(performance.now());
-    }
-    if (this.dailyAttemptStarted) {
-      this.dailyTimer.pause(performance.now());
     }
     if (this.gameState !== null) {
       this.checkpointActiveGame(this.gameState);
@@ -617,20 +637,11 @@ export class GameScene extends Phaser.Scene {
   private resumeAttemptTimerIfPlayable(): void {
     if (
       this.attemptStarted
+      && !this.attemptFinalized
       && this.flow.state === 'playing'
       && document.visibilityState === 'visible'
     ) {
       this.attemptTimer.resume(performance.now());
-    }
-  }
-
-  private resumeDailyTimerIfPlayable(): void {
-    if (
-      this.dailyAttemptStarted
-      && this.flow.state === 'playing'
-      && document.visibilityState === 'visible'
-    ) {
-      this.dailyTimer.resume(performance.now());
     }
   }
 
@@ -662,7 +673,6 @@ export class GameScene extends Phaser.Scene {
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     window.removeEventListener('pagehide', this.handlePageHide);
     this.attemptTimer.reset();
-    this.dailyTimer.reset();
     this.dailyCompleteView.destroy();
     this.mainMenu.destroy();
     this.board?.destroy();
