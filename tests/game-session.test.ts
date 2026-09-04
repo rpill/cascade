@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
 
 import { GameSession } from '../src/game/model/GameSession.ts';
 
@@ -84,4 +85,19 @@ test('Daily cannot accidentally use the ordinary entropy-based new-game path', (
   const session = new GameSession({ nextSeed: () => 11n, winnableSeeds: [11n] });
 
   assert.throws(() => session.startNew('daily'), /startDaily/i);
+});
+
+test('solitaire model stays independent from platform and Yandex SDK code', () => {
+  const modelDir = new URL('../src/game/model/', import.meta.url);
+
+  for (const entry of readdirSync(modelDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
+
+    const source = readFileSync(new URL(entry.name, modelDir), 'utf8');
+    assert.doesNotMatch(
+      source,
+      /\bYaGames\b|\bysdk\b|from ['"][^'"]*platform\//,
+      `${entry.name} must not depend on platform SDK code`,
+    );
+  }
 });

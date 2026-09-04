@@ -46,7 +46,7 @@ function stableHash32(value: string): number {
 
 export function getDailySeed(
   dailyId: string,
-  algorithmVersion = DAILY_ALGORITHM_VERSION,
+  algorithmVersion: number = DAILY_ALGORITHM_VERSION,
   pool: readonly bigint[] = WINNABLE_SEEDS,
 ): bigint {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dailyId)) {

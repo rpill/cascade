@@ -27,8 +27,9 @@ test('week Daily IDs are Monday through Sunday in UTC', () => {
 
 test('same Daily ID/version maps to the same solver-proven pool member', () => {
   const pool = [11n, 22n, 33n, 44n] as const;
-  const first = getDailySeed('2026-09-04', 1, pool);
-  const second = getDailySeed('2026-09-04', 1, pool);
+  const algorithmVersion: number = 1;
+  const first = getDailySeed('2026-09-04', algorithmVersion, pool);
+  const second = getDailySeed('2026-09-04', algorithmVersion, pool);
 
   assert.equal(first, second);
   assert.ok(pool.includes(first as 11n | 22n | 33n | 44n));

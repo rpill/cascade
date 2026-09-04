@@ -21,7 +21,7 @@ export interface DailyMenuState {
 interface MainMenuShowOptions {
   readonly canCancel: boolean;
   readonly selectedMode: GameMode | null;
-  readonly daily?: DailyMenuState;
+  readonly daily: DailyMenuState;
 }
 
 const UNAVAILABLE_DAILY_STATE: DailyMenuState = {
@@ -169,7 +169,7 @@ export class MainMenuView {
   show({
     canCancel,
     selectedMode,
-    daily = UNAVAILABLE_DAILY_STATE,
+    daily,
   }: MainMenuShowOptions): void {
     this.selectedMode = selectedMode;
     this.updateDailyState(daily);
