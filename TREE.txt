@@ -1,19 +1,22 @@
 cascade/
 ├── Decks/ [contents omitted]
 ├── docs/
-│   └── superpowers/
-│       ├── plans/
-│       │   ├── 2026-09-02-sawayama-game-modes.md
-│       │   ├── 2026-09-02-visual-undo-main-menu.md
-│       │   ├── 2026-09-03-responsive-fullscreen-layout.md
-│       │   ├── 2026-09-04-daily-weekly-retention-foundation.md
-│       │   └── 2026-09-04-session-persistence-stats-win-summary.md
-│       └── specs/
-│           ├── 2026-09-02-sawayama-game-modes-design.md
-│           ├── 2026-09-02-visual-undo-main-menu-design.md
-│           ├── 2026-09-03-responsive-fullscreen-layout-design.md
-│           ├── 2026-09-04-persistent-stats-win-summary-design.md
-│           └── 2026-09-04-retention-meta-progression-design.md
+│   ├── superpowers/
+│   │   ├── plans/
+│   │   │   ├── 2026-09-02-sawayama-game-modes.md
+│   │   │   ├── 2026-09-02-visual-undo-main-menu.md
+│   │   │   ├── 2026-09-03-responsive-fullscreen-layout.md
+│   │   │   ├── 2026-09-04-daily-weekly-retention-foundation.md
+│   │   │   ├── 2026-09-04-session-persistence-stats-win-summary.md
+│   │   │   └── 2026-09-04-statistics-leaderboards.md
+│   │   └── specs/
+│   │       ├── 2026-09-02-sawayama-game-modes-design.md
+│   │       ├── 2026-09-02-visual-undo-main-menu-design.md
+│   │       ├── 2026-09-03-responsive-fullscreen-layout-design.md
+│   │       ├── 2026-09-04-persistent-stats-win-summary-design.md
+│   │       ├── 2026-09-04-retention-meta-progression-design.md
+│   │       └── 2026-09-04-statistics-leaderboards-design.md
+│   └── YANDEX_LEADERBOARDS_SETUP.md
 ├── public/
 │   └── assets/
 │       ├── cards/ [contents omitted]
@@ -51,9 +54,15 @@ cascade/
 │   │       ├── GameCompleteView.ts
 │   │       ├── layout.ts
 │   │       ├── LayoutMetrics.ts
+│   │       ├── LeaderboardView.ts
 │   │       ├── MainMenuView.ts
 │   │       ├── RenderQuality.ts
+│   │       ├── StatisticsView.ts
 │   │       └── StockVisualState.ts
+│   ├── leaderboards/
+│   │   ├── LeaderboardConfig.ts
+│   │   ├── LeaderboardService.ts
+│   │   └── LeaderboardSubmissionQueue.ts
 │   ├── meta/
 │   │   ├── AttemptTimer.ts
 │   │   ├── DailyCalendar.ts
@@ -97,7 +106,13 @@ cascade/
 │   ├── game-session.test.ts
 │   ├── game-stats.test.ts
 │   ├── game.test.ts
+│   ├── leaderboard-config.test.ts
+│   ├── leaderboard-scene-wiring.test.ts
+│   ├── leaderboard-service.test.ts
+│   ├── leaderboard-submission-queue.test.ts
+│   ├── leaderboard-view.test.ts
 │   ├── main-menu-wiring.test.ts
+│   ├── menu-stats-wiring.test.ts
 │   ├── meta-mutation-queue.test.ts
 │   ├── meta-repository.test.ts
 │   ├── meta-save.test.ts
@@ -107,6 +122,7 @@ cascade/
 │   ├── render-quality.test.ts
 │   ├── responsive-layout.test.ts
 │   ├── session-persistence-wiring.test.ts
+│   ├── statistics-view.test.ts
 │   ├── stock-visual.test.ts
 │   ├── undo-wiring.test.ts
 │   ├── visual-theme.test.mjs
@@ -114,6 +130,7 @@ cascade/
 ├── tools/
 │   └── sawayama_solver.cpp
 ├── .gitignore
+├── cascade_phaseC_task8_yandex_console_docs.zip
 ├── CHATGPT_CONTEXT.md
 ├── CURRENT_STATE.md
 ├── index.html

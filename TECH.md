@@ -9,13 +9,15 @@
 - `src/game/view/BoardView.ts` — Phaser board input, card sync, target selection, motion, direct restored-state render, and persistence-neutral settled callback.
 - `src/game/view/DropGeometry.ts` — renderer-independent drop commitment geometry.
 - `src/game/view/CardFlight.ts` — quadratic flight path math.
-- `src/game/view/MainMenuView.ts` — native DOM main menu. Mode buttons start games directly; Daily status/current-week 3/5/7 progress and conditional `ЗАКРЫТЬ` are screen-space DOM.
+- `src/game/view/MainMenuView.ts` — compact native DOM main menu. Mode buttons start games directly; Daily status/current-week 3/5/7 progress, statistics/leaderboard modal launchers, and conditional `ЗАКРЫТЬ` are screen-space DOM.
 - `src/game/view/DailyCompleteView.ts` — native DOM Daily result overlay with retry/menu actions.
 - `src/game/view/GameCompleteView.ts` — native DOM Standard/Classic result overlay with elapsed/best/stats/win-rate and new-game/menu actions.
+- `src/game/view/StatisticsView.ts` — passive no-scroll native DOM statistics modal for Standard/Classic played/wins/win-rate/best time.
+- `src/game/view/LeaderboardView.ts` — passive no-scroll native DOM leaderboard modal with mode tabs, top-10, personal row, auth state, and loading/empty/error/unavailable states.
 - `src/game/view/RenderQuality.ts` — high-resolution Phaser Text settings.
 - `src/game/view/LayoutMetrics.ts` — pure responsive desktop card sizing and board coordinates.
 - `src/game/view/layout.ts` — pure derived slot/tableau/waste placement helpers that consume `LayoutMetrics`.
-- `src/game/scenes/GameScene.ts` — coordinator for flow, history, model, local active-session checkpoints, unified attempt lifecycle, Daily/meta state, pre-load meta mutation replay, platform initialization, and DOM views.
+- `src/game/scenes/GameScene.ts` — coordinator for flow, history, model, local active-session checkpoints, unified attempt lifecycle, Daily/meta state, pre-load meta mutation replay, platform initialization, statistics/leaderboard/auth lifecycle, and DOM views.
 - `src/persistence/ActiveGameSave.ts` — versioned browser-local active-game checkpoint schema, strict normalization, canonical card reconstruction, and checkpoint-to-Deal conversion.
 - `src/persistence/ActiveGameRepository.ts` — safe `cascadeActiveGame` localStorage load/save/clear boundary; corrupt/invalid data is discarded best-effort.
 - `src/meta/MetaSave.ts` — `MetaSave` V2 structured player save, V1→V2 migration, and runtime normalization.
@@ -25,8 +27,11 @@
 - `src/meta/AttemptTimer.ts` — generic pause-aware attempt timer with restored elapsed-duration support.
 - `src/meta/GameStats.ts` — pure Standard/Classic `played` / `wins` / `bestTimeMs` mutations; Daily is intentionally excluded.
 - `src/meta/MetaMutationQueue.ts` — pure pre-load mutation queue that replays local meta events once over the asynchronously loaded player save.
-- `src/platform/services.ts` — platform-neutral PlayerStorage/trusted-clock interfaces plus persistent browser fallback (`cascadePlayerData`) and memory last resort.
-- `src/platform/yandex.ts` — cached Yandex adapter: loads `/sdk.js` in the HTTPS Yandex/proxy environment, initializes Player data/server time, and exposes LoadingAPI readiness.
+- `src/leaderboards/LeaderboardConfig.ts` — fixed ordinary-mode to Yandex technical leaderboard name mapping (`standard_best_time`, `classic_best_time`).
+- `src/leaderboards/LeaderboardSubmissionQueue.ts` — global serialized leaderboard write queue; coalesces pending best times and enforces a 1100 ms submission interval.
+- `src/leaderboards/LeaderboardService.ts` — gameplay-safe top/personal-entry loading, authorization delegation, and best-time synchronization that never overwrites a faster server result.
+- `src/platform/services.ts` — platform-neutral PlayerStorage/trusted-clock/auth/leaderboard interfaces plus persistent browser fallback (`cascadePlayerData`) and memory last resort.
+- `src/platform/yandex.ts` — cached Yandex adapter: loads `/sdk.js` in the HTTPS Yandex/proxy environment, initializes/reacquires Player data/server time, exposes explicit auth + direct `ysdk.leaderboards` APIs, account-selection events, and LoadingAPI readiness.
 - `scripts/chatgpt-context-lib.mjs` — testable tree/Git/context-bundle core.
 - `scripts/chatgpt-context.mjs` — CLI used by `pnpm context*`.
 
@@ -60,6 +65,20 @@ Do not merge the active board checkpoint into `cascadeMeta` or upload a full boa
 - Daily Restart replays the fixed Daily seed. `НОВАЯ ИГРА` / `N` are intentionally unavailable in Daily because they would duplicate Restart.
 - Daily remains on `DailyProgress`; never write Daily attempts/wins into `GameStats`.
 
+## Statistics / leaderboard constraints
+
+- Statistics and leaderboards live in separate fixed native DOM modals; do not expand their full contents inline in the main menu.
+- Main menu and all meta modals are no-scroll UI. Do not introduce `overflow: auto` / `scroll`; use responsive compression, tabs, or pagination when content grows.
+- Built-in Yandex leaderboards are ordinary-mode only: `winnable -> standard_best_time`, `original -> classic_best_time`. Daily must never map to either board.
+- Both Console leaderboards are `time` values in milliseconds and sort ascending. Standard is the single main leaderboard. See `docs/YANDEX_LEADERBOARDS_SETUP.md`.
+- Public top-10 (`getEntries`) may load without authorization. Personal rank and `setScore` require authorization. Never trigger `openAuthDialog()` automatically.
+- Authorization remains unavailable while an unfinished active-game checkpoint/board is active. This prevents a guest board from being finalized against a different account's cloud meta after account/progress selection.
+- On `ACCOUNT_SELECTION_DIALOG_CLOSED`, invalidate current leaderboard requests and reload the page so Yandex Player/meta is reacquired from the user's selected progress.
+- Leaderboard view loads are request-token guarded; an older async response must not replace a newer tab selection or a closed view.
+- Score writes go only through `LeaderboardSubmissionQueue`. Keep at least 1100 ms between actual `setScore` calls and coalesce multiple pending values for one board to the lowest time.
+- Before writing a local best, compare against the current server entry. Never replace a faster server time with a slower local time.
+- Ordinary completion leaderboard sync is fire-and-forget and occurs after local stats/meta finalization. Leaderboard read/write/auth failures must never block or roll back local gameplay progress.
+
 ## Gameplay / rendering constraints
 
 - Keep gameplay rules in model code rather than Phaser objects where practical.
@@ -82,8 +101,12 @@ Do not merge the active board checkpoint into `cascadeMeta` or upload a full boa
 
 - Plain `pnpm dev` runs over HTTP and intentionally allows the platform adapter to fall back. In the HTTPS Yandex/proxy environment, load `/sdk.js` before `YaGames.init()`.
 - `pnpm yandex:dev` performs the normal build and launches `@yandex-games/sdk-dev-proxy -p dist --dev-mode=true` for local SDK smoke tests.
-- Standard/Classic must remain playable even if SDK initialization/player-data load/trusted time fails.
+- Use direct `ysdk.leaderboards` APIs; deprecated `ysdk.getLeaderboards()` must not be reintroduced.
+- Protected leaderboard calls use `ysdk.isAvailableMethod()` before `getPlayerEntry` / `setScore`; public `getEntries` remains guest-readable.
+- Yandex auth is explicit user action only. After a successful auth dialog, reacquire `Player`; account-selection-close reload semantics are described above.
+- Standard/Classic must remain playable even if SDK initialization/player-data/leaderboard/trusted-time access fails.
 - Daily must remain unavailable without trusted server time.
+- Final Console configuration and real-draft acceptance are external release gates documented in `docs/YANDEX_LEADERBOARDS_SETUP.md`.
 - Future ad/platform lifecycle work should route through one shared pause/resume boundary instead of adding another independent timer policy.
 
 ## Context workflow constraints
