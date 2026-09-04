@@ -392,12 +392,18 @@ export class BoardView {
     const controls = document.createElement('div');
     controls.className = 'game-controls';
 
-    const specs: readonly [label: string, width: number, action: () => void][] = [
+    const specs: Array<[label: string, width: number, action: () => void]> = [
       ['В МЕНЮ', 104, () => this.actions.mainMenu()],
-      ['НОВАЯ ИГРА  N', 144, () => this.actions.newGame()],
+    ];
+
+    if (this.game.mode !== 'daily') {
+      specs.push(['НОВАЯ ИГРА  N', 144, () => this.actions.newGame()]);
+    }
+
+    specs.push(
       ['ОТМЕНА  Z', 128, () => this.requestUndo()],
       ['РЕСТАРТ  R', 112, () => this.actions.restart()],
-    ];
+    );
 
     specs.forEach(([label, width, action]) => {
       const button = document.createElement('button');

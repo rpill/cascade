@@ -503,7 +503,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private startNewDeal(): void {
-    if (this.flow.state !== 'playing') {
+    if (
+      this.flow.state !== 'playing'
+      || this.flow.currentDeal?.mode === 'daily'
+    ) {
       return;
     }
 

@@ -27,6 +27,17 @@ test('board exposes separate menu, new game, undo, and restart controls', () => 
   assert.match(boardSource, /РЕСТАРТ\s+R/);
 });
 
+test('Daily hides duplicate New Game and ignores the N shortcut', () => {
+  assert.match(
+    boardSource,
+    /if \(this\.game\.mode !== 'daily'\)[\s\S]*НОВАЯ ИГРА\s+N/,
+  );
+  assert.match(
+    sceneSource,
+    /startNewDeal\(\): void {[\s\S]*currentDeal\?\.mode === 'daily'/,
+  );
+});
+
 test('clicking a menu mode starts it immediately and there is no extra Play button', () => {
   const mainMenuPath = new URL('../src/game/view/MainMenuView.ts', import.meta.url);
   const oldMenuPath = new URL('../src/game/view/ModeMenuView.ts', import.meta.url);
