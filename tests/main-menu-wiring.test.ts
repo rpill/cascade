@@ -15,7 +15,7 @@ test('the scene uses a persistent main menu and N starts immediately', () => {
   assert.match(sceneSource, /MainMenuView/);
   assert.match(sceneSource, /startNewInCurrentMode\(\)/);
   assert.match(sceneSource, /openMainMenu\(\)/);
-  assert.match(sceneSource, /playSelectedMode\(\)/);
+  assert.match(sceneSource, /playMenuMode\(mode: GameMode\)/);
   assert.doesNotMatch(sceneSource, /openNewGameMenu/);
 });
 
@@ -27,7 +27,7 @@ test('board exposes separate menu, new game, undo, and restart controls', () => 
   assert.match(boardSource, /РЕСТАРТ\s+R/);
 });
 
-test('main menu has explicit Play and replaces the old mode prompt view', () => {
+test('clicking a menu mode starts it immediately and there is no extra Play button', () => {
   const mainMenuPath = new URL('../src/game/view/MainMenuView.ts', import.meta.url);
   const oldMenuPath = new URL('../src/game/view/ModeMenuView.ts', import.meta.url);
 
@@ -39,8 +39,9 @@ test('main menu has explicit Play and replaces the old mode prompt view', () => 
   }
 
   const menuSource = readFileSync(mainMenuPath, 'utf8');
-  assert.match(menuSource, /ИГРАТЬ/);
-  assert.match(menuSource, /selectedMode/);
+  assert.doesNotMatch(menuSource, /ИГРАТЬ/);
+  assert.match(menuSource, /actions\.play\(mode\)/);
+  assert.match(menuSource, /ЗАКРЫТЬ/);
   assert.match(menuSource, /canCancel/);
 });
 

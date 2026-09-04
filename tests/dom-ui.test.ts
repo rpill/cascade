@@ -31,7 +31,8 @@ test('main menu is a viewport-sized screen-space DOM overlay', () => {
   assert.match(menuSource, /append\(this\.root\)/);
   assert.doesNotMatch(menuSource, /scene\.add\.dom\(/);
   assert.doesNotMatch(menuSource, /GAME_WIDTH|GAME_HEIGHT/);
-  assert.match(menuSource, /disabled\s*=\s*this\.selectedMode\s*===\s*null/);
+  assert.match(menuSource, /actions\.play\(mode\)/);
+  assert.doesNotMatch(menuSource, /main-menu-play|ИГРАТЬ/);
 });
 
 test('DOM UI has explicit crisp browser typography and stacking', () => {

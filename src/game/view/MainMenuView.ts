@@ -3,8 +3,7 @@ import type Phaser from 'phaser';
 import type { GameMode } from '../model/types.ts';
 
 interface MainMenuActions {
-  readonly select: (mode: GameMode) => void;
-  readonly play: () => void;
+  readonly play: (mode: GameMode) => void;
   readonly cancel: () => void;
 }
 
@@ -53,7 +52,6 @@ export class MainMenuView {
   private readonly actions: MainMenuActions;
   private readonly root: HTMLDivElement;
   private readonly cancelButton: HTMLButtonElement;
-  private readonly playButton: HTMLButtonElement;
   private readonly modeButtons = new Map<GameMode, HTMLButtonElement>();
   private readonly modeCopies = new Map<GameMode, HTMLSpanElement>();
   private readonly weekly: HTMLElement;
@@ -62,7 +60,6 @@ export class MainMenuView {
   private readonly weeklyMilestones: HTMLDivElement;
 
   private selectedMode: GameMode | null = null;
-  private dailyAvailable = false;
 
   constructor(scene: Phaser.Scene, actions: MainMenuActions) {
     this.actions = actions;
@@ -123,23 +120,11 @@ export class MainMenuView {
       this.weeklyMilestones,
     );
 
-    this.playButton = document.createElement('button');
-    this.playButton.type = 'button';
-    this.playButton.className = 'main-menu-play';
-    this.playButton.textContent = 'ИГРАТЬ';
-    this.playButton.addEventListener('click', () => {
-      if (
-        this.selectedMode !== null
-        && (this.selectedMode !== 'daily' || this.dailyAvailable)
-      ) {
-        this.actions.play();
-      }
-    });
-
     this.cancelButton = document.createElement('button');
     this.cancelButton.type = 'button';
     this.cancelButton.className = 'main-menu-cancel';
-    this.cancelButton.textContent = 'ESC — вернуться к текущей игре';
+    this.cancelButton.textContent = 'ЗАКРЫТЬ';
+    this.cancelButton.setAttribute('aria-label', 'Закрыть меню и вернуться к текущей игре');
     this.cancelButton.addEventListener('click', () => this.actions.cancel());
 
     panel.append(
@@ -150,7 +135,6 @@ export class MainMenuView {
       original,
       daily,
       this.weekly,
-      this.playButton,
       this.cancelButton,
     );
     this.root.append(backdrop, panel);
@@ -177,12 +161,9 @@ export class MainMenuView {
     this.root.hidden = false;
     this.root.style.pointerEvents = 'auto';
     this.updateModeVisuals();
-    this.updatePlayState();
   }
 
   updateDailyState(state: DailyMenuState): void {
-    this.dailyAvailable = state.available;
-
     const dailyButton = this.modeButtons.get('daily');
     const dailyCopy = this.modeCopies.get('daily');
 
@@ -227,7 +208,6 @@ export class MainMenuView {
     }
 
     this.updateModeVisuals();
-    this.updatePlayState();
   }
 
   hide(): void {
@@ -264,9 +244,8 @@ export class MainMenuView {
       }
 
       this.selectedMode = mode;
-      this.actions.select(mode);
       this.updateModeVisuals();
-      this.updatePlayState();
+      this.actions.play(mode);
     });
 
     this.modeButtons.set(mode, button);
@@ -282,8 +261,4 @@ export class MainMenuView {
     });
   }
 
-  private updatePlayState(): void {
-    this.playButton.disabled = this.selectedMode === null
-      || (this.selectedMode === 'daily' && !this.dailyAvailable);
-  }
 }

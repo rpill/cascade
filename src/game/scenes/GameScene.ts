@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 import { GameFlow } from '../model/GameFlow.ts';
 import { GameHistory } from '../model/GameHistory.ts';
 import { SolitaireGame } from '../model/SolitaireGame.ts';
-import type { Deal } from '../model/types.ts';
+import type { Deal, GameMode } from '../model/types.ts';
 import { BoardView } from '../view/BoardView.ts';
 import { DailyCompleteView } from '../view/DailyCompleteView.ts';
 import {
@@ -60,6 +60,7 @@ export class GameScene extends Phaser.Scene {
 
   private activeGameRepository!: ActiveGameRepository;
   private pendingActiveSave: ActiveGameSaveV1 | null = null;
+  private pendingDailyRestore: ActiveGameSaveV1 | null = null;
   private readonly attemptTimer = new AttemptTimer();
   private attemptStarted = false;
 
@@ -80,8 +81,7 @@ export class GameScene extends Phaser.Scene {
     this.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this);
     this.flow = new GameFlow();
     this.mainMenu = new MainMenuView(this, {
-      select: (mode) => this.flow.selectMenuMode(mode),
-      play: () => this.playSelectedMode(),
+      play: (mode) => this.playMenuMode(mode),
       cancel: () => this.closeMainMenu(),
     });
     this.dailyCompleteView = new DailyCompleteView(this, {
@@ -91,6 +91,9 @@ export class GameScene extends Phaser.Scene {
 
     this.activeGameRepository = new ActiveGameRepository();
     this.pendingActiveSave = this.activeGameRepository.load();
+    if (this.pendingActiveSave?.mode === 'daily') {
+      this.pendingDailyRestore = this.pendingActiveSave;
+    }
     const restoredOrdinary = this.tryRestoreOrdinarySession();
 
     if (!restoredOrdinary) {
@@ -125,6 +128,10 @@ export class GameScene extends Phaser.Scene {
         weekDailyIds: getIsoWeekDailyIds(now),
         seed: getDailySeed(dailyId, this.metaState.daily.algorithmVersion),
       };
+    }
+
+    if (this.pendingDailyRestore !== null && this.dailyContext !== null) {
+      this.tryRestoreDailySession(this.pendingDailyRestore);
     }
 
     this.refreshMenuMeta();
@@ -169,12 +176,55 @@ export class GameScene extends Phaser.Scene {
   private tryRestoreOrdinarySession(): boolean {
     const save = this.pendingActiveSave;
 
-    if (save === null || save.mode === 'daily') {
+    if (save === null) {
+      return false;
+    }
+
+    if (save.mode === 'daily') {
+      this.pendingActiveSave = null;
       return false;
     }
 
     const deal = this.flow.resume(activeGameSaveToDeal(save), save.uiState);
     this.pendingActiveSave = null;
+    this.startDeal(deal, { restored: save });
+
+    if (save.uiState === 'menu-paused') {
+      this.mainMenu.show({
+        canCancel: this.flow.canCancelMenu,
+        selectedMode: this.flow.selectedMode,
+        daily: this.buildDailyMenuState(),
+      });
+    } else {
+      this.mainMenu.hide();
+    }
+
+    return true;
+  }
+
+  private tryRestoreDailySession(save: ActiveGameSaveV1): boolean {
+    const context = this.dailyContext;
+
+    if (context === null || save.mode !== 'daily') {
+      return false;
+    }
+
+    const daily = save.daily;
+    const identityMatches = daily !== undefined
+      && daily.dailyId === context.dailyId
+      && daily.algorithmVersion === this.metaState.daily.algorithmVersion
+      && BigInt(save.seed) === context.seed;
+
+    if (!identityMatches) {
+      this.activeGameRepository.clear();
+      this.pendingDailyRestore = null;
+      return false;
+    }
+
+    const deal = this.flow.resume(activeGameSaveToDeal(save), save.uiState);
+    this.pendingDailyRestore = null;
+    this.pendingActiveSave = null;
+    this.board?.destroy();
     this.startDeal(deal, { restored: save });
 
     if (save.uiState === 'menu-paused') {
@@ -231,15 +281,29 @@ export class GameScene extends Phaser.Scene {
     }, metrics);
 
     if (restored !== undefined) {
-      this.attemptStarted = restored.attemptStarted;
-      if (restored.attemptStarted) {
-        const now = performance.now();
-        this.attemptTimer.start(now, restored.elapsedMs);
-        if (
-          restored.uiState === 'menu-paused'
-          || document.visibilityState !== 'visible'
-        ) {
-          this.attemptTimer.pause(now);
+      if (deal.mode === 'daily') {
+        this.dailyAttemptStarted = restored.attemptStarted;
+        if (restored.attemptStarted) {
+          const now = performance.now();
+          this.dailyTimer.start(now, restored.elapsedMs);
+          if (
+            restored.uiState === 'menu-paused'
+            || document.visibilityState !== 'visible'
+          ) {
+            this.dailyTimer.pause(now);
+          }
+        }
+      } else {
+        this.attemptStarted = restored.attemptStarted;
+        if (restored.attemptStarted) {
+          const now = performance.now();
+          this.attemptTimer.start(now, restored.elapsedMs);
+          if (
+            restored.uiState === 'menu-paused'
+            || document.visibilityState !== 'visible'
+          ) {
+            this.attemptTimer.pause(now);
+          }
         }
       }
 
@@ -249,11 +313,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.pendingActiveSave = null;
-    if (deal.mode === 'daily') {
-      this.activeGameRepository.clear();
-    } else {
-      this.checkpointActiveGame(gameState);
-    }
+    this.pendingDailyRestore = null;
+    this.checkpointActiveGame(gameState);
     this.board.playInitialDeal();
   }
 
@@ -289,13 +350,17 @@ export class GameScene extends Phaser.Scene {
       }
       void this.metaRepository?.save(this.metaState);
       this.refreshMenuMeta();
+      this.checkpointActiveGame(gameState);
       return;
     }
 
     if (gameState.isWon) {
       this.dailyAttemptStarted = false;
       this.finishDailyAttempt();
+      return;
     }
+
+    this.checkpointActiveGame(gameState);
   }
 
   private onOrdinaryBoardSettled(gameState: SolitaireGame): void {
@@ -326,10 +391,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   private checkpointActiveGame(gameState: SolitaireGame): void {
-    if (gameState.mode === 'daily') {
-      return;
-    }
-
     if (gameState.isWon) {
       this.activeGameRepository.clear();
       return;
@@ -338,6 +399,29 @@ export class GameScene extends Phaser.Scene {
     const uiState = this.flow.state === 'menu-paused'
       ? 'menu-paused'
       : 'playing';
+
+    if (gameState.mode === 'daily') {
+      const context = this.dailyContext;
+      if (context === null) {
+        return;
+      }
+
+      const save = createActiveGameSave({
+        mode: gameState.mode,
+        seed: gameState.seed,
+        snapshot: gameState.snapshot(),
+        attemptStarted: this.dailyAttemptStarted,
+        elapsedMs: this.getDailyElapsedForCheckpoint(),
+        daily: {
+          dailyId: context.dailyId,
+          algorithmVersion: this.metaState.daily.algorithmVersion,
+        },
+        uiState,
+      });
+      this.activeGameRepository.save(save);
+      return;
+    }
+
     const save = createActiveGameSave({
       mode: gameState.mode,
       seed: gameState.seed,
@@ -358,6 +442,14 @@ export class GameScene extends Phaser.Scene {
     return this.attemptTimer.elapsed(performance.now());
   }
 
+  private getDailyElapsedForCheckpoint(): number {
+    if (!this.dailyAttemptStarted || !this.dailyTimer.running) {
+      return 0;
+    }
+
+    return this.dailyTimer.elapsed(performance.now());
+  }
+
   private finishDailyAttempt(): void {
     const context = this.dailyContext;
     if (context === null || !this.dailyTimer.running) {
@@ -373,6 +465,8 @@ export class GameScene extends Phaser.Scene {
     );
     this.metaState = result.state;
     void this.metaRepository?.save(this.metaState, true);
+    this.activeGameRepository.clear();
+    this.pendingDailyRestore = null;
     this.refreshMenuMeta();
 
     if (this.flow.state === 'menu-paused') {
@@ -429,7 +523,7 @@ export class GameScene extends Phaser.Scene {
     if (this.dailyAttemptStarted) {
       this.dailyTimer.pause(performance.now());
     }
-    if (this.gameState !== null && this.gameState.mode !== 'daily') {
+    if (this.gameState !== null) {
       this.checkpointActiveGame(this.gameState);
     }
 
@@ -445,23 +539,22 @@ export class GameScene extends Phaser.Scene {
       this.mainMenu.hide();
       this.resumeAttemptTimerIfPlayable();
       this.resumeDailyTimerIfPlayable();
-      if (this.gameState !== null && this.gameState.mode !== 'daily') {
+      if (this.gameState !== null) {
         this.checkpointActiveGame(this.gameState);
       }
     }
   }
 
-  private playSelectedMode(): void {
+  private playMenuMode(mode: GameMode): void {
     if (this.flow.state === 'playing') {
       return;
     }
-
-    const selectedMode = this.flow.selectedMode;
-    if (selectedMode === 'daily' && this.dailyContext === null) {
+    if (mode === 'daily' && this.dailyContext === null) {
       return;
     }
 
-    const deal = selectedMode === 'daily'
+    this.flow.selectMenuMode(mode);
+    const deal = mode === 'daily'
       ? this.flow.playSelectedMode(this.dailyContext!.seed)
       : this.flow.playSelectedMode();
     this.mainMenu.hide();
@@ -501,7 +594,7 @@ export class GameScene extends Phaser.Scene {
     if (this.dailyAttemptStarted) {
       this.dailyTimer.pause(performance.now());
     }
-    if (this.gameState !== null && this.gameState.mode !== 'daily') {
+    if (this.gameState !== null) {
       this.checkpointActiveGame(this.gameState);
     }
   };
@@ -513,7 +606,7 @@ export class GameScene extends Phaser.Scene {
     if (this.dailyAttemptStarted) {
       this.dailyTimer.pause(performance.now());
     }
-    if (this.gameState !== null && this.gameState.mode !== 'daily') {
+    if (this.gameState !== null) {
       this.checkpointActiveGame(this.gameState);
     }
   };
