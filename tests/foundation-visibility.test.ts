@@ -16,6 +16,17 @@ test('foundation keeps every collected card placed while the next card flies in'
     boardSource,
     /this\.game\.foundations\[suit\]\.at\(-1\)/,
   );
-  assert.match(boardSource, /x:\s*this\.layout\.foundationX/);
-  assert.match(boardSource, /y:\s*this\.layout\.foundationY\[index\]/);
+  assert.match(boardSource, /const point = this\.layout\.foundations\[index\]/);
+  assert.match(boardSource, /x:\s*point\.x/);
+  assert.match(boardSource, /y:\s*point\.y/);
+  assert.doesNotMatch(boardSource, /foundationX|foundationY/);
+});
+
+
+test('foundation placeholder outer frame matches the exact card footprint', () => {
+  assert.match(
+    boardSource,
+    /graphics\.strokeRect\(x,\s*y,\s*layout\.cardWidth,\s*layout\.cardHeight\)/,
+  );
+  assert.doesNotMatch(boardSource, /const inset =/);
 });

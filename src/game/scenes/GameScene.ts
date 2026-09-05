@@ -19,7 +19,7 @@ import {
   StatisticsView,
   type StatisticsViewState,
 } from '../view/StatisticsView.ts';
-import { calculateLayoutMetrics } from '../view/LayoutMetrics.ts';
+import { calculateViewportLayout } from '../view/ViewportLayout.ts';
 import { AttemptTimer } from '../../meta/AttemptTimer.ts';
 import {
   getDailyId,
@@ -366,7 +366,7 @@ export class GameScene extends Phaser.Scene {
     this.history.clear();
     const gameState = new SolitaireGame(deal);
     this.gameState = gameState;
-    const metrics = calculateLayoutMetrics(this.scale.width, this.scale.height);
+    const layout = calculateViewportLayout(this.scale.width, this.scale.height);
     this.board = new BoardView(this, gameState, {
       draw: () => this.history.execute(
         gameState,
@@ -395,7 +395,7 @@ export class GameScene extends Phaser.Scene {
       restart: () => this.restartDeal(),
       newGame: () => this.startNewDeal(),
       mainMenu: () => this.openMainMenu(),
-    }, metrics);
+    }, layout);
 
     if (restored !== undefined) {
       this.attemptStarted = restored.attemptStarted;
@@ -1009,7 +1009,7 @@ export class GameScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
     const camera = this.cameras.main;
-    const metrics = calculateLayoutMetrics(width, height);
+    const layout = calculateViewportLayout(width, height);
 
     camera
       .setSize(width, height)
@@ -1017,7 +1017,7 @@ export class GameScene extends Phaser.Scene {
       .setScroll(0, 0)
       .setBackgroundColor('#393937');
 
-    this.board?.relayout(metrics);
+    this.board?.relayout(layout);
   }
 
   private shutdown(): void {

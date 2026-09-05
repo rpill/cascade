@@ -10,9 +10,9 @@ import {
 } from '../src/game/view/ViewportLayout.ts';
 
 const VIEWPORTS = [
-  [844, 390], [915, 412], [932, 430],
+  [844, 390], [915, 412], [932, 430], [992, 472],
   [1024, 576], [960, 540], [960, 640],
-  [1366, 768], [1920, 1080], [2560, 1440],
+  [1366, 768], [1728, 864], [1920, 1080], [2560, 1440],
   [2560, 1080], [3440, 1440],
 ] as const;
 
@@ -24,6 +24,10 @@ function bottom(bounds: LayoutBounds): number {
   return bounds.y + bounds.height;
 }
 
+function centerX(bounds: LayoutBounds): number {
+  return bounds.x + bounds.width / 2;
+}
+
 function intersects(left: LayoutBounds, rightBounds: LayoutBounds): boolean {
   return left.x < right(rightBounds)
     && right(left) > rightBounds.x
@@ -32,47 +36,63 @@ function intersects(left: LayoutBounds, rightBounds: LayoutBounds): boolean {
 }
 
 for (const [width, height] of VIEWPORTS) {
-  test(`${width}x${height} keeps HUD and primary board geometry non-overlapping`, () => {
+  test(`${width}x${height} keeps one centered vertical-foundation composition inside the board`, () => {
     const layout = calculateViewportLayout(width, height);
+    const boardRight = right(layout.boardBounds);
+    const boardBottom = bottom(layout.boardBounds);
 
     assert.equal(layout.viewportWidth, width);
     assert.equal(layout.viewportHeight, height);
-    assert.ok(layout.hudBounds.y >= layout.safeArea.top);
-    assert.ok(layout.hudBounds.x >= layout.safeArea.left);
-    assert.ok(right(layout.hudBounds) <= width - layout.safeArea.right + 1e-9);
     assert.ok(layout.boardBounds.y >= bottom(layout.hudBounds));
-    assert.ok(bottom(layout.boardBounds) <= height - layout.safeArea.bottom + 1e-9);
     assert.equal(intersects(layout.hudBounds, layout.boardBounds), false);
 
     assert.equal(layout.foundations.length, 4);
-    assert.ok(layout.stock.x >= layout.boardBounds.x);
-    assert.ok(layout.stock.y >= layout.boardBounds.y);
-    assert.ok(layout.stock.x + layout.cardWidth <= right(layout.boardBounds) + 1e-9);
-    assert.ok(layout.foundations.every((point) => point.x >= layout.boardBounds.x));
-    assert.ok(layout.foundations.every((point) => point.x + layout.cardWidth <= right(layout.boardBounds) + 1e-9));
-    assert.equal(layout.tableauX.length, 7);
-    assert.ok(layout.tableauX.every((x) => x >= layout.boardBounds.x));
-    assert.ok(layout.tableauX.every((x) => x + layout.cardWidth <= right(layout.boardBounds) + 1e-9));
-    assert.ok(layout.tableauY >= layout.wasteLaneBounds.y + layout.cardHeight);
+    assert.ok(layout.foundations.every((point) => Math.abs(point.x - layout.foundations[0].x) < 1e-9));
+    for (let index = 1; index < layout.foundations.length; index += 1) {
+      assert.ok(layout.foundations[index].y >= layout.foundations[index - 1].y + layout.cardHeight);
+    }
+    assert.ok(layout.foundations[0].y >= layout.boardBounds.y - 1e-9);
+    assert.ok(layout.foundations.at(-1)!.y + layout.cardHeight <= boardBottom + 1e-9);
+
+    assert.ok(Math.abs(centerX(layout.compositionBounds) - centerX(layout.boardBounds)) < 1e-9);
+    assert.ok(layout.compositionBounds.x >= layout.boardBounds.x - 1e-9);
+    assert.ok(right(layout.compositionBounds) <= boardRight + 1e-9);
+    assert.ok(layout.foundationRailBounds.x === layout.compositionBounds.x);
+    assert.ok(layout.mainPlayBounds.x >= right(layout.foundationRailBounds));
+    assert.ok(right(layout.mainPlayBounds) <= right(layout.compositionBounds) + 1e-9);
+
+    assert.ok(layout.stock.x >= layout.mainPlayBounds.x - 1e-9);
+    assert.ok(layout.stock.x + layout.cardWidth <= right(layout.mainPlayBounds) + 1e-9);
     assert.ok(layout.wasteLaneBounds.x >= layout.stock.x + layout.cardWidth);
-    assert.ok(right(layout.wasteLaneBounds) <= layout.foundations[0].x + 1e-9);
+    assert.ok(right(layout.wasteLaneBounds) <= right(layout.mainPlayBounds) + 1e-9);
+
+    assert.equal(layout.tableauX.length, 7);
+    assert.ok(layout.tableauX.every((x) => x >= layout.mainPlayBounds.x - 1e-9));
+    assert.ok(layout.tableauX.every((x) => x + layout.cardWidth <= right(layout.mainPlayBounds) + 1e-9));
+    assert.ok(layout.tableauY >= layout.stock.y + layout.cardHeight);
+
     assert.ok(Math.abs(layout.cardHeight / layout.cardWidth - CARD_ASPECT_RATIO) < 1e-9);
     assert.ok(layout.cardWidth <= MAX_CARD_WIDTH);
   });
 }
 
-test('phone-sized landscapes select compact profile and may shrink below old desktop floor', () => {
+test('phone-sized landscape keeps all card zones at one compact card size', () => {
   const phone = calculateViewportLayout(844, 390);
   const desktop = calculateViewportLayout(1366, 768);
 
   assert.equal(phone.profile, 'compact-landscape');
   assert.ok(phone.cardWidth < STANDARD_MIN_CARD_WIDTH);
-  assert.ok(phone.cardWidth >= 64);
+  assert.ok(phone.cardWidth >= 50);
   assert.equal(desktop.profile, 'standard');
   assert.ok(desktop.cardWidth >= STANDARD_MIN_CARD_WIDTH);
+
+  const foundation = phone.foundations[0];
+  assert.equal(phone.foundationRailBounds.width, phone.cardWidth);
+  assert.equal(phone.foundationRailBounds.x, foundation.x);
+  assert.equal(phone.wasteLaneBounds.height, phone.cardHeight);
 });
 
-test('synthetic safe-area insets move the usable geometry inward', () => {
+test('synthetic safe-area insets move the centered composition inward', () => {
   const plain = calculateViewportLayout(932, 430);
   const inset = calculateViewportLayout(932, 430, {
     top: 12,
@@ -86,6 +106,7 @@ test('synthetic safe-area insets move the usable geometry inward', () => {
   assert.ok(inset.hudBounds.x > plain.hudBounds.x);
   assert.ok(inset.boardBounds.x > plain.boardBounds.x);
   assert.ok(right(inset.boardBounds) < right(plain.boardBounds));
+  assert.ok(inset.compositionBounds.x > plain.compositionBounds.x);
 });
 
 test('wide screens keep tableau gaps bounded instead of stretching edge-to-edge', () => {

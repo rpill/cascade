@@ -1,4 +1,4 @@
-import type { LayoutMetrics } from './LayoutMetrics.ts';
+import type { ViewportLayout } from './ViewportLayout.ts';
 
 export interface Point {
   readonly x: number;
@@ -12,59 +12,58 @@ export interface BoardSlot extends Point {
   readonly alpha: number;
 }
 
-export function getBoardSlots(metrics: LayoutMetrics): BoardSlot[] {
+export function getBoardSlots(layout: ViewportLayout): BoardSlot[] {
   return [
-    ...metrics.foundationY.map((y) => ({
+    ...layout.foundations.map((point) => ({
       kind: 'foundation' as const,
-      x: metrics.foundationX,
-      y,
+      x: point.x,
+      y: point.y,
       alpha: 0.32,
     })),
     {
       kind: 'stock' as const,
-      x: metrics.stock.x,
-      y: metrics.stock.y,
+      x: layout.stock.x,
+      y: layout.stock.y,
       alpha: 0.32,
     },
-    ...metrics.tableauX.map((x) => ({
+    ...layout.tableauX.map((x) => ({
       kind: 'tableau' as const,
       x,
-      y: metrics.tableauY,
+      y: layout.tableauY,
       alpha: 0.16,
     })),
   ];
 }
 
 export function tableauCardY(
-  metrics: LayoutMetrics,
+  layout: ViewportLayout,
   cardCount: number,
   index: number,
 ): number {
-  const available = metrics.viewportHeight
-    - metrics.tableauY
-    - metrics.cardHeight
-    - metrics.bottomMargin;
+  const boardBottom = layout.boardBounds.y + layout.boardBounds.height;
+  const available = boardBottom
+    - layout.tableauY
+    - layout.cardHeight
+    - layout.bottomMargin;
   const gap = cardCount <= 1
-    ? metrics.tableauCardGap
+    ? layout.tableauCardGap
     : Math.min(
-      metrics.tableauCardGap,
+      layout.tableauCardGap,
       Math.max(0, available / (cardCount - 1)),
     );
 
-  return metrics.tableauY + index * gap;
+  return layout.tableauY + index * gap;
 }
 
 export function wasteCardX(
-  metrics: LayoutMetrics,
+  layout: ViewportLayout,
   cardCount: number,
   index: number,
 ): number {
-  const compositionRight = metrics.compositionBounds.x
-    + metrics.compositionBounds.width;
-  const available = compositionRight - metrics.waste.x - metrics.cardWidth;
+  const available = Math.max(0, layout.wasteLaneBounds.width - layout.cardWidth);
   const gap = cardCount <= 1
-    ? metrics.wasteGap
-    : Math.min(metrics.wasteGap, Math.max(0, available / (cardCount - 1)));
+    ? layout.wasteGap
+    : Math.min(layout.wasteGap, available / (cardCount - 1));
 
-  return metrics.waste.x + index * gap;
+  return layout.wasteLaneBounds.x + index * gap;
 }

@@ -65,9 +65,10 @@ test('board background has no per-dot graphics command loop', () => {
   assert.doesNotMatch(boardSource, /fillCircle\(/);
 });
 
-test('board geometry comes from instance layout metrics instead of authored constants', () => {
-  assert.match(boardSource, /private layout: LayoutMetrics/);
-  assert.match(boardSource, /relayout\(metrics: LayoutMetrics\)/);
+test('board geometry comes from the shared viewport layout instead of authored constants', () => {
+  assert.match(boardSource, /private layout: ViewportLayout/);
+  assert.match(boardSource, /relayout\(layout: ViewportLayout\)/);
+  assert.doesNotMatch(boardSource, /utilityDivider/);
   assert.match(boardSource, /this\.layout\.cardWidth/);
   assert.doesNotMatch(
     boardSource,

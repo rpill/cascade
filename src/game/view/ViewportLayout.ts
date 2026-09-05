@@ -1,5 +1,5 @@
 export const CARD_ASPECT_RATIO = 151 / 108;
-export const COMPACT_MIN_CARD_WIDTH = 64;
+export const COMPACT_MIN_CARD_WIDTH = 50;
 export const STANDARD_MIN_CARD_WIDTH = 84;
 export const BASE_CARD_WIDTH = 108;
 export const MAX_CARD_WIDTH = 180;
@@ -37,6 +37,9 @@ export interface ViewportLayout {
   readonly safeArea: SafeAreaInsets;
   readonly hudBounds: LayoutBounds;
   readonly boardBounds: LayoutBounds;
+  readonly compositionBounds: LayoutBounds;
+  readonly foundationRailBounds: LayoutBounds;
+  readonly mainPlayBounds: LayoutBounds;
   readonly cardWidth: number;
   readonly cardHeight: number;
   readonly stock: LayoutPoint;
@@ -89,7 +92,11 @@ export function calculateViewportLayout(
     : 'standard';
   const compact = profile === 'compact-landscape';
   const hudHeight = compact ? COMPACT_HUD_HEIGHT : STANDARD_HUD_HEIGHT;
-  const edgeMargin = clamp(compact ? 8 : 14, safeWidth * 0.018, compact ? 18 : 32);
+  const edgeMargin = clamp(
+    compact ? 6 : 14,
+    safeWidth * (compact ? 0.012 : 0.018),
+    compact ? 12 : 32,
+  );
   const boardGap = compact ? 4 : 8;
   const boardX = insets.left + edgeMargin;
   const boardY = insets.top + hudHeight + boardGap;
@@ -97,63 +104,115 @@ export function calculateViewportLayout(
   const boardBottom = height - insets.bottom - edgeMargin;
   const boardWidth = Math.max(1, boardRight - boardX);
   const boardHeight = Math.max(1, boardBottom - boardY);
-  const minCardWidth = compact ? COMPACT_MIN_CARD_WIDTH : STANDARD_MIN_CARD_WIDTH;
-  const minColumnGap = compact ? 6 : 18;
-  const preferredCardWidth = clamp(
-    minCardWidth,
+
+  const minimumFoundationGap = compact ? 4 : 12;
+  const minimumZoneGap = compact ? 8 : 28;
+  const minimumColumnGap = compact ? 6 : 18;
+  const preferredCardWidth = Math.min(
+    MAX_CARD_WIDTH,
     BASE_CARD_WIDTH * (safeHeight / REFERENCE_HEIGHT),
-    MAX_CARD_WIDTH,
   );
-  const widthFitCardWidth = (boardWidth - minColumnGap * 6) / 7;
-  const cardWidth = clamp(
-    minCardWidth,
-    Math.min(preferredCardWidth, widthFitCardWidth),
-    MAX_CARD_WIDTH,
+  const widthFitCardWidth = Math.max(
+    1,
+    (boardWidth - minimumZoneGap - minimumColumnGap * 6) / 8,
+  );
+  const foundationFitCardWidth = Math.max(
+    1,
+    (boardHeight - minimumFoundationGap * 3) / (CARD_ASPECT_RATIO * 4),
+  );
+  const cardWidth = Math.max(
+    1,
+    Math.min(
+      preferredCardWidth,
+      widthFitCardWidth,
+      foundationFitCardWidth,
+      MAX_CARD_WIDTH,
+    ),
   );
   const cardHeight = cardWidth * CARD_ASPECT_RATIO;
-  const topRowY = boardY;
-  const foundationGap = clamp(compact ? 5 : 8, cardWidth * 0.08, compact ? 9 : 14);
-  const foundationWidth = cardWidth * 4 + foundationGap * 3;
-  const foundationStartX = boardRight - foundationWidth;
-  const foundations = Array.from({ length: 4 }, (_, index) => ({
-    x: foundationStartX + index * (cardWidth + foundationGap),
-    y: topRowY,
-  }));
-  const zoneGap = clamp(compact ? 8 : 16, cardWidth * 0.15, compact ? 14 : 28);
-  const stock = { x: boardX, y: topRowY };
-  const wasteX = stock.x + cardWidth + zoneGap;
-  const wasteRight = foundationStartX - zoneGap;
-  const wasteLaneBounds = {
-    x: wasteX,
-    y: topRowY,
-    width: Math.max(cardWidth, wasteRight - wasteX),
-    height: cardHeight,
-  };
-  const maximumGapFromWidth = Math.max(0, (boardWidth - cardWidth * 7) / 6);
-  const preferredColumnGap = clamp(
-    compact ? 6 : 18,
-    cardWidth * (compact ? 0.16 : 0.3),
-    compact ? 18 : 40,
+
+  const zoneGap = clamp(
+    compact ? 8 : 28,
+    cardWidth * (compact ? 0.18 : 0.35),
+    compact ? 16 : 56,
   );
+  const maximumMainPlayWidth = Math.max(
+    cardWidth * 7,
+    boardWidth - cardWidth - zoneGap,
+  );
+  const maximumGapFromWidth = Math.max(
+    0,
+    (maximumMainPlayWidth - cardWidth * 7) / 6,
+  );
+  const preferredColumnGap = cardWidth * (compact ? 0.26 : 0.3);
   const tableauColumnGap = Math.min(
     preferredColumnGap,
     maximumGapFromWidth,
     cardWidth * 0.4,
   );
   const tableauWidth = cardWidth * 7 + tableauColumnGap * 6;
-  const firstTableauX = boardX + Math.max(0, (boardWidth - tableauWidth) / 2);
+  const compositionWidth = cardWidth + zoneGap + tableauWidth;
+  const compositionX = boardX + Math.max(0, (boardWidth - compositionWidth) / 2);
+  const mainPlayX = compositionX + cardWidth + zoneGap;
+
+  const maximumFoundationGap = Math.max(
+    0,
+    (boardHeight - cardHeight * 4) / 3,
+  );
+  const preferredFoundationGap = clamp(
+    compact ? 4 : 12,
+    cardHeight * (compact ? 0.07 : 0.08),
+    compact ? 10 : 28,
+  );
+  const foundationGap = Math.min(preferredFoundationGap, maximumFoundationGap);
+  const foundationStackHeight = cardHeight * 4 + foundationGap * 3;
+  const foundationStartY = boardY + Math.max(0, (boardHeight - foundationStackHeight) / 2);
+  const foundations = Array.from({ length: 4 }, (_, index) => ({
+    x: compositionX,
+    y: foundationStartY + index * (cardHeight + foundationGap),
+  }));
+
+  const mainPlayBounds = {
+    x: mainPlayX,
+    y: boardY,
+    width: tableauWidth,
+    height: boardHeight,
+  };
+  const stock = { x: mainPlayX, y: boardY };
+  const wasteZoneGap = clamp(
+    compact ? 8 : 16,
+    cardWidth * 0.15,
+    compact ? 14 : 28,
+  );
+  const wasteX = stock.x + cardWidth + wasteZoneGap;
+  const mainPlayRight = mainPlayBounds.x + mainPlayBounds.width;
+  const wasteLaneBounds = {
+    x: wasteX,
+    y: boardY,
+    width: Math.max(cardWidth, mainPlayRight - wasteX),
+    height: cardHeight,
+  };
+
   const tableauX = Array.from(
     { length: 7 },
-    (_, index) => firstTableauX + index * (cardWidth + tableauColumnGap),
+    (_, index) => mainPlayX + index * (cardWidth + tableauColumnGap),
   );
-  const rowGap = clamp(compact ? 8 : 24, safeHeight * (compact ? 0.02 : 0.04), compact ? 14 : 52);
-  const tableauY = topRowY + cardHeight + rowGap;
+  const rowGap = clamp(
+    compact ? 8 : 24,
+    safeHeight * (compact ? 0.02 : 0.04),
+    compact ? 14 : 52,
+  );
+  const tableauY = boardY + cardHeight + rowGap;
   const tableauCardGap = clamp(
     compact ? 8 : 20,
     cardHeight * (compact ? 0.15 : 28 / 151),
     compact ? 18 : 46,
   );
-  const wasteGap = clamp(compact ? 12 : 18, cardWidth * 0.24, compact ? 24 : 40);
+  const wasteGap = clamp(
+    compact ? 10 : 18,
+    cardWidth * 0.24,
+    compact ? 24 : 40,
+  );
   const bottomMargin = compact ? 8 : 18;
 
   return {
@@ -173,6 +232,19 @@ export function calculateViewportLayout(
       width: boardWidth,
       height: boardHeight,
     },
+    compositionBounds: {
+      x: compositionX,
+      y: boardY,
+      width: compositionWidth,
+      height: boardHeight,
+    },
+    foundationRailBounds: {
+      x: compositionX,
+      y: foundationStartY,
+      width: cardWidth,
+      height: foundationStackHeight,
+    },
+    mainPlayBounds,
     cardWidth,
     cardHeight,
     stock,

@@ -15,7 +15,7 @@ import {
   wasteCardX,
   type Point,
 } from './layout.ts';
-import type { LayoutMetrics } from './LayoutMetrics.ts';
+import type { ViewportLayout } from './ViewportLayout.ts';
 import { getBoardTexture } from './BoardTexture.ts';
 import {
   getCardMotionDuration,
@@ -84,9 +84,8 @@ export class BoardView {
     Phaser.Tweens.Tween
   >();
   private readonly stockVisual: StockVisualState;
-  private layout: LayoutMetrics;
+  private layout: ViewportLayout;
   private boardSurface!: Phaser.GameObjects.TileSprite;
-  private utilityDivider!: Phaser.GameObjects.Rectangle;
   private readonly slotRects: Phaser.GameObjects.Rectangle[] = [];
   private foundationFrameGraphics!: Phaser.GameObjects.Graphics;
   private readonly foundationSymbols: Phaser.GameObjects.Text[] = [];
@@ -100,12 +99,12 @@ export class BoardView {
     scene: Phaser.Scene,
     game: SolitaireGame,
     actions: BoardActions,
-    metrics: LayoutMetrics,
+    layout: ViewportLayout,
   ) {
     this.scene = scene;
     this.game = game;
     this.actions = actions;
-    this.layout = metrics;
+    this.layout = layout;
     this.stockVisual = new StockVisualState(game.stock.length);
 
     this.createBoardSurface();
@@ -113,7 +112,7 @@ export class BoardView {
     this.createGameButtons();
     this.createCardImages();
     this.createStockStack();
-    this.relayout(metrics);
+    this.relayout(layout);
   }
 
   showRestoredState(): void {
@@ -181,24 +180,15 @@ export class BoardView {
     this.timers.push(finishTimer);
   }
 
-  relayout(metrics: LayoutMetrics): void {
+  relayout(layout: ViewportLayout): void {
     this.activeFlights.forEach((flight) => flight.stop());
     this.activeFlights.clear();
     this.dragState = null;
-    this.layout = metrics;
+    this.layout = layout;
 
-    this.boardSurface.setDisplaySize(metrics.viewportWidth, metrics.viewportHeight);
+    this.boardSurface.setDisplaySize(layout.viewportWidth, layout.viewportHeight);
 
-    const railRight = Math.min(
-      metrics.viewportWidth,
-      metrics.utilityDividerX,
-    );
-
-    this.utilityDivider
-      .setPosition(railRight, 0)
-      .setDisplaySize(1, metrics.viewportHeight);
-
-    const slots = getBoardSlots(metrics);
+    const slots = getBoardSlots(layout);
     this.slotRects.forEach((slot, index) => {
       const target = slots[index];
 
@@ -208,34 +198,35 @@ export class BoardView {
 
       slot
         .setPosition(
-          target.x + metrics.cardWidth / 2,
-          target.y + metrics.cardHeight / 2,
+          target.x + layout.cardWidth / 2,
+          target.y + layout.cardHeight / 2,
         )
-        .setDisplaySize(metrics.cardWidth, metrics.cardHeight);
+        .setDisplaySize(layout.cardWidth, layout.cardHeight);
     });
 
-    this.redrawFoundationFrames(metrics);
+    this.redrawFoundationFrames(layout);
 
     this.foundationSymbols.forEach((symbol, index) => {
+      const point = layout.foundations[index];
       symbol
         .setPosition(
-          metrics.foundationX + metrics.cardWidth / 2,
-          metrics.foundationY[index] + metrics.cardHeight / 2,
+          point.x + layout.cardWidth / 2,
+          point.y + layout.cardHeight / 2,
         )
-        .setFontSize(Math.round(metrics.cardWidth * 0.4));
+        .setFontSize(Math.round(layout.cardWidth * 0.4));
     });
     this.freeArrow
       .setPosition(
-        metrics.stock.x + metrics.cardWidth / 2,
-        metrics.stock.y + metrics.cardHeight / 2,
+        layout.stock.x + layout.cardWidth / 2,
+        layout.stock.y + layout.cardHeight / 2,
       )
-      .setFontSize(Math.round(metrics.cardWidth * 0.39));
+      .setFontSize(Math.round(layout.cardWidth * 0.39));
 
     this.cardImages.forEach((image) => {
-      image.setDisplaySize(metrics.cardWidth, metrics.cardHeight);
+      image.setDisplaySize(layout.cardWidth, layout.cardHeight);
     });
     this.stockBacks.forEach((back) => {
-      back.setDisplaySize(metrics.cardWidth, metrics.cardHeight);
+      back.setDisplaySize(layout.cardWidth, layout.cardHeight);
     });
 
     this.sync(null);
@@ -261,19 +252,7 @@ export class BoardView {
 
     this.boardSurface.setTint(0x8a7b6d);
 
-    this.utilityDivider = this.scene.add.rectangle(
-      0,
-      0,
-      1,
-      1,
-      0x8a7047,
-      0.5,
-    ).setOrigin(0.5, 0).setDepth(2);
-
-    this.ownedObjects.push(
-      this.boardSurface,
-      this.utilityDivider,
-    );
+    this.ownedObjects.push(this.boardSurface);
   }
 
   private createSlots(): void {
@@ -290,9 +269,10 @@ export class BoardView {
         ? '#7a312a'
         : '#9a7b4f';
 
+      const point = this.layout.foundations[index];
       const symbol = this.scene.add.text(
-        this.layout.foundationX + this.layout.cardWidth / 2,
-        this.layout.foundationY[index] + this.layout.cardHeight / 2,
+        point.x + this.layout.cardWidth / 2,
+        point.y + this.layout.cardHeight / 2,
         FOUNDATION_SYMBOLS[suit],
         {
           color,
@@ -342,25 +322,24 @@ export class BoardView {
     this.ownedObjects.push(slot);
   }
 
-  private redrawFoundationFrames(metrics: LayoutMetrics): void {
+  private redrawFoundationFrames(layout: ViewportLayout): void {
     const graphics = this.foundationFrameGraphics;
     const lineColor = 0x8a7047;
     const lineAlpha = 0.58;
     const accentAlpha = 0.72;
-    const inset = Math.max(2, Math.round(metrics.cardWidth * 0.018));
-    const corner = Math.max(7, Math.round(metrics.cardWidth * 0.07));
-    const tick = Math.max(4, Math.round(metrics.cardWidth * 0.045));
+    const corner = Math.max(7, Math.round(layout.cardWidth * 0.07));
+    const tick = Math.max(4, Math.round(layout.cardWidth * 0.045));
 
     graphics.clear();
     graphics.lineStyle(1, lineColor, lineAlpha);
 
-    metrics.foundationY.forEach((y) => {
-      const left = metrics.foundationX + inset;
-      const top = y + inset;
-      const right = metrics.foundationX + metrics.cardWidth - inset;
-      const bottom = y + metrics.cardHeight - inset;
+    layout.foundations.forEach(({ x, y }) => {
+      const left = x;
+      const top = y;
+      const right = x + layout.cardWidth;
+      const bottom = y + layout.cardHeight;
 
-      graphics.strokeRect(left, top, right - left, bottom - top);
+      graphics.strokeRect(x, y, layout.cardWidth, layout.cardHeight);
       graphics.lineStyle(1, lineColor, accentAlpha);
 
       graphics.beginPath();
@@ -715,11 +694,22 @@ export class BoardView {
           center: { x: x + this.layout.cardWidth / 2, y: y + this.layout.cardHeight / 2 },
         };
       }),
-      ...SUITS.map((suit, index) => ({
-        target: { zone: 'foundation', suit } as const,
-        bounds: new Phaser.Geom.Rectangle(this.layout.foundationX, this.layout.foundationY[index], this.layout.cardWidth, this.layout.cardHeight),
-        center: { x: this.layout.foundationX + this.layout.cardWidth / 2, y: this.layout.foundationY[index] + this.layout.cardHeight / 2 },
-      })),
+      ...SUITS.map((suit, index) => {
+        const point = this.layout.foundations[index];
+        return {
+          target: { zone: 'foundation', suit } as const,
+          bounds: new Phaser.Geom.Rectangle(
+            point.x,
+            point.y,
+            this.layout.cardWidth,
+            this.layout.cardHeight,
+          ),
+          center: {
+            x: point.x + this.layout.cardWidth / 2,
+            y: point.y + this.layout.cardHeight / 2,
+          },
+        };
+      }),
       {
         target: { zone: 'free' } as const,
         bounds: new Phaser.Geom.Rectangle(this.layout.stock.x, this.layout.stock.y, this.layout.cardWidth, this.layout.cardHeight),
@@ -864,17 +854,18 @@ export class BoardView {
 
       placements.set(card.id, {
         x: wasteCardX(this.layout, this.game.waste.length, index),
-        y: this.layout.stock.y,
+        y: this.layout.wasteLaneBounds.y,
         depth: 500 + index,
         source: isTop ? { zone: 'waste' } : undefined,
       });
     });
 
     SUITS.forEach((suit, index) => {
+      const point = this.layout.foundations[index];
       this.game.foundations[suit].forEach((card, cardIndex) => {
         placements.set(card.id, {
-          x: this.layout.foundationX,
-          y: this.layout.foundationY[index],
+          x: point.x,
+          y: point.y,
           depth: 400 + index * 20 + cardIndex,
         });
       });
