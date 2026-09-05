@@ -24,7 +24,9 @@ class FakeStorage {
   }
 }
 
-function createFakeYsdk(options: {
+type EventListener = () => void;
+
+interface FakeYsdkOptions {
   authorized?: boolean;
   getPlayer?: () => Promise<{
     getData(keys?: string[]): Promise<Record<string, unknown>>;
@@ -48,8 +50,13 @@ function createFakeYsdk(options: {
   getPlayerEntryError?: unknown;
   setScore?: (name: string, score: number) => Promise<void>;
   isAvailableMethod?: (method: string) => Promise<boolean>;
-  on?: (eventName: string, listener: () => void) => () => void;
-} = {}): YandexSdk {
+  on?: (eventName: string, listener: EventListener) => void;
+  off?: (eventName: string, listener: EventListener) => void;
+  gameplayStart?: () => void | Promise<void>;
+  gameplayStop?: () => void | Promise<void>;
+}
+
+function createFakeYsdk(options: FakeYsdkOptions = {}): YandexSdk {
   const defaultPlayer = {
     getData: async () => ({}),
     setData: async () => undefined,
@@ -64,7 +71,15 @@ function createFakeYsdk(options: {
       openAuthDialog: options.openAuthDialog ?? (async () => undefined),
     },
     EVENTS: { ACCOUNT_SELECTION_DIALOG_CLOSED: 'ACCOUNT_SELECTION_DIALOG_CLOSED' },
-    on: options.on ?? (() => () => undefined),
+    on: options.on,
+    off: options.off,
+    features: {
+      LoadingAPI: { ready: () => undefined },
+      GameplayAPI: {
+        start: options.gameplayStart ?? (() => undefined),
+        stop: options.gameplayStop ?? (() => undefined),
+      },
+    },
     leaderboards: {
       getEntries: options.getEntries ?? (async () => ({ entries: [] })),
       getPlayerEntry: options.getPlayerEntry ?? (async () => {
@@ -216,31 +231,34 @@ test('Yandex auth is explicit and reacquires Player after successful dialog', as
   assert.equal(getPlayerCalls, 2);
 });
 
-test('Yandex auth forwards account-selection event and unsubscribe exactly', async () => {
-  let registeredEvent = '';
-  const registered = { listener: null as (() => void) | null };
-  let unsubscribeCalls = 0;
-  const unsubscribe = () => { unsubscribeCalls += 1; };
-  const ysdk = createFakeYsdk({
-    on: (eventName, listener) => {
-      registeredEvent = eventName;
-      registered.listener = listener;
-      return unsubscribe;
-    },
-  });
+test('Yandex auth forwards account-selection event and removes the exact callback', async () => {
+  const registered = new Map<string, Set<EventListener>>();
+  const removed: Array<{ eventName: string; listener: EventListener }> = [];
+  const on = (eventName: string, listener: EventListener) => {
+    const set = registered.get(eventName) ?? new Set<EventListener>();
+    set.add(listener);
+    registered.set(eventName, set);
+  };
+  const off = (eventName: string, listener: EventListener) => {
+    removed.push({ eventName, listener });
+    registered.get(eventName)?.delete(listener);
+  };
+  const ysdk = createFakeYsdk({ on, off });
 
   const platform = await createYandexPlatformServices(ysdk);
   let selectionClosed = 0;
-  const returnedUnsubscribe = platform.auth.onAccountSelectionClosed(() => {
-    selectionClosed += 1;
-  });
+  const listener = () => { selectionClosed += 1; };
+  const unsubscribe = platform.auth.onAccountSelectionClosed(listener);
 
-  assert.equal(registeredEvent, 'ACCOUNT_SELECTION_DIALOG_CLOSED');
-  registered.listener?.();
+  assert.ok(registered.get('ACCOUNT_SELECTION_DIALOG_CLOSED')?.has(listener));
+  registered.get('ACCOUNT_SELECTION_DIALOG_CLOSED')?.forEach((callback) => callback());
   assert.equal(selectionClosed, 1);
-  assert.equal(returnedUnsubscribe, unsubscribe);
-  returnedUnsubscribe();
-  assert.equal(unsubscribeCalls, 1);
+
+  unsubscribe();
+  assert.ok(removed.some((entry) =>
+    entry.eventName === 'ACCOUNT_SELECTION_DIALOG_CLOSED'
+      && entry.listener === listener));
+  assert.equal(registered.get('ACCOUNT_SELECTION_DIALOG_CLOSED')?.has(listener), false);
 });
 
 test('Yandex adapter uses direct leaderboard APIs and normalizes entries', async () => {
@@ -360,6 +378,166 @@ test('Yandex leaderboard score rejects invalid values before SDK call', async ()
     /finite non-negative/,
   );
   assert.equal(setScoreCalls, 0);
+});
+
+test('Yandex pause service caches pause state and emits only logical changes', async () => {
+  const listeners = new Map<string, Set<EventListener>>();
+  const on = (eventName: string, listener: EventListener) => {
+    const set = listeners.get(eventName) ?? new Set<EventListener>();
+    set.add(listener);
+    listeners.set(eventName, set);
+  };
+  const off = (eventName: string, listener: EventListener) => {
+    listeners.get(eventName)?.delete(listener);
+  };
+  const emit = (eventName: string) => {
+    listeners.get(eventName)?.forEach((listener) => listener());
+  };
+
+  const platform = await createYandexPlatformServices(createFakeYsdk({ on, off }));
+  const observed: boolean[] = [];
+  const unsubscribe = platform.platformPause.subscribe((paused) => {
+    observed.push(paused);
+  });
+
+  emit('game_api_pause');
+  emit('game_api_pause');
+  emit('game_api_resume');
+  emit('game_api_resume');
+
+  assert.deepEqual(observed, [true, false]);
+  assert.equal(platform.platformPause.isPaused(), false);
+
+  unsubscribe();
+  const observedAfterUnsubscribe = [...observed];
+  emit('game_api_pause');
+  assert.deepEqual(observed, observedAfterUnsubscribe);
+  assert.equal(platform.platformPause.isPaused(), true);
+});
+
+test('Yandex pause unsubscribe removes the exact registered callbacks', async () => {
+  const registered = new Map<string, Set<EventListener>>();
+  const removed: Array<{ eventName: string; listener: EventListener }> = [];
+
+  const on = (eventName: string, listener: EventListener) => {
+    const set = registered.get(eventName) ?? new Set<EventListener>();
+    set.add(listener);
+    registered.set(eventName, set);
+  };
+
+  const off = (eventName: string, listener: EventListener) => {
+    removed.push({ eventName, listener });
+    registered.get(eventName)?.delete(listener);
+  };
+
+  const platform = await createYandexPlatformServices(createFakeYsdk({ on, off }));
+  const unsubscribe = platform.platformPause.subscribe(() => undefined);
+
+  const pauseListener = [...(registered.get('game_api_pause') ?? [])][0];
+  const resumeListener = [...(registered.get('game_api_resume') ?? [])][0];
+
+  unsubscribe();
+
+  assert.ok(pauseListener !== undefined);
+  assert.ok(resumeListener !== undefined);
+  assert.ok(
+    removed.some((entry) =>
+      entry.eventName === 'game_api_pause' && entry.listener === pauseListener),
+  );
+  assert.ok(
+    removed.some((entry) =>
+      entry.eventName === 'game_api_resume' && entry.listener === resumeListener),
+  );
+});
+
+test('Yandex pause state is available before slow Player acquisition finishes', async () => {
+  let resolvePlayer!: (player: {
+    getData: () => Promise<Record<string, unknown>>;
+    setData: () => Promise<void>;
+    isAuthorized: () => boolean;
+  }) => void;
+
+  const playerPromise = new Promise<{
+    getData: () => Promise<Record<string, unknown>>;
+    setData: () => Promise<void>;
+    isAuthorized: () => boolean;
+  }>((resolve) => {
+    resolvePlayer = resolve;
+  });
+
+  const listeners = new Map<string, Set<EventListener>>();
+  const on = (eventName: string, listener: EventListener) => {
+    const set = listeners.get(eventName) ?? new Set<EventListener>();
+    set.add(listener);
+    listeners.set(eventName, set);
+  };
+  const off = (eventName: string, listener: EventListener) => {
+    listeners.get(eventName)?.delete(listener);
+  };
+
+  const platformPromise = createYandexPlatformServices(createFakeYsdk({
+    getPlayer: () => playerPromise,
+    on,
+    off,
+  }));
+
+  listeners.get('game_api_pause')?.forEach((listener) => listener());
+
+  const outcome = await Promise.race([
+    platformPromise.then((platform) => ({ kind: 'platform' as const, platform })),
+    new Promise<{ kind: 'timeout' }>((resolve) => {
+      setTimeout(() => resolve({ kind: 'timeout' }), 20);
+    }),
+  ]);
+
+  resolvePlayer({
+    getData: async () => ({}),
+    setData: async () => undefined,
+    isAuthorized: () => false,
+  });
+
+  assert.equal(outcome.kind, 'platform');
+  if (outcome.kind !== 'platform') return;
+
+  assert.equal(outcome.platform.platformPause.isPaused(), true);
+  assert.deepEqual(await outcome.platform.playerStorage.load(), {});
+});
+
+test('Yandex gameplay markup delegates to optional GameplayAPI', async () => {
+  const calls: string[] = [];
+  const platform = await createYandexPlatformServices(createFakeYsdk({
+    gameplayStart: () => { calls.push('start'); },
+    gameplayStop: () => { calls.push('stop'); },
+  }));
+
+  platform.gameplay.start();
+  platform.gameplay.stop();
+
+  assert.deepEqual(calls, ['start', 'stop']);
+});
+
+test('Yandex gameplay markup failures are non-fatal', async () => {
+  const platform = await createYandexPlatformServices(createFakeYsdk({
+    gameplayStart: () => { throw new Error('start failed'); },
+    gameplayStop: async () => { throw new Error('stop failed'); },
+  }));
+
+  assert.doesNotThrow(() => platform.gameplay.start());
+  assert.doesNotThrow(() => platform.gameplay.stop());
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+});
+
+test('Yandex gameplay markup stays inert when GameplayAPI is absent', async () => {
+  const ysdk = createFakeYsdk();
+  if (ysdk.features !== undefined) {
+    delete ysdk.features.GameplayAPI;
+  }
+
+  const platform = await createYandexPlatformServices(ysdk);
+
+  assert.doesNotThrow(() => platform.gameplay.start());
+  assert.doesNotThrow(() => platform.gameplay.stop());
 });
 
 test('platform loads the proxied SDK before YaGames.init and caches initialization', async () => {

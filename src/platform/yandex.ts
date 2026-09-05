@@ -1,7 +1,9 @@
 import {
   createUnavailablePlatformServices,
+  type GameplayMarkup,
   type PlatformLeaderboardEntry,
   type PlatformLeaderboards,
+  type PlatformPause,
   type PlatformServices,
 } from './services.ts';
 
@@ -23,6 +25,13 @@ interface YandexLeaderboards {
   setScore(technicalName: string, score: number): Promise<void>;
 }
 
+type YandexEventListener = () => void;
+
+interface YandexGameplayApi {
+  start(): void | Promise<void>;
+  stop(): void | Promise<void>;
+}
+
 interface YandexPlayer {
   getData(keys?: string[]): Promise<Record<string, unknown>>;
   setData(data: Record<string, unknown>, flush?: boolean): Promise<void>;
@@ -40,11 +49,13 @@ export interface YandexSdk {
   EVENTS?: {
     ACCOUNT_SELECTION_DIALOG_CLOSED: string;
   };
-  on?: (eventName: string, listener: () => void) => () => void;
+  on?: (eventName: string, listener: YandexEventListener) => void;
+  off?: (eventName: string, listener: YandexEventListener) => void;
   features?: {
     LoadingAPI?: {
       ready(): void;
     };
+    GameplayAPI?: YandexGameplayApi;
   };
 }
 
@@ -59,6 +70,8 @@ declare global {
 }
 
 const YANDEX_SDK_PATH = '/sdk.js';
+const GAME_API_PAUSE = 'game_api_pause';
+const GAME_API_RESUME = 'game_api_resume';
 
 let platformPromise: Promise<PlatformServices> | null = null;
 let sdkScriptPromise: Promise<void> | null = null;
@@ -158,51 +171,171 @@ function createYandexLeaderboards(
   };
 }
 
+function ignoreSdkCall(call: () => void | Promise<void>): void {
+  try {
+    void Promise.resolve(call()).catch(() => undefined);
+  } catch {
+    // Optional platform telemetry must never break local gameplay.
+  }
+}
+
+function createGameplayMarkup(ysdk: YandexSdk): GameplayMarkup {
+  return {
+    start: () => {
+      const start = ysdk.features?.GameplayAPI?.start;
+      if (start !== undefined) {
+        ignoreSdkCall(() => start.call(ysdk.features!.GameplayAPI));
+      }
+    },
+    stop: () => {
+      const stop = ysdk.features?.GameplayAPI?.stop;
+      if (stop !== undefined) {
+        ignoreSdkCall(() => stop.call(ysdk.features!.GameplayAPI));
+      }
+    },
+  };
+}
+
+function createYandexPlatformPause(ysdk: YandexSdk): PlatformPause {
+  if (ysdk.on === undefined || ysdk.off === undefined) {
+    return {
+      isPaused: () => false,
+      subscribe: () => () => undefined,
+    };
+  }
+
+  let paused = false;
+  let subscribers = 0;
+  let cacheAttached = false;
+
+  const cachePause = () => { paused = true; };
+  const cacheResume = () => { paused = false; };
+
+  const attachCache = () => {
+    if (cacheAttached) return;
+    ysdk.on!(GAME_API_PAUSE, cachePause);
+    ysdk.on!(GAME_API_RESUME, cacheResume);
+    cacheAttached = true;
+  };
+
+  const detachCache = () => {
+    if (!cacheAttached) return;
+    ysdk.off!(GAME_API_PAUSE, cachePause);
+    ysdk.off!(GAME_API_RESUME, cacheResume);
+    cacheAttached = false;
+  };
+
+  attachCache();
+
+  return {
+    isPaused: () => paused,
+    subscribe(listener) {
+      const onPause = () => {
+        if (paused) return;
+        paused = true;
+        listener(true);
+      };
+      const onResume = () => {
+        if (!paused) return;
+        paused = false;
+        listener(false);
+      };
+
+      ysdk.on!(GAME_API_PAUSE, onPause);
+      ysdk.on!(GAME_API_RESUME, onResume);
+
+      if (subscribers === 0) {
+        detachCache();
+      }
+      subscribers += 1;
+
+      let active = true;
+      return () => {
+        if (!active) return;
+        active = false;
+
+        if (subscribers === 1) {
+          attachCache();
+        }
+
+        ysdk.off!(GAME_API_PAUSE, onPause);
+        ysdk.off!(GAME_API_RESUME, onResume);
+        subscribers -= 1;
+      };
+    },
+  };
+}
+
 export async function createYandexPlatformServices(
   ysdk: YandexSdk,
 ): Promise<PlatformServices> {
-  let player = await ysdk.getPlayer();
+  let playerPromise = ysdk.getPlayer();
+  let player: YandexPlayer | null = null;
+
+  const getPlayer = async (): Promise<YandexPlayer> => {
+    if (player !== null) {
+      return player;
+    }
+    player = await playerPromise;
+    return player;
+  };
+
+  const reacquirePlayer = async (): Promise<YandexPlayer> => {
+    playerPromise = ysdk.getPlayer();
+    player = await playerPromise;
+    return player;
+  };
+
+  const platformPause = createYandexPlatformPause(ysdk);
 
   return {
     playerStorage: {
-      load: () => player.getData(),
-      save: (data, flush = false) => player.setData(data, flush),
+      load: async () => (await getPlayer()).getData(),
+      save: async (data, flush = false) =>
+        (await getPlayer()).setData(data, flush),
     },
     trustedClock: {
       nowMs: () => ysdk.serverTime(),
     },
     auth: {
-      isAuthorized: () => player.isAuthorized(),
+      isAuthorized: () => player?.isAuthorized() ?? false,
       requestAuthorization: async () => {
-        if (player.isAuthorized()) {
+        const currentPlayer = await getPlayer();
+
+        if (currentPlayer.isAuthorized()) {
           return true;
         }
 
         try {
           await ysdk.auth.openAuthDialog();
-          player = await ysdk.getPlayer();
-          return player.isAuthorized();
+          return (await reacquirePlayer()).isAuthorized();
         } catch {
           return false;
         }
       },
       onAccountSelectionClosed: (listener) => {
         const eventName = ysdk.EVENTS?.ACCOUNT_SELECTION_DIALOG_CLOSED;
-        if (eventName === undefined || ysdk.on === undefined) {
+        if (
+          eventName === undefined
+          || ysdk.on === undefined
+          || ysdk.off === undefined
+        ) {
           return () => undefined;
         }
-        return ysdk.on(eventName, listener);
+
+        ysdk.on(eventName, listener);
+
+        let active = true;
+        return () => {
+          if (!active) return;
+          active = false;
+          ysdk.off!(eventName, listener);
+        };
       },
     },
     leaderboards: createYandexLeaderboards(ysdk, ysdk.leaderboards),
-    platformPause: {
-      isPaused: () => false,
-      subscribe: () => () => undefined,
-    },
-    gameplay: {
-      start: () => undefined,
-      stop: () => undefined,
-    },
+    platformPause,
+    gameplay: createGameplayMarkup(ysdk),
     ready: () => ysdk.features?.LoadingAPI?.ready(),
   };
 }
