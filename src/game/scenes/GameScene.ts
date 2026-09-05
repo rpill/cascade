@@ -7,6 +7,7 @@ import type { Deal, GameMode } from '../model/types.ts';
 import { BoardView } from '../view/BoardView.ts';
 import { DailyCompleteView } from '../view/DailyCompleteView.ts';
 import { GameCompleteView } from '../view/GameCompleteView.ts';
+import { GameControlsView } from '../view/GameControlsView.ts';
 import {
   LeaderboardView,
   type LeaderboardViewState,
@@ -78,6 +79,7 @@ export class GameScene extends Phaser.Scene {
   private flow!: GameFlow;
   private readonly history = new GameHistory();
   private board: BoardView | null = null;
+  private gameControls: GameControlsView | null = null;
   private gameState: SolitaireGame | null = null;
   private mainMenu!: MainMenuView;
   private statisticsView!: StatisticsView;
@@ -392,10 +394,16 @@ export class GameScene extends Phaser.Scene {
       },
       settled: () => this.onBoardSettled(gameState),
       undo: () => this.history.undo(gameState),
-      restart: () => this.restartDeal(),
-      newGame: () => this.startNewDeal(),
-      mainMenu: () => this.openMainMenu(),
     }, layout);
+
+    this.gameControls?.destroy();
+    this.gameControls = new GameControlsView(this, {
+      undo: () => this.undoLastAction(),
+      restart: () => this.restartDeal(),
+      newDeal: () => this.startNewDeal(),
+      home: () => this.openMainMenu(),
+    });
+    this.gameControls.setDaily(gameState.mode === 'daily');
 
     if (restored !== undefined) {
       this.attemptStarted = restored.attemptStarted;
@@ -1046,6 +1054,8 @@ export class GameScene extends Phaser.Scene {
     this.dailyCompleteView.destroy();
     this.statisticsView.destroy();
     this.mainMenu.destroy();
+    this.gameControls?.destroy();
+    this.gameControls = null;
     this.board?.destroy();
     this.gameState = null;
   }

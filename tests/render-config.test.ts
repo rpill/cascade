@@ -17,6 +17,11 @@ const packageSource = readFileSync(
   'utf8',
 );
 
+const controlsSource = readFileSync(
+  new URL('../src/game/view/GameControlsView.ts', import.meta.url),
+  'utf8',
+);
+
 const boardSource = readFileSync(
   new URL('../src/game/view/BoardView.ts', import.meta.url),
   'utf8',
@@ -52,7 +57,7 @@ test('text-heavy controls live in screen-space DOM outside the camera transform'
   assert.doesNotMatch(mainSource, /createContainer:\s*true/);
   assert.doesNotMatch(boardSource, /scene\.add\.dom\(/);
   assert.doesNotMatch(menuSource, /scene\.add\.dom\(/);
-  assert.match(boardSource, /canvas\.parentElement/);
+  assert.match(controlsSource, /canvas\.parentElement/);
   assert.match(menuSource, /canvas\.parentElement/);
   assert.doesNotMatch(menuSource, /scene\.add\.text\(/);
 });

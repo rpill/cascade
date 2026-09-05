@@ -6,8 +6,8 @@ const sceneSource = readFileSync(
   new URL('../src/game/scenes/GameScene.ts', import.meta.url),
   'utf8',
 );
-const boardSource = readFileSync(
-  new URL('../src/game/view/BoardView.ts', import.meta.url),
+const controlsSource = readFileSync(
+  new URL('../src/game/view/GameControlsView.ts', import.meta.url),
   'utf8',
 );
 
@@ -19,19 +19,17 @@ test('the scene uses a persistent main menu and N starts immediately', () => {
   assert.doesNotMatch(sceneSource, /openNewGameMenu/);
 });
 
-test('board exposes separate menu, new game, undo, and restart controls', () => {
-  assert.match(boardSource, /readonly mainMenu:\s*\(\) => void/);
-  assert.match(boardSource, /В МЕНЮ/);
-  assert.match(boardSource, /НОВАЯ ИГРА\s+N/);
-  assert.match(boardSource, /ОТМЕНА\s+Z/);
-  assert.match(boardSource, /РЕСТАРТ\s+R/);
+test('gameplay HUD exposes separate undo restart new-deal and Home controls outside BoardView', () => {
+  assert.match(controlsSource, /icon: 'undo'/);
+  assert.match(controlsSource, /icon: 'restart'/);
+  assert.match(controlsSource, /icon: 'new-deal'/);
+  assert.match(controlsSource, /icon: 'home'/);
+  assert.match(sceneSource, /new GameControlsView\(this/);
 });
 
-test('Daily hides duplicate New Game and ignores the N shortcut', () => {
-  assert.match(
-    boardSource,
-    /if \(this\.game\.mode !== 'daily'\)[\s\S]*НОВАЯ ИГРА\s+N/,
-  );
+test('Daily hides duplicate New Deal and ignores the N shortcut', () => {
+  assert.match(controlsSource, /this\.newDealButton\.hidden = isDaily/);
+  assert.match(sceneSource, /gameControls\.setDaily\(gameState\.mode === 'daily'\)/);
   assert.match(
     sceneSource,
     /startNewDeal\(\): void {[\s\S]*currentDeal\?\.mode === 'daily'/,

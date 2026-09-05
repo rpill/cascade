@@ -6,6 +6,10 @@ const sceneSource = readFileSync(
   new URL('../src/game/scenes/GameScene.ts', import.meta.url),
   'utf8',
 );
+const controlsSource = readFileSync(
+  new URL('../src/game/view/GameControlsView.ts', import.meta.url),
+  'utf8',
+);
 const boardSource = readFileSync(
   new URL('../src/game/view/BoardView.ts', import.meta.url),
   'utf8',
@@ -22,7 +26,8 @@ test('player mutations are routed through complete-action history', () => {
 test('undo is exposed through the board and Z shortcut without auto-foundation replay', () => {
   assert.match(sceneSource, /keydown-Z/);
   assert.match(boardSource, /readonly undo:\s*\(\) => boolean/);
-  assert.match(boardSource, /ОТМЕНА\s+Z/);
+  assert.match(controlsSource, /Отменить ход · Z/);
+  assert.match(sceneSource, /undo:\s*\(\) => this\.undoLastAction\(\)/);
   assert.match(boardSource, /requestUndo\(\)/);
   assert.match(boardSource, /sync\('undo'\)/);
   assert.match(boardSource, /readonly settled:\s*\(\) => void/);

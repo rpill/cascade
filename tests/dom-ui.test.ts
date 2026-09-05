@@ -6,6 +6,10 @@ const boardSource = readFileSync(
   new URL('../src/game/view/BoardView.ts', import.meta.url),
   'utf8',
 );
+const controlsSource = readFileSync(
+  new URL('../src/game/view/GameControlsView.ts', import.meta.url),
+  'utf8',
+);
 const menuSource = readFileSync(
   new URL('../src/game/view/MainMenuView.ts', import.meta.url),
   'utf8',
@@ -19,13 +23,12 @@ const stylesSource = readFileSync(
   'utf8',
 );
 
-test('board controls are native screen-space DOM buttons instead of camera objects', () => {
-  assert.match(boardSource, /game-controls/);
-  assert.match(boardSource, /document\.createElement\(['"]button['"]\)/);
-  assert.match(boardSource, /canvas\.parentElement/);
-  assert.match(boardSource, /append\(controls\)/);
-  assert.doesNotMatch(boardSource, /scene\.add\.dom\(/);
-  assert.doesNotMatch(boardSource, /private createGameButton\(/);
+test('gameplay controls are native screen-space DOM owned outside BoardView', () => {
+  assert.doesNotMatch(boardSource, /game-controls|ownedDomElements|createGameButtons/);
+  assert.match(controlsSource, /game-controls/);
+  assert.match(controlsSource, /canvas\.parentElement/);
+  assert.match(controlsSource, /append\(this\.root\)/);
+  assert.doesNotMatch(controlsSource, /scene\.add\.dom\(/);
 });
 
 test('main menu is a viewport-sized screen-space DOM overlay', () => {
@@ -41,7 +44,7 @@ test('main menu is a viewport-sized screen-space DOM overlay', () => {
 
 test('DOM UI has explicit crisp browser typography and stacking', () => {
   assert.match(stylesSource, /\.game-controls/);
-  assert.match(stylesSource, /\.game-control-button/);
+  assert.match(stylesSource, /\.ui-icon-control/);
   assert.match(stylesSource, /\.main-menu-dom/);
   assert.match(stylesSource, /\.main-menu-meta-actions/);
   assert.match(stylesSource, /\.meta-modal-panel/);

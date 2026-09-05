@@ -39,9 +39,6 @@ interface BoardActions {
   readonly autoFoundationStep: () => Card | null;
   readonly settled: () => void;
   readonly undo: () => boolean;
-  readonly restart: () => void;
-  readonly newGame: () => void;
-  readonly mainMenu: () => void;
 }
 
 interface Placement extends Point {
@@ -77,7 +74,6 @@ export class BoardView {
   private readonly cardImages = new Map<string, Phaser.GameObjects.Image>();
   private readonly stockBacks: Phaser.GameObjects.Image[] = [];
   private readonly ownedObjects: Phaser.GameObjects.GameObject[] = [];
-  private readonly ownedDomElements: HTMLElement[] = [];
   private readonly timers: Phaser.Time.TimerEvent[] = [];
   private readonly activeFlights = new Map<
     Phaser.GameObjects.Image,
@@ -109,7 +105,6 @@ export class BoardView {
 
     this.createBoardSurface();
     this.createSlots();
-    this.createGameButtons();
     this.createCardImages();
     this.createStockStack();
     this.relayout(layout);
@@ -237,7 +232,6 @@ export class BoardView {
     this.activeFlights.forEach((flight) => flight.stop());
     this.activeFlights.clear();
     this.ownedObjects.forEach((object) => object.destroy());
-    this.ownedDomElements.forEach((element) => element.remove());
     this.cardImages.clear();
   }
 
@@ -365,46 +359,6 @@ export class BoardView {
       graphics.strokePath();
       graphics.lineStyle(1, lineColor, lineAlpha);
     });
-  }
-
-  private createGameButtons(): void {
-    const controls = document.createElement('div');
-    controls.className = 'game-controls';
-
-    const specs: Array<[label: string, width: number, action: () => void]> = [
-      ['В МЕНЮ', 104, () => this.actions.mainMenu()],
-    ];
-
-    if (this.game.mode !== 'daily') {
-      specs.push(['НОВАЯ ИГРА  N', 144, () => this.actions.newGame()]);
-    }
-
-    specs.push(
-      ['ОТМЕНА  Z', 128, () => this.requestUndo()],
-      ['РЕСТАРТ  R', 112, () => this.actions.restart()],
-    );
-
-    specs.forEach(([label, width, action]) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'game-control-button';
-      button.textContent = label;
-      button.style.width = `${width}px`;
-      button.addEventListener('click', (event) => {
-        event.preventDefault();
-        action();
-      });
-      controls.append(button);
-    });
-
-    const host = this.scene.game.canvas.parentElement;
-
-    if (host === null) {
-      throw new Error('Game canvas must have a parent element for screen-space controls.');
-    }
-
-    host.append(controls);
-    this.ownedDomElements.push(controls);
   }
 
   private createCardImages(): void {

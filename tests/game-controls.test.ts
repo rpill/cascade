@@ -1,9 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { GameFlow } from '../src/game/model/GameFlow.ts';
 import { GameSession } from '../src/game/model/GameSession.ts';
 import { createDealForMode } from '../src/game/model/deal.ts';
+
+const sceneSource = readFileSync(
+  new URL('../src/game/scenes/GameScene.ts', import.meta.url),
+  'utf8',
+);
+const controlsSource = readFileSync(
+  new URL('../src/game/view/GameControlsView.ts', import.meta.url),
+  'utf8',
+);
 
 function createFlow(): GameFlow {
   return new GameFlow(new GameSession({
@@ -144,4 +154,17 @@ test('Daily requires its deterministic seed and New Game replays the same deal',
   assert.equal(first.mode, 'daily');
   assert.equal(second.mode, 'daily');
   assert.equal(second.seed, first.seed);
+});
+
+
+test('keyboard shortcuts remain scene-owned while click controls live in GameControlsView', () => {
+  assert.match(sceneSource, /keydown-R/);
+  assert.match(sceneSource, /keydown-Z/);
+  assert.match(sceneSource, /keydown-N/);
+  assert.match(sceneSource, /keydown-ESC/);
+  assert.match(sceneSource, /new GameControlsView/);
+  assert.match(controlsSource, /actions\.home/);
+  assert.match(controlsSource, /actions\.newDeal/);
+  assert.match(controlsSource, /actions\.undo/);
+  assert.match(controlsSource, /actions\.restart/);
 });
