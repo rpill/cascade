@@ -28,6 +28,14 @@ function fakePlatform(options: {
       getPlayerEntry: options.getPlayerEntry ?? (async () => null),
       setScore: options.setScore ?? (async () => undefined),
     },
+    platformPause: {
+      isPaused: () => false,
+      subscribe: () => () => undefined,
+    },
+    gameplay: {
+      start: () => undefined,
+      stop: () => undefined,
+    },
     ready: () => undefined,
   };
 }

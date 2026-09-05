@@ -7,6 +7,16 @@ export interface TrustedClock {
   nowMs(): number | null;
 }
 
+export interface PlatformPause {
+  isPaused(): boolean;
+  subscribe(listener: (paused: boolean) => void): () => void;
+}
+
+export interface GameplayMarkup {
+  start(): void;
+  stop(): void;
+}
+
 export interface PlatformAuth {
   isAuthorized(): boolean;
   requestAuthorization(): Promise<boolean>;
@@ -35,6 +45,8 @@ export interface PlatformServices {
   readonly trustedClock: TrustedClock;
   readonly auth: PlatformAuth;
   readonly leaderboards: PlatformLeaderboards;
+  readonly platformPause: PlatformPause;
+  readonly gameplay: GameplayMarkup;
   readonly ready: () => void;
 }
 
@@ -120,6 +132,14 @@ export function createUnavailablePlatformServices(
       getEntries: async () => [],
       getPlayerEntry: async () => null,
       setScore: async () => undefined,
+    },
+    platformPause: {
+      isPaused: () => false,
+      subscribe: () => () => undefined,
+    },
+    gameplay: {
+      start: () => undefined,
+      stop: () => undefined,
     },
     ready: () => undefined,
   };

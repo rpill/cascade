@@ -132,6 +132,23 @@ test('unavailable platform exposes inert auth and unavailable leaderboards', asy
   await platform.leaderboards.setScore('standardbesttime', 5000);
 });
 
+test('unavailable platform exposes inert lifecycle services', () => {
+  const platform = createUnavailablePlatformServices(null);
+
+  assert.equal(platform.platformPause.isPaused(), false);
+
+  let pauseNotifications = 0;
+  const unsubscribe = platform.platformPause.subscribe(() => {
+    pauseNotifications += 1;
+  });
+  unsubscribe();
+
+  platform.gameplay.start();
+  platform.gameplay.stop();
+
+  assert.equal(pauseNotifications, 0);
+});
+
 test('Yandex adapter reads trusted time and structured player data through one player object', async () => {
   const saved: Array<{ data: Record<string, unknown>; flush: boolean }> = [];
   let getPlayerCalls = 0;

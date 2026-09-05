@@ -195,6 +195,14 @@ export async function createYandexPlatformServices(
       },
     },
     leaderboards: createYandexLeaderboards(ysdk, ysdk.leaderboards),
+    platformPause: {
+      isPaused: () => false,
+      subscribe: () => () => undefined,
+    },
+    gameplay: {
+      start: () => undefined,
+      stop: () => undefined,
+    },
     ready: () => ysdk.features?.LoadingAPI?.ready(),
   };
 }
