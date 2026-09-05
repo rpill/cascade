@@ -81,10 +81,12 @@ test('runtime resize keeps the camera at identity and relayouts the existing boa
   assert.match(gameSceneSource, /this\.board\?\.relayout\(metrics\)/);
 });
 
-test('initial Phaser canvas dimensions come from the real viewport', () => {
-  assert.match(mainSource, /width:\s*window\.innerWidth/);
-  assert.match(mainSource, /height:\s*window\.innerHeight/);
-  assert.doesNotMatch(mainSource, /GAME_WIDTH|GAME_HEIGHT/);
+test('initial Phaser canvas waits for a measured positive game-host size', () => {
+  assert.match(mainSource, /startWhenHostReady/);
+  assert.match(mainSource, /getBoundingClientRect\(\)/);
+  assert.match(mainSource, /width,\s*height/);
+  assert.doesNotMatch(mainSource, /width:\s*window\.innerWidth/);
+  assert.doesNotMatch(mainSource, /height:\s*window\.innerHeight/);
   assert.match(mainSource, /mode:\s*Phaser\.Scale\.RESIZE/);
 });
 

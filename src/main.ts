@@ -2,27 +2,37 @@ import Phaser from 'phaser';
 
 import './styles.css';
 
+import { startWhenHostReady } from './bootstrap/GameBootstrap.ts';
 import { BootScene } from './game/scenes/BootScene.ts';
 import { GameScene } from './game/scenes/GameScene.ts';
 
-new Phaser.Game({
-  type: Phaser.AUTO,
-  parent: 'game',
-  width: window.innerWidth,
-  height: window.innerHeight,
-  backgroundColor: '#393937',
-  disableContextMenu: true,
-  scene: [BootScene, GameScene],
-  input: {
-    activePointers: 3,
+const host = document.getElementById('game');
+if (!(host instanceof HTMLElement)) {
+  throw new Error('Cascade Solitaire requires a #game host element.');
+}
+
+void startWhenHostReady(
+  () => {
+    const bounds = host.getBoundingClientRect();
+    return { width: bounds.width, height: bounds.height };
   },
-  scale: {
-    mode: Phaser.Scale.RESIZE,
-    autoRound: true,
-  },
-  render: {
-    antialias: true,
-    pixelArt: false,
-    roundPixels: false,
-  },
-});
+  ({ width, height }) => new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: host,
+    width,
+    height,
+    backgroundColor: '#393937',
+    disableContextMenu: true,
+    scene: [BootScene, GameScene],
+    input: { activePointers: 3 },
+    scale: {
+      mode: Phaser.Scale.RESIZE,
+      autoRound: true,
+    },
+    render: {
+      antialias: true,
+      pixelArt: false,
+      roundPixels: false,
+    },
+  }),
+);

@@ -35,6 +35,13 @@ test('desktop rendering resizes the real canvas to the viewport instead of CSS-s
   assert.match(mainSource, /roundPixels:\s*false/);
 });
 
+test('startup keeps the existing renderer and resize policy while delaying construction', () => {
+  assert.match(mainSource, /type:\s*Phaser\.AUTO/);
+  assert.match(mainSource, /startWhenHostReady/);
+  assert.match(mainSource, /mode:\s*Phaser\.Scale\.RESIZE/);
+  assert.doesNotMatch(mainSource, /Phaser\.CANVAS/);
+});
+
 test('boot loads stable raster card textures instead of runtime SVGs', () => {
   assert.match(bootSource, /this\.load\.image\(/);
   assert.match(bootSource, /CARD_ASSET_ROOT = ['"]\.\/assets\/cards['"]/);
