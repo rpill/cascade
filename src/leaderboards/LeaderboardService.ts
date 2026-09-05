@@ -40,7 +40,7 @@ export type LeaderboardSyncResult =
 function normalizeRow(entry: PlatformLeaderboardEntry): LeaderboardRow | null {
   if (
     !Number.isInteger(entry.rank)
-    || entry.rank < 0
+    || entry.rank < 1
     || !Number.isFinite(entry.score)
     || entry.score < 0
   ) {
@@ -48,7 +48,7 @@ function normalizeRow(entry: PlatformLeaderboardEntry): LeaderboardRow | null {
   }
 
   return {
-    rank: entry.rank + 1,
+    rank: entry.rank,
     scoreMs: entry.score,
     publicName: entry.publicName.trim() || 'Игрок',
   };

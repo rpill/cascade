@@ -32,15 +32,15 @@ function fakePlatform(options: {
   };
 }
 
-test('load requests top 10 and converts SDK ranks to one-based rows', async () => {
+test('load requests top 10 and preserves one-based SDK entry ranks', async () => {
   const calls: unknown[] = [];
   const platform = fakePlatform({
     authorized: false,
     getEntries: async (name, options) => {
       calls.push({ name, options });
       return [
-        { rank: 0, score: 2500, playerId: 'a', publicName: 'Ada' },
-        { rank: 1, score: 3000, playerId: 'b', publicName: '' },
+        { rank: 1, score: 2500, playerId: 'a', publicName: 'Ada' },
+        { rank: 2, score: 3000, playerId: 'b', publicName: '' },
       ];
     },
   });
@@ -90,7 +90,7 @@ test('authorized load also requests and normalizes the player entry', async () =
     authorized: true,
     getEntries: async (name) => {
       calls.push(`top:${name}`);
-      return [{ rank: 0, score: 2000, playerId: 'a', publicName: 'Ada' }];
+      return [{ rank: 1, score: 2000, playerId: 'a', publicName: 'Ada' }];
     },
     getPlayerEntry: async (name) => {
       calls.push(`player:${name}`);
@@ -102,7 +102,7 @@ test('authorized load also requests and normalizes the player entry', async () =
     status: 'ready',
     authorized: true,
     entries: [{ rank: 1, scoreMs: 2000, publicName: 'Ada' }],
-    playerEntry: { rank: 11, scoreMs: 5500, publicName: 'Me' },
+    playerEntry: { rank: 10, scoreMs: 5500, publicName: 'Me' },
   });
   assert.deepEqual(calls, [
     'top:classicbesttime',
@@ -130,7 +130,7 @@ test('load preserves public top when personal entry lookup fails', async () => {
   const service = new LeaderboardService(fakePlatform({
     authorized: true,
     getEntries: async () => [
-      { rank: 0, score: 2500, playerId: 'a', publicName: 'Ada' },
+      { rank: 1, score: 2500, playerId: 'a', publicName: 'Ada' },
     ],
     getPlayerEntry: async () => {
       throw new Error('personal lookup failed');
@@ -148,9 +148,9 @@ test('load preserves public top when personal entry lookup fails', async () => {
 test('load filters malformed rows and falls back blank public names', async () => {
   const service = new LeaderboardService(fakePlatform({
     getEntries: async () => [
-      { rank: 0, score: 2500, playerId: 'a', publicName: '  Ada  ' },
-      { rank: 1, score: 3000, playerId: 'b', publicName: '   ' },
-      { rank: -1, score: 4000, playerId: 'c', publicName: 'Bad rank' },
+      { rank: 1, score: 2500, playerId: 'a', publicName: '  Ada  ' },
+      { rank: 2, score: 3000, playerId: 'b', publicName: '   ' },
+      { rank: 0, score: 4000, playerId: 'c', publicName: 'Bad rank' },
       { rank: 1.5, score: 4000, playerId: 'd', publicName: 'Bad rank' },
       { rank: 2, score: -1, playerId: 'e', publicName: 'Bad score' },
       { rank: 3, score: Number.NaN, playerId: 'f', publicName: 'Bad score' },
