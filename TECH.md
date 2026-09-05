@@ -57,6 +57,15 @@ Do not merge the active board checkpoint into `cascadeMeta` or upload a full boa
 - The generic attempt timer excludes main-menu time, hidden-tab time, and closed-page time. Resume only when `attemptStarted && !attemptFinalized && flow.state === 'playing' && document.visibilityState === 'visible'`.
 - Meta changes that happen before the remote save finishes loading must go through `MetaMutationQueue`; never assign the loaded save directly over runtime state before replay.
 
+## Platform gameplay lifecycle
+
+- `PlatformServices.platformPause` exposes cached external pause state plus one platform-neutral subscription API.
+- `PlatformServices.gameplay` wraps optional Yandex `GameplayAPI.start()` / `stop()` and is inert outside Yandex.
+- `src/platform/GameplayActivity.ts` is the pure blocker policy for attempt timer, external scene pause, and local gameplay-markup decisions.
+- `GameScene.reconcileGameplayActivity()` is the single coordinator for menu, visibility, result, attempt, and external platform pause state.
+- Yandex event callbacks are registered/unregistered with matching `ysdk.on()` / `ysdk.off()` callback references.
+- External platform pause state is runtime-only and is not persisted in `cascadeActiveGame` or `cascadeMeta`.
+
 ## Daily constraints
 
 - Daily identity must come from trusted Yandex server time and UTC calendar boundaries; when trusted time is unavailable, disable Daily instead of falling back to the device clock.
@@ -107,7 +116,7 @@ Do not merge the active board checkpoint into `cascadeMeta` or upload a full boa
 - Standard/Classic must remain playable even if SDK initialization/player-data/leaderboard/trusted-time access fails.
 - Daily must remain unavailable without trusted server time.
 - Final Console configuration and real-draft acceptance are external release gates documented in `docs/YANDEX_LEADERBOARDS_SETUP.md`.
-- Future ad/platform lifecycle work should route through one shared pause/resume boundary instead of adding another independent timer policy.
+- Advertising and other future platform interruptions must reuse the shared gameplay lifecycle boundary instead of adding an independent timer/pause policy.
 
 ## Context workflow constraints
 

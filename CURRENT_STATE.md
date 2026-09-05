@@ -59,6 +59,10 @@
 - The Yandex adapter dynamically loads `/sdk.js` before `YaGames.init()` in the HTTPS Yandex/proxy environment. Plain local HTTP development intentionally falls back to the unavailable-platform adapter.
 - `pnpm yandex:dev` builds `dist` and launches the official Yandex SDK development proxy for local SDK smoke-testing.
 - `LoadingAPI.ready()` is exposed through the platform boundary and called after platform/meta initialization reaches the current ready boundary.
+- Yandex `game_api_pause` / `game_api_resume` are isolated behind the platform boundary and pause/resume the active gameplay lifecycle without creating a second timer policy.
+- Startup pause state is captured before slow Player/meta loading, so restored or quickly-started boards do not run behind the startup ad.
+- `GameplayAPI.start()` / `stop()` mark playable gameplay, menu transitions, visibility transitions, and completion while preserving Yandex's external pause/resume semantics.
+- External platform pause freezes Phaser gameplay and checkpoints the active board; resume only restores the timer/input when menu, result, visibility, and attempt state also permit it.
 
 ## Statistics / Yandex leaderboards
 
@@ -124,4 +128,4 @@ The solver can be regenerated separately with `pnpm generate:winnable-pool` when
 
 ## Current next focus
 
-The local Phase C statistics/leaderboard implementation is complete. The remaining leaderboard release gate is external: create `standardbesttime` and `classicbesttime` in the Yandex Games Console exactly as documented in `docs/YANDEX_LEADERBOARDS_SETUP.md`, then run the real draft E2E checklist. After that, platform-hardening should cover language auto-detection/localization, a unified `game_api_pause` / `game_api_resume` boundary, advertising at logical pauses, final platform declarations/mobile verification if mobile is enabled, and a release checklist that re-tests F5/session persistence in the actual Yandex environment. Economy systems (XP, coins, shop), achievements, and purchases remain intentionally outside the completed phase.
+The local Phase C statistics/leaderboard implementation and unified Yandex gameplay lifecycle are complete. The remaining leaderboard release gate is external: create `standardbesttime` and `classicbesttime` in the Yandex Games Console exactly as documented in `docs/YANDEX_LEADERBOARDS_SETUP.md`, then run the real draft E2E checklist. The next implementation focus is advertising at logical pauses using the shared gameplay lifecycle boundary, followed by language auto-detection/localization, final platform declarations/mobile verification if mobile is enabled, and release verification that re-tests lifecycle behavior plus F5/session persistence in the actual Yandex environment. Economy systems (XP, coins, shop), achievements, and purchases remain intentionally outside the completed phase.
