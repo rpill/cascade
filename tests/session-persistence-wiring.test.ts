@@ -56,10 +56,11 @@ test('new ordinary deals checkpoint before the opening animation and settled pla
 test('ordinary checkpoint lifecycle covers pagehide visibility menu state and completed games', () => {
   assert.match(sceneSource, /addEventListener\('pagehide', this\.handlePageHide\)/);
   assert.match(sceneSource, /removeEventListener\('pagehide', this\.handlePageHide\)/);
-  assert.match(sceneSource, /handlePageHide[^]*attemptTimer\.pause\(performance\.now\(\)\)[^]*checkpointActiveGame/);
-  assert.match(sceneSource, /handleVisibilityChange[^]*attemptTimer\.pause\(performance\.now\(\)\)[^]*checkpointActiveGame/);
-  assert.match(sceneSource, /openMainMenu[^]*attemptTimer\.pause\(performance\.now\(\)\)[^]*checkpointActiveGame/);
-  assert.match(sceneSource, /closeMainMenu[^]*resumeAttemptTimerIfPlayable\(\)[^]*checkpointActiveGame/);
+  assert.match(sceneSource, /handlePageHide[^]*pauseAttemptTimer\(\)[^]*checkpointActiveGame/);
+  assert.match(sceneSource, /handleVisibilityChange[^]*pauseAttemptTimer\(\)[^]*checkpointActiveGame[^]*reconcileGameplayActivity\(\)/);
+  assert.match(sceneSource, /openMainMenu[^]*reconcileGameplayActivity\(\)[^]*checkpointActiveGame/);
+  assert.match(sceneSource, /closeMainMenu[^]*reconcileGameplayActivity\(\)[^]*checkpointActiveGame/);
+  assert.doesNotMatch(sceneSource, /resumeAttemptTimerIfPlayable/);
   assert.match(sceneSource, /gameState\.isWon[^]*activeGameRepository\.clear\(\)/);
 });
 

@@ -65,14 +65,19 @@ test('cloud metadata is settled through the replay queue instead of overwriting 
   assert.doesNotMatch(scene, /this\.metaState = await this\.metaRepository\.load\(\)/);
 });
 
-test('one generic attempt timer pauses and resumes for every mode but never after finalization', () => {
+test('one generic attempt timer pauses and resumes for every mode through shared reconciliation', () => {
   assert.match(
     scene,
-    /attemptStarted[^]*!this\.attemptFinalized[^]*flow\.state === 'playing'[^]*document\.visibilityState === 'visible'/,
+    /deriveGameplayActivity\(\{[^]*attemptStarted: this\.attemptStarted[^]*attemptFinalized: this\.attemptFinalized[^]*flowPlaying: this\.flow\?\.state === 'playing'[^]*documentVisible: document\.visibilityState === 'visible'[^]*platformPaused: this\.platformPaused/,
   );
-  assert.match(scene, /openMainMenu[^]*attemptTimer\.pause\(performance\.now\(\)\)/);
-  assert.match(scene, /handleVisibilityChange[^]*attemptTimer\.pause\(performance\.now\(\)\)/);
-  assert.match(scene, /handlePageHide[^]*attemptTimer\.pause\(performance\.now\(\)\)/);
+  assert.match(
+    scene,
+    /if \(decision\.timerShouldRun\)[^]*attemptTimer\.resume\(performance\.now\(\)\)[^]*pauseAttemptTimer\(\)/,
+  );
+  assert.match(scene, /openMainMenu[^]*reconcileGameplayActivity\(\)/);
+  assert.match(scene, /handleVisibilityChange[^]*pauseAttemptTimer\(\)[^]*reconcileGameplayActivity\(\)/);
+  assert.match(scene, /handlePageHide[^]*pauseAttemptTimer\(\)/);
+  assert.doesNotMatch(scene, /resumeAttemptTimerIfPlayable/);
 });
 
 test('Daily keeps DailyProgress rather than ordinary GameStats mutations', () => {
@@ -127,4 +132,11 @@ test('ordinary best sync is gated by improvedBest and does not gate local comple
     ordinary.indexOf('this.metaRepository?.save(this.metaState, true)')
       < ordinary.indexOf('syncBest(mode, bestTimeMs)'),
   );
+});
+
+test('ordinary attempt timing uses the shared gameplay activity reconciliation', () => {
+  assert.match(scene, /reconcileGameplayActivity/);
+  assert.match(scene, /attemptTimer\.pause/);
+  assert.match(scene, /attemptTimer\.resume/);
+  assert.match(scene, /attemptFinalized/);
 });

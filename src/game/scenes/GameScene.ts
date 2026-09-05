@@ -54,6 +54,7 @@ import {
   initializePlatform,
 } from '../../platform/yandex.ts';
 import type { PlatformServices } from '../../platform/services.ts';
+import { deriveGameplayActivity } from '../../platform/GameplayActivity.ts';
 import { LeaderboardService } from '../../leaderboards/LeaderboardService.ts';
 
 interface DailyContext {
@@ -109,6 +110,10 @@ export class GameScene extends Phaser.Scene {
   private lastOrdinaryCompletion: OrdinaryCompletionSnapshot | null = null;
 
   private platform: PlatformServices | null = null;
+  private platformPaused = false;
+  private platformScenePaused = false;
+  private gameplayMarkupActive = false;
+  private unsubscribePlatformPause: (() => void) | null = null;
   private leaderboardService: LeaderboardService | null = null;
   private metaRepository: MetaRepository | null = null;
   private metaState: MetaSave = createDefaultMetaSave();
@@ -174,6 +179,9 @@ export class GameScene extends Phaser.Scene {
 
   private async initializeMeta(): Promise<void> {
     this.platform = await initializePlatform();
+    this.bindPlatformLifecycle(this.platform);
+    this.reconcileGameplayActivity();
+
     this.metaRepository = new MetaRepository(this.platform.playerStorage);
     const loaded = await this.metaRepository.load();
     this.metaState = this.metaMutations.settleLoadedState(loaded);
@@ -394,14 +402,9 @@ export class GameScene extends Phaser.Scene {
       if (restored.attemptStarted) {
         const now = performance.now();
         this.attemptTimer.start(now, restored.elapsedMs);
-        if (
-          restored.uiState === 'menu-paused'
-          || document.visibilityState !== 'visible'
-        ) {
-          this.attemptTimer.pause(now);
-        }
       }
 
+      this.reconcileGameplayActivity();
       this.board.showRestoredState();
       this.onBoardSettled(gameState);
       return;
@@ -431,12 +434,7 @@ export class GameScene extends Phaser.Scene {
       this.attemptTimer.start(now);
       this.attemptStarted = true;
       this.attemptFinalized = false;
-      if (
-        this.flow.state !== 'playing'
-        || document.visibilityState !== 'visible'
-      ) {
-        this.attemptTimer.pause(now);
-      }
+      this.reconcileGameplayActivity();
 
       if (isDaily) {
         this.metaState = beginDailyAttempt(
@@ -487,6 +485,7 @@ export class GameScene extends Phaser.Scene {
     const mode = gameState.mode;
     this.attemptFinalized = true;
     const elapsedMs = this.attemptTimer.finish(performance.now());
+    this.reconcileGameplayActivity();
     const completion = completeModeAttempt(
       this.metaState,
       mode,
@@ -596,6 +595,7 @@ export class GameScene extends Phaser.Scene {
 
     this.attemptFinalized = true;
     const elapsedMs = this.attemptTimer.finish(performance.now());
+    this.reconcileGameplayActivity();
     const result = completeDailyAttempt(
       this.metaState,
       context.dailyId,
@@ -626,6 +626,9 @@ export class GameScene extends Phaser.Scene {
     this.attemptFinalized = false;
     this.attemptTimer.reset();
     this.lastOrdinaryCompletion = null;
+    if (this.flow !== undefined) {
+      this.reconcileGameplayActivity();
+    }
   }
 
   private restartDeal(): void {
@@ -656,9 +659,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (this.attemptStarted && !this.attemptFinalized) {
-      this.attemptTimer.pause(performance.now());
-    }
+    this.reconcileGameplayActivity();
     if (this.gameState !== null) {
       this.checkpointActiveGame(this.gameState);
     }
@@ -864,7 +865,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.flow.cancelMenu()) {
       this.mainMenu.hide();
-      this.resumeAttemptTimerIfPlayable();
+      this.reconcileGameplayActivity();
       if (this.gameState !== null) {
         this.checkpointActiveGame(this.gameState);
       }
@@ -915,39 +916,90 @@ export class GameScene extends Phaser.Scene {
     this.board?.requestUndo();
   }
 
-  private handleVisibilityChange = (): void => {
-    if (document.visibilityState === 'visible') {
-      this.resumeAttemptTimerIfPlayable();
+  private bindPlatformLifecycle(platform: PlatformServices): void {
+    this.unsubscribePlatformPause?.();
+    this.platformPaused = platform.platformPause.isPaused();
+
+    this.unsubscribePlatformPause = platform.platformPause.subscribe((paused) => {
+      this.platformPaused = paused;
+
+      if (paused && this.gameState !== null) {
+        this.pauseAttemptTimer();
+        this.checkpointActiveGame(this.gameState);
+      }
+
+      this.reconcileGameplayActivity();
+    });
+  }
+
+  private pauseAttemptTimer(): void {
+    if (this.attemptStarted && !this.attemptFinalized) {
+      this.attemptTimer.pause(performance.now());
+    }
+  }
+
+  private setGameplayMarkupActive(active: boolean): void {
+    const platform = this.platform;
+    if (platform === null || this.gameplayMarkupActive === active) {
       return;
     }
 
-    if (this.attemptStarted && !this.attemptFinalized) {
-      this.attemptTimer.pause(performance.now());
+    this.gameplayMarkupActive = active;
+
+    if (active) {
+      platform.gameplay.start();
+    } else {
+      platform.gameplay.stop();
     }
-    if (this.gameState !== null) {
-      this.checkpointActiveGame(this.gameState);
+  }
+
+  private reconcileGameplayActivity(): void {
+    const decision = deriveGameplayActivity({
+      attemptStarted: this.attemptStarted,
+      attemptFinalized: this.attemptFinalized,
+      flowPlaying: this.flow?.state === 'playing',
+      documentVisible: document.visibilityState === 'visible',
+      platformPaused: this.platformPaused,
+    });
+
+    if (decision.timerShouldRun) {
+      this.attemptTimer.resume(performance.now());
+    } else {
+      this.pauseAttemptTimer();
     }
+
+    if (decision.markupAction === 'start') {
+      this.setGameplayMarkupActive(true);
+    } else if (decision.markupAction === 'stop') {
+      this.setGameplayMarkupActive(false);
+    }
+
+    if (decision.sceneShouldPause && !this.platformScenePaused) {
+      this.platformScenePaused = true;
+      this.scene.pause();
+    } else if (!decision.sceneShouldPause && this.platformScenePaused) {
+      this.platformScenePaused = false;
+      this.scene.resume();
+    }
+  }
+
+  private handleVisibilityChange = (): void => {
+    if (document.visibilityState !== 'visible') {
+      this.pauseAttemptTimer();
+      if (this.gameState !== null) {
+        this.checkpointActiveGame(this.gameState);
+      }
+    }
+
+    this.reconcileGameplayActivity();
   };
 
   private handlePageHide = (): void => {
-    if (this.attemptStarted && !this.attemptFinalized) {
-      this.attemptTimer.pause(performance.now());
-    }
+    this.pauseAttemptTimer();
     if (this.gameState !== null) {
       this.checkpointActiveGame(this.gameState);
     }
   };
-
-  private resumeAttemptTimerIfPlayable(): void {
-    if (
-      this.attemptStarted
-      && !this.attemptFinalized
-      && this.flow.state === 'playing'
-      && document.visibilityState === 'visible'
-    ) {
-      this.attemptTimer.resume(performance.now());
-    }
-  }
 
   private handleResize(): void {
     this.applyViewportLayout();
@@ -969,6 +1021,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private shutdown(): void {
+    this.setGameplayMarkupActive(false);
+    this.unsubscribePlatformPause?.();
+    this.unsubscribePlatformPause = null;
+
+    if (this.platformScenePaused) {
+      this.platformScenePaused = false;
+    }
+
     this.scale.off(Phaser.Scale.Events.RESIZE, this.handleResize, this);
     this.input.keyboard?.off('keydown-R', this.restartDeal, this);
     this.input.keyboard?.off('keydown-Z', this.undoLastAction, this);

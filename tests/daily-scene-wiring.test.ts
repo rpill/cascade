@@ -38,3 +38,9 @@ test('Daily completion never writes ordinary leaderboards', () => {
   const dailyFinish = scene.slice(start, next === -1 ? scene.length : next);
   assert.doesNotMatch(dailyFinish, /leaderboardService|syncBest/);
 });
+
+test('Daily uses the same platform-aware activity reconciliation as ordinary play', () => {
+  assert.match(scene, /deriveGameplayActivity/);
+  assert.match(scene, /reconcileGameplayActivity/);
+  assert.doesNotMatch(scene, /dailyPlatformPaused/);
+});
