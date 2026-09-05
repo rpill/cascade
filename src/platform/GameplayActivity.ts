@@ -1,0 +1,35 @@
+export interface GameplayActivityInput {
+  readonly attemptStarted: boolean;
+  readonly attemptFinalized: boolean;
+  readonly flowPlaying: boolean;
+  readonly documentVisible: boolean;
+  readonly platformPaused: boolean;
+}
+
+export type GameplayMarkupAction = 'start' | 'stop' | 'keep';
+
+export interface GameplayActivityDecision {
+  readonly timerShouldRun: boolean;
+  readonly sceneShouldPause: boolean;
+  readonly markupAction: GameplayMarkupAction;
+}
+
+export function deriveGameplayActivity(
+  input: GameplayActivityInput,
+): GameplayActivityDecision {
+  const locallyPlayable =
+    input.attemptStarted
+    && !input.attemptFinalized
+    && input.flowPlaying
+    && input.documentVisible;
+
+  return {
+    timerShouldRun: locallyPlayable && !input.platformPaused,
+    sceneShouldPause: input.platformPaused,
+    markupAction: !locallyPlayable
+      ? 'stop'
+      : input.platformPaused
+        ? 'keep'
+        : 'start',
+  };
+}
