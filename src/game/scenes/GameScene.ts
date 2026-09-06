@@ -20,6 +20,7 @@ import {
   PlayPageView,
   type DailyMenuState,
 } from '../view/PlayPageView.ts';
+import { RulesView } from '../view/RulesView.ts';
 import {
   StatisticsView,
   type StatisticsViewState,
@@ -87,6 +88,10 @@ export class GameScene extends Phaser.Scene {
   private gameState: SolitaireGame | null = null;
   private appShell!: AppShellView;
   private playPage!: PlayPageView;
+  private rulesView!: RulesView;
+  private rulesOpen = false;
+  private shellDestination: ShellDestination = 'play';
+  private rulesReturnDestination: Exclude<ShellDestination, 'rules' | 'collection' | 'shop'> = 'play';
   private statisticsView!: StatisticsView;
   private statisticsOpen = false;
   private dailyCompleteView!: DailyCompleteView;
@@ -142,6 +147,9 @@ export class GameScene extends Phaser.Scene {
     this.playPage = new PlayPageView(this.appShell.contentHost, {
       play: (mode) => this.playMenuMode(mode),
       leaderboard: () => this.openLeaderboard(),
+    });
+    this.rulesView = new RulesView(this.appShell.contentHost, {
+      back: () => this.closeRules(),
     });
     this.statisticsView = new StatisticsView(this, {
       close: () => this.closeStatistics(),
@@ -677,31 +685,69 @@ export class GameScene extends Phaser.Scene {
     this.playPage.updateLeaderboardsAvailable(
       this.leaderboardService?.available ?? false,
     );
+    this.rulesView.hide();
+    this.rulesOpen = false;
+    this.shellDestination = 'play';
     this.playPage.show();
     this.appShell.show({ canCancel, destination: 'play' });
   }
 
   private navigateShell(destination: ShellDestination): void {
     if (destination === 'play') {
+      this.rulesView.hide();
+      this.rulesOpen = false;
       this.closeStatistics();
       this.closeLeaderboard();
       this.playPage.show();
+      this.shellDestination = 'play';
       this.appShell.setDestination('play');
       return;
     }
 
     if (destination === 'statistics') {
+      this.rulesView.hide();
+      this.rulesOpen = false;
+      this.shellDestination = 'statistics';
       this.appShell.setDestination('statistics');
       this.openStatistics();
       return;
     }
 
     if (destination === 'rules') {
+      if (!this.rulesOpen) {
+        this.rulesReturnDestination = this.shellDestination === 'statistics'
+          ? 'statistics'
+          : 'play';
+      }
       this.closeStatistics();
       this.closeLeaderboard();
       this.playPage.hide();
+      this.rulesOpen = true;
+      this.shellDestination = 'rules';
+      this.rulesView.show();
       this.appShell.setDestination('rules');
     }
+  }
+
+  private closeRules(): void {
+    if (!this.rulesOpen) {
+      return;
+    }
+
+    const destination = this.rulesReturnDestination;
+    this.rulesOpen = false;
+    this.rulesView.hide();
+
+    if (destination === 'statistics') {
+      this.shellDestination = 'statistics';
+      this.appShell.setDestination('statistics');
+      this.openStatistics();
+      return;
+    }
+
+    this.shellDestination = 'play';
+    this.playPage.show();
+    this.appShell.setDestination('play');
   }
 
   private openStatistics(): void {
@@ -714,7 +760,10 @@ export class GameScene extends Phaser.Scene {
     this.statisticsOpen = false;
     this.statisticsView.hide();
     this.playPage.show();
-    this.appShell.setDestination('play');
+    if (!this.rulesOpen) {
+      this.shellDestination = 'play';
+      this.appShell.setDestination('play');
+    }
   }
 
   private buildLeaderboardViewState(
@@ -874,6 +923,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleEscape = (): void => {
+    if (this.rulesOpen) {
+      this.closeRules();
+      return;
+    }
+
     if (this.leaderboardOpen) {
       this.closeLeaderboard();
       return;
@@ -888,6 +942,11 @@ export class GameScene extends Phaser.Scene {
   };
 
   private closeMainMenu(): void {
+    if (this.rulesOpen) {
+      this.rulesOpen = false;
+      this.rulesView.hide();
+    }
+
     if (this.leaderboardOpen) {
       this.closeLeaderboard();
       return;
@@ -1091,6 +1150,7 @@ export class GameScene extends Phaser.Scene {
     this.gameCompleteView.destroy();
     this.dailyCompleteView.destroy();
     this.statisticsView.destroy();
+    this.rulesView.destroy();
     this.playPage.destroy();
     this.appShell.destroy();
     this.gameControls?.destroy();
