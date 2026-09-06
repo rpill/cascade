@@ -89,6 +89,7 @@ export class BoardView {
 
   private dragState: DragState | null = null;
   private inputLocked = true;
+  private uiPaused = false;
   private lastTap: { cardId: string; time: number } | null = null;
 
   constructor(
@@ -108,6 +109,14 @@ export class BoardView {
     this.createCardImages();
     this.createStockStack();
     this.relayout(layout);
+  }
+
+  setUiPaused(paused: boolean): void {
+    this.uiPaused = paused;
+
+    if (paused) {
+      this.lastTap = null;
+    }
   }
 
   showRestoredState(): void {
@@ -445,7 +454,7 @@ export class BoardView {
   }
 
   private handleStockClick(): void {
-    if (this.inputLocked) {
+    if (this.inputLocked || this.uiPaused) {
       return;
     }
 
@@ -508,7 +517,7 @@ export class BoardView {
   }
 
   private handleCardPointerDown(card: Card): void {
-    if (this.inputLocked) {
+    if (this.inputLocked || this.uiPaused) {
       return;
     }
 
@@ -530,7 +539,7 @@ export class BoardView {
   }
 
   private beginDrag(card: Card): void {
-    if (this.inputLocked) {
+    if (this.inputLocked || this.uiPaused) {
       return;
     }
 

@@ -3,6 +3,7 @@ import type Phaser from 'phaser';
 import { createIconControl } from './ui/UiControls.ts';
 import { createUiIcon } from './ui/UiIcons.ts';
 import { createHomeArtIcon } from './ui/HomeArtIcons.ts';
+import { deferClickThroughAction } from './UiClickBarrier.ts';
 
 export type ShellDestination = 'play' | 'statistics' | 'collection' | 'shop' | 'rules';
 
@@ -79,7 +80,11 @@ export class AppShellView {
     const returnLabel = document.createElement('span');
     returnLabel.textContent = 'К игре';
     this.returnButton.append(returnLabel);
-    this.returnButton.addEventListener('click', () => actions.cancel());
+    this.returnButton.addEventListener('pointerdown', (event) => event.stopPropagation());
+    this.returnButton.addEventListener('pointerup', (event) => event.stopPropagation());
+    this.returnButton.addEventListener('click', (event) => {
+      deferClickThroughAction(event, () => actions.cancel());
+    });
 
     const brand = document.createElement('div');
     brand.className = 'app-shell-brand';

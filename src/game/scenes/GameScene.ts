@@ -668,6 +668,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showShellPlay(canCancel: boolean): void {
+    if (canCancel) {
+      this.board?.setUiPaused(true);
+    }
+
     this.playPage.setSelectedMode(this.flow.selectedMode);
     this.playPage.updateDailyState(this.buildDailyMenuState());
     this.playPage.updateLeaderboardsAvailable(
@@ -894,12 +898,23 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (this.flow.state !== 'menu-paused') {
+      return;
+    }
+
+    this.input.resetPointers();
+
     if (this.flow.cancelMenu()) {
       this.appShell.hide();
       this.reconcileGameplayActivity();
       if (this.gameState !== null) {
         this.checkpointActiveGame(this.gameState);
       }
+
+      window.requestAnimationFrame(() => {
+        this.input.resetPointers();
+        this.board?.setUiPaused(false);
+      });
     }
   }
 
