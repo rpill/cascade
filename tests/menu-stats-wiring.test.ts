@@ -10,8 +10,8 @@ const playSource = readFileSync(
   new URL('../src/game/view/PlayPageView.ts', import.meta.url),
   'utf8',
 );
-const statisticsSource = readFileSync(
-  new URL('../src/game/view/StatisticsView.ts', import.meta.url),
+const pageSource = readFileSync(
+  new URL('../src/game/view/StatisticsPageView.ts', import.meta.url),
   'utf8',
 );
 const sceneSource = readFileSync(
@@ -23,42 +23,40 @@ const stylesSource = readFileSync(
   'utf8',
 );
 
-test('shell makes Statistics a destination while leaderboard remains a secondary Play affordance for now', () => {
+test('shell exposes Statistics and Home keeps a secondary leaderboard affordance', () => {
   assert.match(shellSource, /'statistics'/);
   assert.match(shellSource, /СТАТИСТИКА/);
   assert.match(playSource, /Таблица лидеров/);
   assert.match(playSource, /actions\.leaderboard\(\)/);
-  assert.doesNotMatch(playSource, /Лучшее время:/);
 });
 
-test('leaderboard action stays disabled until leaderboard service is available', () => {
+test('leaderboard action stays navigable even when platform leaderboard is unavailable', () => {
   assert.match(playSource, /updateLeaderboardsAvailable\(available: boolean\)/);
-  assert.match(playSource, /this\.leaderboardButton\.disabled = !available/);
+  assert.match(playSource, /this\.leaderboardButton\.dataset\.available = String\(available\)/);
+  assert.doesNotMatch(playSource, /this\.leaderboardButton\.disabled = !available/);
 });
 
-test('scene still owns the existing statistics modal until its shell-page migration task', () => {
-  assert.match(sceneSource, /StatisticsView/);
-  assert.match(sceneSource, /private statisticsView!: StatisticsView/);
-  assert.match(sceneSource, /private statisticsOpen = false/);
-  assert.match(sceneSource, /private openStatistics\(\): void/);
-  assert.match(sceneSource, /this\.statisticsView\.show\(this\.buildStatisticsViewState\(\)\)/);
+test('scene owns one shell StatisticsPageView instead of separate statistics and leaderboard overlays', () => {
+  assert.match(sceneSource, /private statisticsPage!: StatisticsPageView/);
+  assert.match(sceneSource, /new StatisticsPageView\(this\.appShell\.contentHost, \{/);
+  assert.doesNotMatch(sceneSource, /new StatisticsView\(/);
+  assert.doesNotMatch(sceneSource, /new LeaderboardView\(/);
 });
 
-test('meta refresh updates the new Play page and existing statistics view', () => {
+test('meta refresh updates Play and the shell statistics page from persisted meta state', () => {
   assert.match(
     sceneSource,
-    /refreshMenuMeta\(\): void \{[^]*playPage\.updateDailyState\(this\.buildDailyMenuState\(\)\)[^]*playPage\.updateLeaderboardsAvailable\([^]*statisticsView\.update\(this\.buildStatisticsViewState\(\)\)/,
+    /refreshMenuMeta\(\): void \{[^]*playPage\.updateDailyState\(this\.buildDailyMenuState\(\)\)[^]*playPage\.updateLeaderboardsAvailable\([^]*statisticsPage\.update\(this\.buildStatisticsPageState\(\)\)/,
   );
 });
 
-test('Escape closes statistics before returning from the underlying shell', () => {
-  assert.match(sceneSource, /if \(this\.statisticsOpen\)[^]*this\.closeStatistics\(\)[^]*return/);
-  assert.match(sceneSource, /this\.closeMainMenu\(\)/);
+test('Escape from Statistics returns to Play while back-to-game can close the whole shell', () => {
+  assert.match(sceneSource, /if \(this\.statisticsOpen\)[^]*this\.navigateShell\('play'\)[^]*return/);
+  assert.match(sceneSource, /private closeMainMenu\(\): void[^]*this\.closeStatisticsPage\(\)[^]*this\.flow\.cancelMenu\(\)/);
 });
 
-test('shell and reusable modal surfaces explicitly forbid scroll containers', () => {
+test('statistics content is a shell page and does not introduce a scrolling modal', () => {
+  assert.doesNotMatch(pageSource, /meta-modal|backdrop/);
   assert.match(stylesSource, /\.app-shell-surface\s*\{[^}]*overflow\s*:\s*hidden/s);
-  assert.doesNotMatch(stylesSource, /\.app-shell-surface\s*\{[^}]*overflow\s*:\s*(?:auto|scroll)/s);
-  assert.match(stylesSource, /\.meta-modal-panel\s*\{[^}]*overflow\s*:\s*hidden/s);
-  assert.match(statisticsSource, /meta-modal-panel/);
+  assert.doesNotMatch(stylesSource, /\.main-shell-statistics[^}]*overflow\s*:\s*(?:auto|scroll)/s);
 });

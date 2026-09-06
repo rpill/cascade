@@ -9,10 +9,6 @@ import { DailyCompleteView } from '../view/DailyCompleteView.ts';
 import { GameCompleteView } from '../view/GameCompleteView.ts';
 import { GameControlsView } from '../view/GameControlsView.ts';
 import {
-  LeaderboardView,
-  type LeaderboardViewState,
-} from '../view/LeaderboardView.ts';
-import {
   AppShellView,
   type ShellDestination,
 } from '../view/AppShellView.ts';
@@ -22,9 +18,10 @@ import {
 } from '../view/PlayPageView.ts';
 import { RulesView } from '../view/RulesView.ts';
 import {
-  StatisticsView,
-  type StatisticsViewState,
-} from '../view/StatisticsView.ts';
+  StatisticsPageView,
+  type StatisticsPageLeaderboardState,
+  type StatisticsPageState,
+} from '../view/StatisticsPageView.ts';
 import { calculateViewportLayout } from '../view/ViewportLayout.ts';
 import { AttemptTimer } from '../../meta/AttemptTimer.ts';
 import {
@@ -92,18 +89,15 @@ export class GameScene extends Phaser.Scene {
   private rulesOpen = false;
   private shellDestination: ShellDestination = 'play';
   private rulesReturnDestination: Exclude<ShellDestination, 'rules' | 'collection' | 'shop'> = 'play';
-  private statisticsView!: StatisticsView;
+  private statisticsPage!: StatisticsPageView;
   private statisticsOpen = false;
   private dailyCompleteView!: DailyCompleteView;
   private gameCompleteView!: GameCompleteView;
-  private leaderboardView!: LeaderboardView;
   private leaderboardMode: OrdinaryGameMode = 'winnable';
-  private leaderboardOpen = false;
   private leaderboardAuthPending = false;
   private leaderboardRequestId = 0;
   private unsubscribeAccountSelection: (() => void) | null = null;
-  private leaderboardViewState: LeaderboardViewState = {
-    mode: 'winnable',
+  private leaderboardViewState: StatisticsPageLeaderboardState = {
     status: 'unavailable',
     entries: [],
     authorized: false,
@@ -146,13 +140,14 @@ export class GameScene extends Phaser.Scene {
     });
     this.playPage = new PlayPageView(this.appShell.contentHost, {
       play: (mode) => this.playMenuMode(mode),
-      leaderboard: () => this.openLeaderboard(),
+      leaderboard: () => this.openStatisticsPage(true),
     });
     this.rulesView = new RulesView(this.appShell.contentHost, {
       back: () => this.closeRules(),
     });
-    this.statisticsView = new StatisticsView(this, {
-      close: () => this.closeStatistics(),
+    this.statisticsPage = new StatisticsPageView(this.appShell.contentHost, {
+      selectMode: (mode) => this.selectStatisticsMode(mode),
+      authorize: () => { void this.authorizeLeaderboard(); },
     });
     this.dailyCompleteView = new DailyCompleteView(this, {
       retry: () => this.retryDaily(),
@@ -162,12 +157,6 @@ export class GameScene extends Phaser.Scene {
       newGame: () => this.startNewDeal(),
       menu: () => this.openMenuFromGameComplete(),
     });
-    this.leaderboardView = new LeaderboardView(this, {
-      selectMode: (mode) => this.selectLeaderboardMode(mode),
-      authorize: () => { void this.authorizeLeaderboard(); },
-      close: () => this.closeLeaderboard(),
-    });
-
     this.activeGameRepository = new ActiveGameRepository();
     this.pendingActiveSave = this.activeGameRepository.load();
     if (this.pendingActiveSave?.mode === 'daily') {
@@ -275,20 +264,24 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  private buildStatisticsViewState(): StatisticsViewState {
+  private buildStatisticsPageState(): StatisticsPageState {
     const { winnable, original } = this.metaState.stats;
 
     return {
-      winnable: {
-        played: winnable.played,
-        wins: winnable.wins,
-        bestTimeMs: winnable.bestTimeMs ?? null,
+      mode: this.leaderboardMode,
+      statistics: {
+        winnable: {
+          played: winnable.played,
+          wins: winnable.wins,
+          bestTimeMs: winnable.bestTimeMs ?? null,
+        },
+        original: {
+          played: original.played,
+          wins: original.wins,
+          bestTimeMs: original.bestTimeMs ?? null,
+        },
       },
-      original: {
-        played: original.played,
-        wins: original.wins,
-        bestTimeMs: original.bestTimeMs ?? null,
-      },
+      leaderboard: this.buildLeaderboardViewState(),
     };
   }
 
@@ -297,7 +290,7 @@ export class GameScene extends Phaser.Scene {
     this.playPage.updateLeaderboardsAvailable(
       this.leaderboardService?.available ?? false,
     );
-    this.statisticsView.update(this.buildStatisticsViewState());
+    this.statisticsPage.update(this.buildStatisticsPageState());
   }
 
   private tryRestoreOrdinarySession(): boolean {
@@ -687,6 +680,7 @@ export class GameScene extends Phaser.Scene {
     );
     this.rulesView.hide();
     this.rulesOpen = false;
+    this.closeStatisticsPage();
     this.shellDestination = 'play';
     this.playPage.show();
     this.appShell.show({ canCancel, destination: 'play' });
@@ -696,8 +690,7 @@ export class GameScene extends Phaser.Scene {
     if (destination === 'play') {
       this.rulesView.hide();
       this.rulesOpen = false;
-      this.closeStatistics();
-      this.closeLeaderboard();
+      this.closeStatisticsPage();
       this.playPage.show();
       this.shellDestination = 'play';
       this.appShell.setDestination('play');
@@ -707,9 +700,7 @@ export class GameScene extends Phaser.Scene {
     if (destination === 'statistics') {
       this.rulesView.hide();
       this.rulesOpen = false;
-      this.shellDestination = 'statistics';
-      this.appShell.setDestination('statistics');
-      this.openStatistics();
+      this.openStatisticsPage(false);
       return;
     }
 
@@ -719,8 +710,7 @@ export class GameScene extends Phaser.Scene {
           ? 'statistics'
           : 'play';
       }
-      this.closeStatistics();
-      this.closeLeaderboard();
+      this.closeStatisticsPage();
       this.playPage.hide();
       this.rulesOpen = true;
       this.shellDestination = 'rules';
@@ -739,9 +729,7 @@ export class GameScene extends Phaser.Scene {
     this.rulesView.hide();
 
     if (destination === 'statistics') {
-      this.shellDestination = 'statistics';
-      this.appShell.setDestination('statistics');
-      this.openStatistics();
+      this.openStatisticsPage(false);
       return;
     }
 
@@ -750,28 +738,50 @@ export class GameScene extends Phaser.Scene {
     this.appShell.setDestination('play');
   }
 
-  private openStatistics(): void {
+  private openStatisticsPage(focusLeaderboard = false): void {
     this.playPage.hide();
     this.statisticsOpen = true;
-    this.statisticsView.show(this.buildStatisticsViewState());
+    this.shellDestination = 'statistics';
+    this.appShell.setDestination('statistics');
+
+    const service = this.leaderboardService;
+    if (service === null || !service.available) {
+      this.leaderboardViewState = this.buildLeaderboardViewState({
+        status: 'unavailable',
+        entries: [],
+        playerEntry: null,
+        message: undefined,
+      });
+      this.statisticsPage.show(this.buildStatisticsPageState(), focusLeaderboard);
+      return;
+    }
+
+    this.leaderboardViewState = this.buildLeaderboardViewState({
+      status: 'loading',
+      entries: [],
+      playerEntry: null,
+      message: undefined,
+    });
+    this.statisticsPage.show(this.buildStatisticsPageState(), focusLeaderboard);
+    void this.loadLeaderboard(this.leaderboardMode);
   }
 
-  private closeStatistics(): void {
-    this.statisticsOpen = false;
-    this.statisticsView.hide();
-    this.playPage.show();
-    if (!this.rulesOpen) {
-      this.shellDestination = 'play';
-      this.appShell.setDestination('play');
+  private closeStatisticsPage(): void {
+    if (!this.statisticsOpen) {
+      return;
     }
+
+    this.statisticsOpen = false;
+    this.leaderboardAuthPending = false;
+    this.leaderboardRequestId += 1;
+    this.statisticsPage.hide();
   }
 
   private buildLeaderboardViewState(
-    overrides: Partial<LeaderboardViewState> = {},
-  ): LeaderboardViewState {
+    overrides: Partial<StatisticsPageLeaderboardState> = {},
+  ): StatisticsPageLeaderboardState {
     return {
       ...this.leaderboardViewState,
-      mode: this.leaderboardMode,
       authorized: this.leaderboardService?.authorized ?? false,
       authPending: this.leaderboardAuthPending,
       authorizationAllowed: this.canAuthorizeLeaderboard(),
@@ -780,69 +790,35 @@ export class GameScene extends Phaser.Scene {
   }
 
   private renderLeaderboardState(
-    overrides: Partial<LeaderboardViewState> = {},
+    overrides: Partial<StatisticsPageLeaderboardState> = {},
   ): void {
     this.leaderboardViewState = this.buildLeaderboardViewState(overrides);
-    this.leaderboardView.update(this.leaderboardViewState);
+    this.statisticsPage.update(this.buildStatisticsPageState());
   }
 
-  private openLeaderboard(): void {
-    const service = this.leaderboardService;
-    this.closeStatistics();
-    this.leaderboardOpen = true;
-    this.leaderboardMode = 'winnable';
-    this.leaderboardAuthPending = false;
-
-    if (service === null || !service.available) {
-      this.leaderboardViewState = this.buildLeaderboardViewState({
-        mode: 'winnable',
-        status: 'unavailable',
-        entries: [],
-        playerEntry: null,
-        message: undefined,
-      });
-      this.leaderboardView.show(this.leaderboardViewState);
-      return;
-    }
-
-    this.leaderboardViewState = this.buildLeaderboardViewState({
-      mode: 'winnable',
-      status: 'loading',
-      entries: [],
-      playerEntry: null,
-      message: undefined,
-    });
-    this.leaderboardView.show(this.leaderboardViewState);
-    void this.loadLeaderboard('winnable');
-  }
-
-  private closeLeaderboard(): void {
-    this.leaderboardOpen = false;
-    this.leaderboardAuthPending = false;
-    this.leaderboardRequestId += 1;
-    this.leaderboardView.hide();
-  }
-
-  private selectLeaderboardMode(mode: OrdinaryGameMode): void {
-    if (!this.leaderboardOpen || mode === this.leaderboardMode) {
+  private selectStatisticsMode(mode: OrdinaryGameMode): void {
+    if (!this.statisticsOpen || mode === this.leaderboardMode) {
       return;
     }
 
     this.leaderboardMode = mode;
+    const service = this.leaderboardService;
     this.renderLeaderboardState({
-      mode,
-      status: 'loading',
+      status: service !== null && service.available ? 'loading' : 'unavailable',
       entries: [],
       playerEntry: null,
       message: undefined,
     });
-    void this.loadLeaderboard(mode);
+
+    if (service !== null && service.available) {
+      void this.loadLeaderboard(mode);
+    }
   }
 
   private async loadLeaderboard(mode: OrdinaryGameMode): Promise<void> {
     const service = this.leaderboardService;
     if (service === null || !service.available) {
-      if (this.leaderboardOpen && mode === this.leaderboardMode) {
+      if (this.statisticsOpen && mode === this.leaderboardMode) {
         this.renderLeaderboardState({
           status: 'unavailable',
           entries: [],
@@ -856,7 +832,7 @@ export class GameScene extends Phaser.Scene {
     const result = await service.load(mode);
     if (
       requestId !== this.leaderboardRequestId
-      || !this.leaderboardOpen
+      || !this.statisticsOpen
       || mode !== this.leaderboardMode
     ) {
       return;
@@ -892,7 +868,7 @@ export class GameScene extends Phaser.Scene {
     const authorized = await service.requestAuthorization();
     this.leaderboardAuthPending = false;
 
-    if (!this.leaderboardOpen) {
+    if (!this.statisticsOpen) {
       return;
     }
 
@@ -905,7 +881,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     await this.syncHistoricalLeaderboardBests();
-    if (this.leaderboardOpen) {
+    if (this.statisticsOpen) {
       await this.loadLeaderboard(this.leaderboardMode);
     }
   }
@@ -928,13 +904,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (this.leaderboardOpen) {
-      this.closeLeaderboard();
-      return;
-    }
-
     if (this.statisticsOpen) {
-      this.closeStatistics();
+      this.navigateShell('play');
       return;
     }
 
@@ -947,15 +918,7 @@ export class GameScene extends Phaser.Scene {
       this.rulesView.hide();
     }
 
-    if (this.leaderboardOpen) {
-      this.closeLeaderboard();
-      return;
-    }
-
-    if (this.statisticsOpen) {
-      this.closeStatistics();
-      return;
-    }
+    this.closeStatisticsPage();
 
     if (this.flow.state !== 'menu-paused') {
       return;
@@ -985,8 +948,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.closeStatistics();
-    this.closeLeaderboard();
+    this.closeStatisticsPage();
     this.flow.selectMenuMode(mode);
     const deal = mode === 'daily'
       ? this.flow.playSelectedMode(this.dailyContext!.seed)
@@ -1143,13 +1105,12 @@ export class GameScene extends Phaser.Scene {
     window.removeEventListener('pagehide', this.handlePageHide);
     this.unsubscribeAccountSelection?.();
     this.unsubscribeAccountSelection = null;
-    this.leaderboardOpen = false;
+    this.statisticsOpen = false;
     this.leaderboardRequestId += 1;
     this.attemptTimer.reset();
-    this.leaderboardView.destroy();
+    this.statisticsPage.destroy();
     this.gameCompleteView.destroy();
     this.dailyCompleteView.destroy();
-    this.statisticsView.destroy();
     this.rulesView.destroy();
     this.playPage.destroy();
     this.appShell.destroy();

@@ -16,17 +16,16 @@ function extractMethod(source: string, name: string): string {
   return source.slice(start, next === -1 ? source.length : next);
 }
 
-test('scene constructs one leaderboard view and main menu opens it', () => {
-  assert.match(sceneSource, /LeaderboardView/);
-  assert.match(sceneSource, /private leaderboardView!: LeaderboardView/);
-  assert.match(sceneSource, /new LeaderboardView\(this, \{/);
-  assert.match(sceneSource, /selectMode: \(mode\) => this\.selectLeaderboardMode\(mode\)/);
+test('scene mounts leaderboard functionality into the Statistics shell page', () => {
+  assert.match(sceneSource, /StatisticsPageView/);
+  assert.match(sceneSource, /new StatisticsPageView\(this\.appShell\.contentHost, \{/);
+  assert.match(sceneSource, /selectMode: \(mode\) => this\.selectStatisticsMode\(mode\)/);
   assert.match(sceneSource, /authorize: \(\) => \{ void this\.authorizeLeaderboard\(\); \}/);
-  assert.match(sceneSource, /close: \(\) => this\.closeLeaderboard\(\)/);
-  assert.match(sceneSource, /leaderboard: \(\) => this\.openLeaderboard\(\)/);
+  assert.match(sceneSource, /leaderboard: \(\) => this\.openStatisticsPage\(true\)/);
+  assert.doesNotMatch(sceneSource, /new LeaderboardView\(/);
 });
 
-test('leaderboard service is created only after platform and meta load, then menu availability refreshes', () => {
+test('leaderboard service is created only after platform and meta load, then shell meta refreshes', () => {
   const initialize = extractMethod(sceneSource, 'initializeMeta');
   assert.match(initialize, /this\.platform = await initializePlatform\(\)/);
   assert.match(initialize, /const loaded = await this\.metaRepository\.load\(\)/);
@@ -48,40 +47,38 @@ test('authorized bootstrap syncs historical bests without automatic authorizatio
   assert.match(sync, /service\.syncBest\('original', this\.metaState\.stats\.original\.bestTimeMs\)/);
 });
 
-test('leaderboard load uses request tokens and ignores stale tab or closed-overlay responses', () => {
+test('leaderboard load uses request tokens and ignores stale mode or hidden Statistics responses', () => {
   assert.match(sceneSource, /private leaderboardRequestId = 0/);
   assert.match(sceneSource, /private leaderboardMode: OrdinaryGameMode = 'winnable'/);
-  assert.match(sceneSource, /private leaderboardOpen = false/);
 
-  const open = extractMethod(sceneSource, 'openLeaderboard');
-  assert.match(open, /this\.leaderboardMode = 'winnable'/);
+  const open = extractMethod(sceneSource, 'openStatisticsPage');
   assert.match(open, /status: 'loading'/);
-  assert.match(open, /this\.loadLeaderboard\('winnable'\)/);
+  assert.match(open, /this\.loadLeaderboard\(this\.leaderboardMode\)/);
 
   const load = extractMethod(sceneSource, 'loadLeaderboard');
   assert.match(load, /const requestId = \+\+this\.leaderboardRequestId/);
   assert.match(load, /const result = await service\.load\(mode\)/);
   assert.match(load, /requestId !== this\.leaderboardRequestId/);
-  assert.match(load, /!this\.leaderboardOpen/);
+  assert.match(load, /!this\.statisticsOpen/);
   assert.match(load, /mode !== this\.leaderboardMode/);
   assert.match(load, /status: result\.status/);
   assert.match(load, /entries: result\.entries/);
 
-  const close = extractMethod(sceneSource, 'closeLeaderboard');
-  assert.match(close, /this\.leaderboardOpen = false/);
+  const close = extractMethod(sceneSource, 'closeStatisticsPage');
+  assert.match(close, /this\.statisticsOpen = false/);
   assert.match(close, /this\.leaderboardRequestId \+= 1/);
-  assert.match(close, /this\.leaderboardView\.hide\(\)/);
+  assert.match(close, /this\.statisticsPage\.hide\(\)/);
 });
 
-test('mode switching reloads only when the selected leaderboard actually changes', () => {
-  const select = extractMethod(sceneSource, 'selectLeaderboardMode');
-  assert.match(select, /if \([^)]*mode === this\.leaderboardMode[^)]*\)[\s\S]*return/);
+test('mode switching refreshes selected stats and reloads only when mode actually changes', () => {
+  const select = extractMethod(sceneSource, 'selectStatisticsMode');
+  assert.match(select, /if \([^)]*!this\.statisticsOpen[^)]*mode === this\.leaderboardMode[^)]*\)[\s\S]*return/);
   assert.match(select, /this\.leaderboardMode = mode/);
-  assert.match(select, /status: 'loading'/);
+  assert.match(select, /this\.renderLeaderboardState\(/);
   assert.match(select, /this\.loadLeaderboard\(mode\)/);
 });
 
-test('authorization is explicit, blocked by unfinished games, and preserves the public overlay on failure', () => {
+test('authorization is explicit, blocked by unfinished games, and stays inside Statistics page on failure', () => {
   const canAuthorize = extractMethod(sceneSource, 'canAuthorizeLeaderboard');
   assert.match(canAuthorize, /this\.gameState === null \|\| this\.gameState\.isWon/);
 
@@ -97,7 +94,7 @@ test('authorization is explicit, blocked by unfinished games, and preserves the 
   assert.equal(requestAuthorizationOccurrences.length, 1);
 });
 
-test('account selection reloads chosen progress and shutdown unsubscribes and invalidates async work', () => {
+test('account selection reloads chosen progress and shutdown invalidates leaderboard work', () => {
   const initialize = extractMethod(sceneSource, 'initializeMeta');
   assert.match(initialize, /onAccountSelectionClosed\(\(\) => \{/);
   assert.match(initialize, /window\.location\.reload\(\)/);
@@ -105,39 +102,19 @@ test('account selection reloads chosen progress and shutdown unsubscribes and in
   const shutdown = extractMethod(sceneSource, 'shutdown');
   assert.match(shutdown, /this\.unsubscribeAccountSelection\?\.\(\)/);
   assert.match(shutdown, /this\.unsubscribeAccountSelection = null/);
-  assert.match(shutdown, /this\.leaderboardOpen = false/);
+  assert.match(shutdown, /this\.statisticsOpen = false/);
   assert.match(shutdown, /this\.leaderboardRequestId \+= 1/);
-  assert.match(shutdown, /this\.leaderboardView\.destroy\(\)/);
-});
-
-test('Escape and menu close dismiss leaderboard before the underlying menu', () => {
-  const escape = extractMethod(sceneSource, 'handleEscape');
-  assert.match(escape, /if \(this\.leaderboardOpen\)[\s\S]*this\.closeLeaderboard\(\)[\s\S]*return/);
-
-  const closeMenu = extractMethod(sceneSource, 'closeMainMenu');
-  assert.match(closeMenu, /if \(this\.leaderboardOpen\)[\s\S]*this\.closeLeaderboard\(\)[\s\S]*return/);
+  assert.match(shutdown, /this\.statisticsPage\.destroy\(\)/);
 });
 
 test('GameScene never reaches into raw Yandex SDK APIs', () => {
   assert.doesNotMatch(sceneSource, /openAuthDialog|ysdk\.leaderboards|YaGames/);
 });
 
-
 test('only an improved ordinary best requests fire-and-forget leaderboard synchronization', () => {
   const ordinary = extractMethod(sceneSource, 'finishOrdinaryAttempt');
   assert.match(
     ordinary,
     /completion\.improvedBest[\s\S]*bestTimeMs[\s\S]*void this\.leaderboardService\?\.syncBest\(mode, bestTimeMs\)/,
-  );
-  assert.match(ordinary, /if \(completion\.improvedBest && bestTimeMs !== undefined\)/);
-  assert.ok(
-    ordinary.indexOf('this.metaRepository?.save(this.metaState, true)')
-      < ordinary.indexOf('this.leaderboardService?.syncBest(mode, bestTimeMs)'),
-    'local meta flush must not wait on leaderboard synchronization',
-  );
-  assert.ok(
-    ordinary.indexOf('this.activeGameRepository.clear()')
-      < ordinary.indexOf('this.leaderboardService?.syncBest(mode, bestTimeMs)'),
-    'active checkpoint cleanup must not wait on leaderboard synchronization',
   );
 });

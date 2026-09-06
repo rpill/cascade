@@ -169,8 +169,9 @@ export class PlayPageView {
   }
 
   updateLeaderboardsAvailable(available: boolean): void {
-    this.leaderboardButton.disabled = !available;
-    this.leaderboardButton.setAttribute('aria-disabled', String(!available));
+    this.leaderboardButton.dataset.available = String(available);
+    this.leaderboardButton.disabled = false;
+    this.leaderboardButton.removeAttribute('aria-disabled');
   }
 
   setSelectedMode(mode: GameMode | null): void {
