@@ -11,6 +11,10 @@ if (!(host instanceof HTMLElement)) {
   throw new Error('Cascade Solitaire requires a #game host element.');
 }
 
+host.addEventListener('contextmenu', (event) => {
+  event.preventDefault();
+});
+
 void startWhenHostReady(
   () => {
     const bounds = host.getBoundingClientRect();

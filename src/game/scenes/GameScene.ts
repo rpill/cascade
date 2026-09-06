@@ -13,9 +13,13 @@ import {
   type LeaderboardViewState,
 } from '../view/LeaderboardView.ts';
 import {
-  MainMenuView,
+  AppShellView,
+  type ShellDestination,
+} from '../view/AppShellView.ts';
+import {
+  PlayPageView,
   type DailyMenuState,
-} from '../view/MainMenuView.ts';
+} from '../view/PlayPageView.ts';
 import {
   StatisticsView,
   type StatisticsViewState,
@@ -81,7 +85,8 @@ export class GameScene extends Phaser.Scene {
   private board: BoardView | null = null;
   private gameControls: GameControlsView | null = null;
   private gameState: SolitaireGame | null = null;
-  private mainMenu!: MainMenuView;
+  private appShell!: AppShellView;
+  private playPage!: PlayPageView;
   private statisticsView!: StatisticsView;
   private statisticsOpen = false;
   private dailyCompleteView!: DailyCompleteView;
@@ -130,11 +135,13 @@ export class GameScene extends Phaser.Scene {
     this.applyViewportLayout();
     this.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this);
     this.flow = new GameFlow();
-    this.mainMenu = new MainMenuView(this, {
-      play: (mode) => this.playMenuMode(mode),
-      statistics: () => this.openStatistics(),
-      leaderboard: () => this.openLeaderboard(),
+    this.appShell = new AppShellView(this, {
+      navigate: (destination) => this.navigateShell(destination),
       cancel: () => this.closeMainMenu(),
+    });
+    this.playPage = new PlayPageView(this.appShell.contentHost, {
+      play: (mode) => this.playMenuMode(mode),
+      leaderboard: () => this.openLeaderboard(),
     });
     this.statisticsView = new StatisticsView(this, {
       close: () => this.closeStatistics(),
@@ -161,12 +168,7 @@ export class GameScene extends Phaser.Scene {
     const restoredOrdinary = this.tryRestoreOrdinarySession();
 
     if (!restoredOrdinary) {
-      this.mainMenu.show({
-        canCancel: false,
-        selectedMode: this.flow.selectedMode,
-        daily: this.buildDailyMenuState(),
-        leaderboardsAvailable: this.leaderboardService?.available ?? false,
-      });
+      this.showShellPlay(false);
     }
 
     this.input.keyboard?.on('keydown-R', this.restartDeal, this);
@@ -283,8 +285,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private refreshMenuMeta(): void {
-    this.mainMenu.updateDailyState(this.buildDailyMenuState());
-    this.mainMenu.updateLeaderboardsAvailable(
+    this.playPage.updateDailyState(this.buildDailyMenuState());
+    this.playPage.updateLeaderboardsAvailable(
       this.leaderboardService?.available ?? false,
     );
     this.statisticsView.update(this.buildStatisticsViewState());
@@ -307,14 +309,9 @@ export class GameScene extends Phaser.Scene {
     this.startDeal(deal, { restored: save });
 
     if (save.uiState === 'menu-paused') {
-      this.mainMenu.show({
-        canCancel: this.flow.canCancelMenu,
-        selectedMode: this.flow.selectedMode,
-        daily: this.buildDailyMenuState(),
-        leaderboardsAvailable: this.leaderboardService?.available ?? false,
-      });
+      this.showShellPlay(this.flow.canCancelMenu);
     } else {
-      this.mainMenu.hide();
+      this.appShell.hide();
     }
 
     return true;
@@ -346,14 +343,9 @@ export class GameScene extends Phaser.Scene {
     this.startDeal(deal, { restored: save });
 
     if (save.uiState === 'menu-paused') {
-      this.mainMenu.show({
-        canCancel: this.flow.canCancelMenu,
-        selectedMode: this.flow.selectedMode,
-        daily: this.buildDailyMenuState(),
-        leaderboardsAvailable: this.leaderboardService?.available ?? false,
-      });
+      this.showShellPlay(this.flow.canCancelMenu);
     } else {
-      this.mainMenu.hide();
+      this.appShell.hide();
     }
 
     return true;
@@ -618,7 +610,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.flow.state === 'menu-paused') {
       this.flow.cancelMenu();
-      this.mainMenu.hide();
+      this.appShell.hide();
     }
 
     this.dailyCompleteView.show({
@@ -672,15 +664,44 @@ export class GameScene extends Phaser.Scene {
       this.checkpointActiveGame(this.gameState);
     }
 
-    this.mainMenu.show({
-      canCancel: this.flow.canCancelMenu,
-      selectedMode: this.flow.selectedMode,
-      daily: this.buildDailyMenuState(),
-      leaderboardsAvailable: this.leaderboardService?.available ?? false,
-    });
+    this.showShellPlay(this.flow.canCancelMenu);
+  }
+
+  private showShellPlay(canCancel: boolean): void {
+    this.playPage.setSelectedMode(this.flow.selectedMode);
+    this.playPage.updateDailyState(this.buildDailyMenuState());
+    this.playPage.updateLeaderboardsAvailable(
+      this.leaderboardService?.available ?? false,
+    );
+    this.playPage.show();
+    this.appShell.show({ canCancel, destination: 'play' });
+  }
+
+  private navigateShell(destination: ShellDestination): void {
+    if (destination === 'play') {
+      this.closeStatistics();
+      this.closeLeaderboard();
+      this.playPage.show();
+      this.appShell.setDestination('play');
+      return;
+    }
+
+    if (destination === 'statistics') {
+      this.appShell.setDestination('statistics');
+      this.openStatistics();
+      return;
+    }
+
+    if (destination === 'rules') {
+      this.closeStatistics();
+      this.closeLeaderboard();
+      this.playPage.hide();
+      this.appShell.setDestination('rules');
+    }
   }
 
   private openStatistics(): void {
+    this.playPage.hide();
     this.statisticsOpen = true;
     this.statisticsView.show(this.buildStatisticsViewState());
   }
@@ -688,6 +709,8 @@ export class GameScene extends Phaser.Scene {
   private closeStatistics(): void {
     this.statisticsOpen = false;
     this.statisticsView.hide();
+    this.playPage.show();
+    this.appShell.setDestination('play');
   }
 
   private buildLeaderboardViewState(
@@ -872,7 +895,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.flow.cancelMenu()) {
-      this.mainMenu.hide();
+      this.appShell.hide();
       this.reconcileGameplayActivity();
       if (this.gameState !== null) {
         this.checkpointActiveGame(this.gameState);
@@ -894,7 +917,7 @@ export class GameScene extends Phaser.Scene {
     const deal = mode === 'daily'
       ? this.flow.playSelectedMode(this.dailyContext!.seed)
       : this.flow.playSelectedMode();
-    this.mainMenu.hide();
+    this.appShell.hide();
     this.dailyCompleteView.hide();
     this.gameCompleteView.hide();
     this.board?.destroy();
@@ -1053,7 +1076,8 @@ export class GameScene extends Phaser.Scene {
     this.gameCompleteView.destroy();
     this.dailyCompleteView.destroy();
     this.statisticsView.destroy();
-    this.mainMenu.destroy();
+    this.playPage.destroy();
+    this.appShell.destroy();
     this.gameControls?.destroy();
     this.gameControls = null;
     this.board?.destroy();

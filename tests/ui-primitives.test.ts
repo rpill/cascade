@@ -92,3 +92,22 @@ test('new-deal glyph reads as fanned cards with a visible card mark and plus', (
   assert.equal(svg.querySelectorAll('[data-card-mark]').length, 1);
   assert.equal(svg.querySelectorAll('[data-plus]').length, 1);
 });
+
+
+test('shared icon vocabulary includes Home presentation glyphs', () => {
+  for (const icon of ['spade', 'heart', 'crown', 'calendar', 'trophy'] as const) {
+    const svg = createUiIcon(icon);
+    assert.equal(svg.dataset.icon, icon);
+    assert.equal(svg.children.length > 0, true);
+  }
+});
+
+test('Home display icons use bolder silhouette treatment than compact HUD glyphs', () => {
+  const crown = createUiIcon('crown');
+  assert.equal(crown.children[0]?.getAttribute('fill'), 'currentColor');
+
+  for (const icon of ['calendar', 'trophy'] as const) {
+    const svg = createUiIcon(icon);
+    assert.equal(svg.children[0]?.getAttribute('stroke-width'), '2.2');
+  }
+});

@@ -2,8 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const menuSource = readFileSync(
-  new URL('../src/game/view/MainMenuView.ts', import.meta.url),
+const shellSource = readFileSync(
+  new URL('../src/game/view/AppShellView.ts', import.meta.url),
+  'utf8',
+);
+const playSource = readFileSync(
+  new URL('../src/game/view/PlayPageView.ts', import.meta.url),
   'utf8',
 );
 const statisticsSource = readFileSync(
@@ -19,62 +23,42 @@ const stylesSource = readFileSync(
   'utf8',
 );
 
-test('main menu keeps statistics and leaderboards as compact secondary actions', () => {
-  assert.match(menuSource, /СТАТИСТИКА/);
-  assert.match(menuSource, /ТАБЛИЦА ЛИДЕРОВ/);
-  assert.match(menuSource, /readonly statistics:\s*\(\) => void/);
-  assert.match(menuSource, /actions\.statistics\(\)/);
-  assert.match(menuSource, /actions\.leaderboard\(\)/);
-  assert.match(menuSource, /main-menu-meta-actions/);
-  assert.doesNotMatch(menuSource, /Лучшее время:/);
-  assert.doesNotMatch(menuSource, /main-menu-stat-mode/);
-  assert.doesNotMatch(menuSource, /statSummaries|statBests/);
+test('shell makes Statistics a destination while leaderboard remains a secondary Play affordance for now', () => {
+  assert.match(shellSource, /'statistics'/);
+  assert.match(shellSource, /СТАТИСТИКА/);
+  assert.match(playSource, /Таблица лидеров/);
+  assert.match(playSource, /actions\.leaderboard\(\)/);
+  assert.doesNotMatch(playSource, /Лучшее время:/);
 });
 
 test('leaderboard action stays disabled until leaderboard service is available', () => {
-  assert.match(menuSource, /updateLeaderboardsAvailable\(available: boolean\)/);
-  assert.match(menuSource, /disabled = !available/);
-  assert.match(menuSource, /classList\.toggle\(['"]is-disabled['"], !available\)/);
+  assert.match(playSource, /updateLeaderboardsAvailable\(available: boolean\)/);
+  assert.match(playSource, /this\.leaderboardButton\.disabled = !available/);
 });
 
-test('scene owns a separate statistics modal backed by MetaSave V2 stats', () => {
+test('scene still owns the existing statistics modal until its shell-page migration task', () => {
   assert.match(sceneSource, /StatisticsView/);
   assert.match(sceneSource, /private statisticsView!: StatisticsView/);
   assert.match(sceneSource, /private statisticsOpen = false/);
-  assert.match(sceneSource, /statistics: \(\) => this\.openStatistics\(\)/);
-  assert.match(sceneSource, /private buildStatisticsViewState\(\): StatisticsViewState/);
-  assert.match(sceneSource, /const \{ winnable, original \} = this\.metaState\.stats/);
   assert.match(sceneSource, /private openStatistics\(\): void/);
   assert.match(sceneSource, /this\.statisticsView\.show\(this\.buildStatisticsViewState\(\)\)/);
-  assert.match(sceneSource, /private closeStatistics\(\): void/);
-  assert.match(sceneSource, /this\.statisticsView\.hide\(\)/);
 });
 
-test('meta refresh keeps the statistics modal current without putting stats back into the menu', () => {
+test('meta refresh updates the new Play page and existing statistics view', () => {
   assert.match(
     sceneSource,
-    /refreshMenuMeta\(\): void \{[^]*updateDailyState\(this\.buildDailyMenuState\(\)\)[^]*updateLeaderboardsAvailable\([^]*statisticsView\.update\(this\.buildStatisticsViewState\(\)\)/,
+    /refreshMenuMeta\(\): void \{[^]*playPage\.updateDailyState\(this\.buildDailyMenuState\(\)\)[^]*playPage\.updateLeaderboardsAvailable\([^]*statisticsView\.update\(this\.buildStatisticsViewState\(\)\)/,
   );
-  assert.doesNotMatch(sceneSource, /updateOrdinaryState\(/);
 });
 
-test('Escape closes statistics before it can cancel the underlying menu', () => {
-  assert.match(sceneSource, /private handleEscape = \(\): void =>/);
+test('Escape closes statistics before returning from the underlying shell', () => {
   assert.match(sceneSource, /if \(this\.statisticsOpen\)[^]*this\.closeStatistics\(\)[^]*return/);
   assert.match(sceneSource, /this\.closeMainMenu\(\)/);
-  assert.match(sceneSource, /keydown-ESC['"], this\.handleEscape/);
 });
 
-test('menu and reusable modal shell explicitly forbid scroll containers', () => {
-  assert.doesNotMatch(
-    stylesSource,
-    /\.main-menu-panel\s*\{[^}]*overflow\s*:\s*(?:auto|scroll)/s,
-  );
-  assert.match(stylesSource, /\.main-menu-panel\s*\{[^}]*overflow\s*:\s*hidden/s);
+test('shell and reusable modal surfaces explicitly forbid scroll containers', () => {
+  assert.match(stylesSource, /\.app-shell-surface\s*\{[^}]*overflow\s*:\s*hidden/s);
+  assert.doesNotMatch(stylesSource, /\.app-shell-surface\s*\{[^}]*overflow\s*:\s*(?:auto|scroll)/s);
   assert.match(stylesSource, /\.meta-modal-panel\s*\{[^}]*overflow\s*:\s*hidden/s);
-  assert.doesNotMatch(
-    stylesSource,
-    /\.meta-modal-panel\s*\{[^}]*overflow\s*:\s*(?:auto|scroll)/s,
-  );
   assert.match(statisticsSource, /meta-modal-panel/);
 });

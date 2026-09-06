@@ -27,8 +27,8 @@ const boardSource = readFileSync(
   'utf8',
 );
 
-const menuSource = readFileSync(
-  new URL('../src/game/view/MainMenuView.ts', import.meta.url),
+const shellSource = readFileSync(
+  new URL('../src/game/view/AppShellView.ts', import.meta.url),
   'utf8',
 );
 
@@ -56,10 +56,10 @@ test('boot loads stable raster card textures instead of runtime SVGs', () => {
 test('text-heavy controls live in screen-space DOM outside the camera transform', () => {
   assert.doesNotMatch(mainSource, /createContainer:\s*true/);
   assert.doesNotMatch(boardSource, /scene\.add\.dom\(/);
-  assert.doesNotMatch(menuSource, /scene\.add\.dom\(/);
+  assert.doesNotMatch(shellSource, /scene\.add\.dom\(/);
   assert.match(controlsSource, /canvas\.parentElement/);
-  assert.match(menuSource, /canvas\.parentElement/);
-  assert.doesNotMatch(menuSource, /scene\.add\.text\(/);
+  assert.match(shellSource, /canvas\.parentElement/);
+  assert.doesNotMatch(shellSource, /scene\.add\.text\(/);
 });
 
 test('dev and build do not depend on runtime SVG asset generation', () => {
