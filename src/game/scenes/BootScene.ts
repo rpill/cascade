@@ -4,6 +4,7 @@ import { SUITS, type Suit } from '../model/types.ts';
 import { getTheme } from '../../theme/ThemeRegistry.ts';
 import { resolveThemeId } from '../../theme/ThemeSelection.ts';
 import type { ThemeAssetRef } from '../../theme/ThemeDefinition.ts';
+import { getThemeAssets } from '../../theme/ThemeAssets.ts';
 
 const SUIT_FILE: Record<Suit, string> = {
   clubs: 'club',
@@ -29,14 +30,7 @@ export class BootScene extends Phaser.Scene {
   preload(): void {
     const theme = getTheme(resolveThemeId(window.location.search));
 
-    this.loadThemeAsset(theme.boardSurface);
-    this.loadThemeAsset(theme.cardBack);
-
-    if (theme.slots !== undefined) {
-      this.loadThemeAsset(theme.slots.tableauEmpty);
-      this.loadThemeAsset(theme.slots.stockFreeCell);
-      SUITS.forEach((suit) => this.loadThemeAsset(theme.slots?.foundations[suit]));
-    }
+    getThemeAssets(theme).forEach(asset => this.loadThemeAsset(asset));
 
     SUITS.forEach((suit) => {
       for (let rank = 1; rank <= 13; rank += 1) {
@@ -55,9 +49,7 @@ export class BootScene extends Phaser.Scene {
     this.scene.start('GameScene');
   }
 
-  private loadThemeAsset(asset: ThemeAssetRef | undefined): void {
-    if (asset !== undefined) {
-      this.load.image(asset.key, asset.url);
-    }
+  private loadThemeAsset(asset: ThemeAssetRef): void {
+    this.load.image(asset.key, asset.url);
   }
 }

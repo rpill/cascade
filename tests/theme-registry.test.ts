@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { getSlotAsset } from '../src/theme/ThemeAssets.ts';
 
 import {
   DEFAULT_THEME_ID,
@@ -20,8 +21,8 @@ test('Green Felt Club is a complete registry theme', () => {
   assert.equal(theme.id, 'green_felt_club');
   assert.match(theme.boardSurface.url, /green-felt-club\/board-surface\.jpg$/);
   assert.match(theme.cardBack.url, /green-felt-club\/card-back\.png$/);
-  assert.match(theme.slots?.tableauEmpty.url ?? '', /green-felt-club\/slots\/tableau-empty\.png$/);
-  assert.match(theme.slots?.stockFreeCell.url ?? '', /green-felt-club\/slots\/stock-free-cell\.png$/);
+  assert.match(getSlotAsset(theme, 'tableau').url, /green-felt-club\/slots\/tableau-empty\.png$/);
+  assert.match(getSlotAsset(theme, 'stock').url, /green-felt-club\/slots\/stock-free-cell\.png$/);
 });
 
 test('unknown ids never escape the registry and fall back to Walnut', () => {

@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 
 import type { GameMode } from '../model/types.ts';
+import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
 import { createIconControl } from './ui/UiControls.ts';
 import './GameControlsView.css';
 
@@ -32,10 +33,11 @@ export class GameControlsView {
   private readonly modeLabel: HTMLDivElement;
   private readonly newDealButton: HTMLButtonElement;
 
-  constructor(scene: Phaser.Scene, actions: GameControlsActions) {
+  constructor(scene: Phaser.Scene, actions: GameControlsActions, theme: ThemeDefinition) {
     this.root = document.createElement('div');
     this.root.className = 'game-hud';
     this.root.style.setProperty('--game-hud-paper', toCssUrl(HUD_PAPER_TEXTURE));
+    this.setTheme(theme);
 
     this.modeLabel = document.createElement('div');
     this.modeLabel.className = 'game-mode-label';
@@ -78,6 +80,18 @@ export class GameControlsView {
   setMode(mode: GameMode): void {
     this.modeLabel.textContent = MODE_LABELS[mode];
     this.setDaily(mode === 'daily');
+  }
+
+  setTheme(theme: ThemeDefinition): void {
+    this.root.dataset.theme = theme.id;
+    const palette = theme.controls;
+    this.root.style.setProperty('--game-control-surface', palette.surface);
+    this.root.style.setProperty('--game-control-hover', palette.hover);
+    this.root.style.setProperty('--game-control-ink', palette.ink);
+    this.root.style.setProperty('--game-control-edge', palette.edge);
+    this.root.style.setProperty('--game-label-surface', palette.labelSurface);
+    this.root.style.setProperty('--game-label-ink', palette.labelInk);
+    this.root.style.setProperty('--game-focus', palette.focus);
   }
 
   setDaily(isDaily: boolean): void {

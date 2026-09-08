@@ -1,9 +1,9 @@
 /*
- * Walnut gameplay polish.
+ * Gameplay chrome. Material colors come from the active theme.
  *
  * This stylesheet deliberately scopes the gameplay treatment to .game-hud.
- * Gameplay controls reuse the same parchment / brown / brass material family
- * as the main menu while preserving the existing HUD geometry and hit areas.
+ * Gameplay controls share a paper material with the menu; the theme supplies
+ * their palette while geometry and hit areas stay consistent.
  */
 
 .game-hud {
@@ -15,8 +15,7 @@
   text-rendering: optimizeLegibility;
 }
 
-/* The old perimeter line made the gameplay surface feel like a framed UI
-   panel. During an active board the wood itself is the edge of the scene. */
+/* The active playing surface is full bleed, with no perimeter frame. */
 #game:has(.game-hud)::after {
   display: none;
 }
@@ -42,15 +41,15 @@
   align-items: center;
   justify-content: center;
   padding: 5px 12px 4px;
-  border: 1px solid rgba(150, 112, 58, 0.78);
+  border: 1px solid color-mix(in srgb, var(--game-control-edge) 78%, transparent);
   border-radius: 5px;
   background:
     linear-gradient(rgba(255, 229, 164, 0.04), rgba(0, 0, 0, 0.12)),
-    rgba(37, 23, 14, 0.92);
+    var(--game-label-surface);
   box-shadow:
     inset 0 0 0 1px rgba(220, 181, 101, 0.09),
     0 2px 6px rgba(10, 6, 4, 0.26);
-  color: #d2b273;
+  color: var(--game-label-ink);
   font: 700 12px/1 Georgia, "Times New Roman", serif;
   letter-spacing: 0.115em;
   text-transform: uppercase;
@@ -63,27 +62,27 @@
   height: var(--ui-hit-size, 44px);
   box-sizing: border-box;
   padding: 9px;
-  border: 1px solid rgba(103, 71, 38, 0.86);
+  border: 1px solid var(--game-control-edge);
   border-radius: 50%;
   background:
     linear-gradient(180deg, rgba(255, 249, 222, 0.34), rgba(91, 59, 29, 0.05)),
     var(--game-hud-paper) center / cover no-repeat;
-  background-color: #dcc58e;
+  background-color: var(--game-control-surface);
   background-blend-mode: multiply, multiply;
   box-shadow:
     inset 0 0 0 1px rgba(255, 239, 194, 0.58),
     0 5px 12px rgba(13, 8, 4, 0.42);
-  color: #35261a;
+  color: var(--game-control-ink);
 }
 
 .game-hud .ui-icon-control:hover {
-  border-color: rgba(124, 86, 45, 0.94);
+  border-color: var(--game-control-edge);
   background:
     linear-gradient(180deg, rgba(255, 251, 230, 0.48), rgba(91, 59, 29, 0.025)),
     var(--game-hud-paper) center / cover no-repeat;
-  background-color: #e2cd9c;
+  background-color: var(--game-control-hover);
   background-blend-mode: multiply, multiply;
-  color: #2f2117;
+  color: var(--game-control-ink);
 }
 
 .game-hud .ui-icon-control:active {
@@ -94,7 +93,7 @@
 }
 
 .game-hud .ui-icon-control:focus-visible {
-  outline: 2px solid var(--ui-oxblood, #7a312a);
+  outline: 2px solid var(--game-focus);
   outline-offset: 2px;
 }
 

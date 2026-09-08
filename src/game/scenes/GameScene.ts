@@ -62,6 +62,7 @@ import { LeaderboardService } from '../../leaderboards/LeaderboardService.ts';
 import { getTheme } from '../../theme/ThemeRegistry.ts';
 import { resolveThemeId } from '../../theme/ThemeSelection.ts';
 import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
+import { loadTheme } from '../../theme/ThemeLoader.ts';
 
 interface DailyContext {
   readonly dailyId: string;
@@ -128,6 +129,7 @@ export class GameScene extends Phaser.Scene {
   private metaState: MetaSave = createDefaultMetaSave();
   private dailyContext: DailyContext | null = null;
   private activeTheme!: ThemeDefinition;
+  private themeRequest = 0;
 
   constructor() {
     super('GameScene');
@@ -191,6 +193,7 @@ export class GameScene extends Phaser.Scene {
     this.metaRepository = new MetaRepository(this.platform.playerStorage);
     const loaded = await this.metaRepository.load();
     this.metaState = this.metaMutations.settleLoadedState(loaded);
+    void this.setTheme(resolveThemeId(window.location.search, this.metaState.equipped.theme));
     if (this.lastOrdinaryCompletion !== null) {
       const completion = this.lastOrdinaryCompletion;
       const loadedBest = loaded.stats[completion.mode].bestTimeMs;
@@ -357,6 +360,21 @@ export class GameScene extends Phaser.Scene {
     return true;
   }
 
+  /** Collection integration point: preload, then replace the full cosmetic bundle. */
+  async setTheme(id: string): Promise<boolean> {
+    if (this.sys.settings.status >= Phaser.Scenes.SHUTDOWN) return false;
+    const request = ++this.themeRequest;
+    const theme = getTheme(id);
+    if (!await loadTheme(this, theme) || request !== this.themeRequest
+      || this.sys.settings.status >= Phaser.Scenes.SHUTDOWN) {
+      return false;
+    }
+    this.activeTheme = theme;
+    this.board?.setTheme(theme);
+    this.gameControls?.setTheme(theme);
+    return true;
+  }
+
   private startDeal(deal: Deal, options: StartDealOptions = {}): void {
     const restored = options.restored;
 
@@ -400,7 +418,7 @@ export class GameScene extends Phaser.Scene {
       restart: () => this.restartDeal(),
       newDeal: () => this.startNewDeal(),
       home: () => this.openMainMenu(),
-    });
+    }, this.activeTheme);
     this.gameControls.setMode(gameState.mode);
     this.gameControls.setDaily(gameState.mode === 'daily');
 
@@ -1094,6 +1112,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private shutdown(): void {
+    this.themeRequest += 1;
     this.setGameplayMarkupActive(false);
     this.unsubscribePlatformPause?.();
     this.unsubscribePlatformPause = null;

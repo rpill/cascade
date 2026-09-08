@@ -1,39 +1,59 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { EventEmitter } from 'node:events';
+import { loadTheme } from '../src/theme/ThemeLoader.ts';
+import { getThemeAssets } from '../src/theme/ThemeAssets.ts';
+import { getTheme } from '../src/theme/ThemeRegistry.ts';
 
-const bootSource = readFileSync(new URL('../src/game/scenes/BootScene.ts', import.meta.url), 'utf8');
-const sceneSource = readFileSync(new URL('../src/game/scenes/GameScene.ts', import.meta.url), 'utf8');
-const boardSource = readFileSync(new URL('../src/game/view/BoardView.ts', import.meta.url), 'utf8');
-const themeSource = readFileSync(new URL('../src/theme/ThemeDefinition.ts', import.meta.url), 'utf8');
-const registrySource = readFileSync(new URL('../src/theme/ThemeRegistry.ts', import.meta.url), 'utf8');
+// Only the external downloader is simulated; exercise the real bundle loader.
+function downloadingScene() {
+  const loaded = new Set();
+  const queued = [];
+  const load = new EventEmitter();
+  let loading = false;
+  load.image = (key, url) => queued.push({key, url});
+  load.isLoading = () => loading;
+  load.start = () => { loading = true; };
+  return {scene: {load, events: new EventEmitter(), textures: {exists: key => loaded.has(key)}}, loaded, queued};
+}
 
-test('BootScene preloads the selected theme board, card back, and slot assets', () => {
-  assert.match(bootSource, /resolveThemeId\(/);
-  assert.match(bootSource, /getTheme\(/);
-  assert.match(bootSource, /loadThemeAsset\(theme\.boardSurface\)/);
-  assert.match(bootSource, /this\.load\.image\(asset\.key, asset\.url\)/);
-  assert.match(bootSource, /loadThemeAsset\(theme\.cardBack\)/);
-  assert.match(bootSource, /theme\.slots/);
+test('incomplete downloads cannot authorize a partial theme switch', async () => {
+  const {scene, loaded, queued} = downloadingScene();
+  const result = loadTheme(scene, getTheme());
+  queued.slice(1).forEach(asset => loaded.add(asset.key));
+  scene.load.emit('complete');
+  assert.equal(await result, false);
+  assert.equal(scene.events.listenerCount('shutdown'), 0);
 });
 
-test('GameScene passes the selected theme into BoardView', () => {
-  assert.match(sceneSource, /resolveThemeId\(/);
-  assert.match(sceneSource, /getTheme\(/);
-  assert.match(sceneSource, /new BoardView\([\s\S]*activeTheme/s);
+test('cached theme skips downloads and a complete download succeeds', async () => {
+  const {scene, loaded, queued} = downloadingScene();
+  const theme = getTheme();
+  const result = loadTheme(scene, theme);
+  assert.equal(queued.length, 8);
+  queued.forEach(asset => loaded.add(asset.key));
+  scene.load.emit('complete');
+  assert.equal(await result, true);
+  queued.length = 0;
+  assert.equal(await loadTheme(scene, theme), true);
+  assert.equal(queued.length, 0);
 });
 
-test('BoardView uses theme assets for surface, card back, and slot placeholders only', () => {
-  assert.match(boardSource, /getBoardTexture\(this\.theme\)/);
-  assert.match(boardSource, /theme\.cardBack\.key/);
-  assert.match(boardSource, /theme\.slots/);
-  assert.doesNotMatch(boardSource, /shellEnvironment|shellAccent|cursor/);
+test('shutdown cancels pending loading and releases listeners', async () => {
+  const {scene} = downloadingScene();
+  const result = loadTheme(scene, getTheme());
+  scene.events.emit('shutdown');
+  assert.equal(await result, false);
+  assert.equal(scene.load.listenerCount('complete'), 0);
 });
 
-test('theme contract contains only gameplay-table cosmetics, not shell or cursor skinning', () => {
-  assert.match(themeSource, /boardSurface/);
-  assert.match(themeSource, /cardBack/);
-  assert.match(themeSource, /slots/);
-  assert.doesNotMatch(themeSource, /shellEnvironment|shellDetail|cursor|shellAccent/);
-  assert.doesNotMatch(registrySource, /shellEnvironment|shellDetail|cursor|shellAccent/);
+test('a failed bundle can retry only its missing resources', async () => {
+  const {scene, loaded, queued} = downloadingScene();
+  const theme = getTheme();
+  getThemeAssets(theme).slice(1).forEach(asset => loaded.add(asset.key));
+  const result = loadTheme(scene, theme);
+  assert.deepEqual(queued.map(asset => asset.key), [theme.boardSurface.key]);
+  loaded.add(theme.boardSurface.key);
+  scene.load.emit('complete');
+  assert.equal(await result, true);
 });

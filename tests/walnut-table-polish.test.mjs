@@ -10,10 +10,6 @@ const iconsSource = readFileSync(
   new URL('../src/game/view/ui/UiIcons.ts', import.meta.url),
   'utf8',
 );
-const boardSource = readFileSync(
-  new URL('../src/game/view/BoardView.ts', import.meta.url),
-  'utf8',
-);
 const polishStyles = readFileSync(
   new URL('../src/game/view/GameControlsView.css', import.meta.url),
   'utf8',
@@ -31,13 +27,6 @@ test('new-deal uses the shared standard Tabler cards glyph', () => {
   assert.match(iconsSource, /'new-deal':\s*\[/);
   assert.match(iconsSource, /M3\.604 7\.197l7\.138 -3\.109/);
   assert.doesNotMatch(iconsSource, /dataset\.plus = 'true'/);
-});
-
-test('Walnut placeholders have no corner tick ornament and stock uses a drawn placement glyph', () => {
-  assert.doesNotMatch(boardSource, /foundationFrameGraphics|redrawFoundationFrames|const tick\s*=/);
-  assert.match(boardSource, /freeCellGlyphGraphics/);
-  assert.match(boardSource, /strokeRoundedRect/);
-  assert.doesNotMatch(boardSource, /['"]↓['"]/);
 });
 
 test('Walnut gameplay skin removes the perimeter frame without changing the 44px shared hit size', () => {

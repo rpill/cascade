@@ -1,19 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
-
-const bootSource = readFileSync(
-  new URL('../src/game/scenes/BootScene.ts', import.meta.url),
-  'utf8',
-);
-const boardTextureSource = readFileSync(
-  new URL('../src/game/view/BoardTexture.ts', import.meta.url),
-  'utf8',
-);
-const themeRegistrySource = readFileSync(
-  new URL('../src/theme/ThemeRegistry.ts', import.meta.url),
-  'utf8',
-);
+import { readFileSync } from 'node:fs';
 const controlsSource = readFileSync(
   new URL('../src/game/view/GameControlsView.ts', import.meta.url),
   'utf8',
@@ -26,59 +13,10 @@ const gameSceneSource = readFileSync(
   new URL('../src/game/scenes/GameScene.ts', import.meta.url),
   'utf8',
 );
-const boardViewSource = readFileSync(
-  new URL('../src/game/view/BoardView.ts', import.meta.url),
-  'utf8',
-);
 const stylesSource = readFileSync(
   new URL('../src/styles.css', import.meta.url),
   'utf8',
 );
-
-test('board surface comes from a registered external theme texture instead of a generated dot pattern', () => {
-  assert.match(bootSource, /loadThemeAsset\(theme\.boardSurface\)/);
-  assert.match(themeRegistrySource, /assets\/theme\/walnut-table\.jpg/);
-  assert.match(themeRegistrySource, /assets\/themes\/green-felt-club/);
-  assert.doesNotMatch(boardTextureSource, /generateTexture\(|fillCircle\(|fillRect\(/);
-  assert.match(boardTextureSource, /theme\.boardSurface\.key/);
-  assert.equal(
-    existsSync(new URL('../public/assets/theme/walnut-table.jpg', import.meta.url)),
-    true,
-  );
-});
-
-test('Walnut board keeps the registered wood texture unmuted and does not restore a utility panel', () => {
-  assert.match(boardViewSource, /boardSurface\.setTint\(/);
-  assert.match(themeRegistrySource, /walnut_study:[\s\S]*boardTint:\s*0xffffff/);
-  assert.doesNotMatch(boardViewSource, /private utilityPanel/);
-  assert.doesNotMatch(boardViewSource, /this\.utilityPanel\s*=\s*this\.scene\.add\.rectangle/);
-});
-
-test('Walnut placeholders use one continuous card-sized frame language without decorative corner ticks', () => {
-  assert.match(boardViewSource, /private createSlot\(/);
-  assert.match(boardViewSource, /setStrokeStyle\(1,\s*0x92713f,\s*strokeAlpha\)/);
-  assert.doesNotMatch(boardViewSource, /foundationFrameGraphics|redrawFoundationFrames|const tick\s*=/);
-  assert.doesNotMatch(boardViewSource, /FOUNDATION_FRAME_TEXTURE_KEY/);
-});
-
-test('stock free-cell affordance uses a card plus placement arrow instead of a lone text arrow', () => {
-  assert.match(boardViewSource, /freeCellGlyphGraphics/);
-  assert.match(boardViewSource, /redrawFreeCellGlyph\(/);
-  assert.match(boardViewSource, /strokeRoundedRect\(/);
-  assert.match(boardViewSource, /arrowTipY/);
-  assert.doesNotMatch(boardViewSource, /scene\.add\.text\([^]*['"]↓['"]/);
-});
-
-test('gameplay icon controls reuse the menu parchment family while preserving shared control geometry', () => {
-  const controlRule = controlsPolishStylesSource.match(/\.game-hud \.ui-icon-control\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
-  assert.match(controlRule, /--ui-hit-size/);
-  assert.match(controlRule, /var\(--game-hud-paper\)/);
-  assert.match(controlRule, /#dcc58e/);
-  assert.match(controlRule, /#35261a/);
-  assert.doesNotMatch(controlRule, /#2b1b12|#352117|#24170f/);
-  assert.doesNotMatch(stylesSource, /\.game-control-button/);
-  assert.match(controlsSource, /game-control-home/);
-});
 
 test('Home is visually separated from destructive deal actions', () => {
   assert.match(stylesSource, /--ui-home-gap:\s*24px/);

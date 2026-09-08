@@ -90,3 +90,8 @@
 - License copy: `public/assets/licenses/tabler-icons-license.txt`.
 - The four gameplay actions intentionally use the same 24×24 outline family and 2px stroke language.
 
+## Walnut Study theme refinement (2026-09-08)
+
+- `public/assets/themes/walnut-study/board-surface.webp`: generated with the built-in ImageGen tool, then encoded as WebP. The final prompt and provenance are recorded in `public/assets/themes/walnut-study/README.md`.
+- `public/assets/themes/walnut-study/card-back.svg` and the slot paths in `src/theme/SlotArtwork.ts`: original project vector artwork, no external font or icon dependency.
+- Existing public-domain card faces and the Green Felt Club assets are unchanged.

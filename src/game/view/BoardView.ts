@@ -7,17 +7,15 @@ import {
   type Card,
   type CardSource,
   type MoveTarget,
-  type Suit,
 } from '../model/types.ts';
 import {
-  getBoardSlots,
   tableauCardY,
   wasteCardX,
   type Point,
 } from './layout.ts';
 import type { ViewportLayout } from './ViewportLayout.ts';
-import type { ThemeDefinition, ThemeAssetRef } from '../../theme/ThemeDefinition.ts';
-import { getBoardTexture } from './BoardTexture.ts';
+import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
+import { TableAppearanceView } from './TableAppearanceView.ts';
 import {
   getCardMotionDuration,
   getFoundationStepDelay,
@@ -27,7 +25,6 @@ import {
 import { getCardDepthTransition } from './CardMotionDepth.ts';
 import { getCardFlightPoint } from './CardFlight.ts';
 import { isCommittedCardDrop } from './DropGeometry.ts';
-import { UI_TEXT_RESOLUTION } from './RenderQuality.ts';
 import {
   MAX_STOCK_LAYERS,
   StockVisualState,
@@ -58,13 +55,6 @@ interface DragState {
   readonly cards: DraggedCard[];
 }
 
-const FOUNDATION_SYMBOLS: Record<Suit, string> = {
-  clubs: '♣',
-  diamonds: '♦',
-  hearts: '♥',
-  spades: '♠',
-};
-
 const STOCK_DEAL_STAGGER = 52;
 const STOCK_DRAW_STAGGER = 80;
 
@@ -72,7 +62,7 @@ export class BoardView {
   private readonly scene: Phaser.Scene;
   private readonly game: SolitaireGame;
   private readonly actions: BoardActions;
-  private readonly theme: ThemeDefinition;
+  private theme: ThemeDefinition;
   private readonly cardImages = new Map<string, Phaser.GameObjects.Image>();
   private readonly stockBacks: Phaser.GameObjects.Image[] = [];
   private readonly ownedObjects: Phaser.GameObjects.GameObject[] = [];
@@ -83,11 +73,7 @@ export class BoardView {
   >();
   private readonly stockVisual: StockVisualState;
   private layout: ViewportLayout;
-  private boardSurface!: Phaser.GameObjects.TileSprite;
-  private readonly slotRects: Phaser.GameObjects.Rectangle[] = [];
-  private readonly themedSlotImages: Phaser.GameObjects.Image[] = [];
-  private readonly foundationSymbols: Phaser.GameObjects.Text[] = [];
-  private freeCellGlyphGraphics: Phaser.GameObjects.Graphics | null = null;
+  private readonly appearance: TableAppearanceView;
 
   private dragState: DragState | null = null;
   private inputLocked = true;
@@ -108,8 +94,7 @@ export class BoardView {
     this.theme = theme;
     this.stockVisual = new StockVisualState(game.stock.length);
 
-    this.createBoardSurface();
-    this.createSlots();
+    this.appearance = new TableAppearanceView(scene, theme, layout);
     this.createCardImages();
     this.createStockStack();
     this.relayout(layout);
@@ -194,50 +179,7 @@ export class BoardView {
     this.dragState = null;
     this.layout = layout;
 
-    this.boardSurface
-      .setSize(layout.viewportWidth, layout.viewportHeight)
-      .setScale(1)
-      .setTexture(getBoardTexture(this.theme));
-
-    const slots = getBoardSlots(layout);
-    this.slotRects.forEach((slot, index) => {
-      const target = slots[index];
-
-      if (target === undefined) {
-        return;
-      }
-
-      slot
-        .setPosition(
-          target.x + layout.cardWidth / 2,
-          target.y + layout.cardHeight / 2,
-        )
-        .setDisplaySize(layout.cardWidth, layout.cardHeight);
-    });
-    this.themedSlotImages.forEach((slot, index) => {
-      const target = slots[index];
-
-      if (target === undefined) {
-        return;
-      }
-
-      slot
-        .setPosition(target.x, target.y)
-        .setDisplaySize(layout.cardWidth, layout.cardHeight);
-    });
-
-    this.foundationSymbols.forEach((symbol, index) => {
-      const point = layout.foundations[index];
-      symbol
-        .setPosition(
-          point.x + layout.cardWidth / 2,
-          point.y + layout.cardHeight / 2,
-        )
-        .setFontSize(Math.round(layout.cardWidth * 0.4));
-    });
-    if (this.freeCellGlyphGraphics !== null) {
-      this.redrawFreeCellGlyph(layout);
-    }
+    this.appearance.relayout(layout);
 
     this.cardImages.forEach((image) => {
       image.setDisplaySize(layout.cardWidth, layout.cardHeight);
@@ -253,169 +195,16 @@ export class BoardView {
     this.timers.forEach((timer) => timer.remove(false));
     this.activeFlights.forEach((flight) => flight.stop());
     this.activeFlights.clear();
+    this.appearance.destroy();
     this.ownedObjects.forEach((object) => object.destroy());
     this.cardImages.clear();
   }
 
-  private createBoardSurface(): void {
-    this.boardSurface = this.scene.add.tileSprite(
-      0,
-      0,
-      this.layout.viewportWidth,
-      this.layout.viewportHeight,
-      getBoardTexture(this.theme),
-    ).setOrigin(0).setDepth(0);
-
-    if (this.theme.boardTint !== undefined) {
-      this.boardSurface.setTint(this.theme.boardTint);
-    }
-
-    this.ownedObjects.push(this.boardSurface);
-  }
-
-  private createSlots(): void {
-    if (this.theme.slots !== undefined) {
-      this.createThemedSlots();
-      return;
-    }
-
-    getBoardSlots(this.layout).forEach((slot) => {
-      this.createSlot(slot.kind, slot.x, slot.y, slot.alpha);
-    });
-
-    SUITS.forEach((suit, index) => {
-      const color = suit === 'diamonds' || suit === 'hearts'
-        ? '#7a312a'
-        : '#9a7b4f';
-
-      const point = this.layout.foundations[index];
-      const symbol = this.scene.add.text(
-        point.x + this.layout.cardWidth / 2,
-        point.y + this.layout.cardHeight / 2,
-        FOUNDATION_SYMBOLS[suit],
-        {
-          color,
-          fontFamily: 'Georgia, serif',
-          fontSize: '43px',
-        },
-      ).setOrigin(0.5).setAlpha(0.6).setDepth(10).setResolution(UI_TEXT_RESOLUTION);
-
-      this.foundationSymbols.push(symbol);
-      this.ownedObjects.push(symbol);
-    });
-
-    this.freeCellGlyphGraphics = this.scene.add.graphics().setDepth(10);
-    this.ownedObjects.push(this.freeCellGlyphGraphics);
-    this.redrawFreeCellGlyph(this.layout);
-  }
-
-  private createThemedSlots(): void {
-    const slots = this.theme.slots;
-
-    if (slots === undefined) {
-      return;
-    }
-
-    const assets: ThemeAssetRef[] = [
-      ...SUITS.map((suit) => slots.foundations[suit]),
-      slots.stockFreeCell,
-      ...this.layout.tableauX.map(() => slots.tableauEmpty),
-    ];
-
-    getBoardSlots(this.layout).forEach((slot, index) => {
-      const asset = assets[index];
-
-      if (asset === undefined) {
-        return;
-      }
-
-      const image = this.scene.add.image(slot.x, slot.y, asset.key)
-        .setOrigin(0)
-        .setDisplaySize(this.layout.cardWidth, this.layout.cardHeight)
-        .setDepth(7);
-
-      this.themedSlotImages.push(image);
-      this.ownedObjects.push(image);
-    });
-  }
-
-  private createSlot(
-    kind: 'foundation' | 'stock' | 'tableau',
-    x: number,
-    y: number,
-    alpha = 0.32,
-  ): void {
-    const fillAlpha = kind === 'tableau'
-      ? alpha * 0.16
-      : alpha * 0.26;
-    const strokeAlpha = kind === 'stock'
-      ? 0.5
-      : kind === 'foundation'
-        ? 0.4
-        : 0.28;
-
-    const slot = this.scene.add.rectangle(
-      x + this.layout.cardWidth / 2,
-      y + this.layout.cardHeight / 2,
-      this.layout.cardWidth,
-      this.layout.cardHeight,
-      0x17100b,
-      fillAlpha,
-    )
-      .setDepth(5)
-      .setStrokeStyle(1, 0x92713f, strokeAlpha);
-
-    this.slotRects.push(slot);
-    this.ownedObjects.push(slot);
-  }
-
-  private redrawFreeCellGlyph(layout: ViewportLayout): void {
-    const graphics = this.freeCellGlyphGraphics;
-
-    if (graphics === null) {
-      return;
-    }
-
-    const centerX = layout.stock.x + layout.cardWidth / 2;
-    const centerY = layout.stock.y + layout.cardHeight / 2;
-
-    const cardWidth = layout.cardWidth * 0.38;
-    const cardHeight = layout.cardHeight * 0.28;
-    const cardX = centerX - cardWidth / 2;
-    const cardY = centerY - layout.cardHeight * 0.29;
-    const cardBottom = cardY + cardHeight;
-
-    const stemWidth = Math.max(3, layout.cardWidth * 0.055);
-    const stemHeight = layout.cardHeight * 0.16;
-    const stemX = centerX - stemWidth / 2;
-    const stemY = cardBottom + layout.cardHeight * 0.055;
-    const headY = stemY + stemHeight;
-    const arrowHalf = Math.max(6, layout.cardWidth * 0.085);
-    const arrowTipY = headY + layout.cardHeight * 0.11;
-    const lineWidth = Math.max(1, Math.min(2, layout.cardWidth * 0.015));
-    const lineColor = 0x9a7b4f;
-
-    graphics.clear();
-    graphics.lineStyle(lineWidth, lineColor, 0.76);
-    graphics.fillStyle(lineColor, 0.72);
-
-    graphics.strokeRoundedRect(
-      cardX,
-      cardY,
-      cardWidth,
-      cardHeight,
-      Math.max(2, layout.cardWidth * 0.025),
-    );
-
-    graphics.fillRect(stemX, stemY, stemWidth, stemHeight);
-    graphics.fillTriangle(
-      centerX - arrowHalf,
-      headY,
-      centerX + arrowHalf,
-      headY,
-      centerX,
-      arrowTipY,
-    );
+  setTheme(theme: ThemeDefinition): void {
+    this.theme = theme;
+    this.appearance.setTheme(theme, this.layout);
+    this.stockBacks.forEach(back => back.setTexture(theme.cardBack.key)
+      .setDisplaySize(this.layout.cardWidth, this.layout.cardHeight));
   }
 
   private createCardImages(): void {
