@@ -30,3 +30,14 @@ test('unknown ids never escape the registry and fall back to Walnut', () => {
   assert.equal(isThemeId('missing_theme'), false);
   assert.equal(getTheme('missing_theme').id, 'walnut_study');
 });
+
+
+test('Burgundy Club is a complete registry theme', () => {
+  const theme = getTheme('burgundy_club');
+
+  assert.equal(theme.id, 'burgundy_club');
+  assert.match(theme.boardSurface.url, /burgundy-club\/board-surface\.webp$/);
+  assert.match(theme.cardBack.url, /burgundy-club\/card-back\.png$/);
+  assert.match(getSlotAsset(theme, 'tableau').url, /burgundy-club\/slots\/tableau-empty\.png$/);
+  assert.match(getSlotAsset(theme, 'stock').url, /burgundy-club\/slots\/stock-free-cell\.png$/);
+});

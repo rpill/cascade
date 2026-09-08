@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="1024" viewBox="0 0 2048 1024">
+  <defs>
+    <filter id="stone" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.028" numOctaves="4" seed="43" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values=".2 0 0 0 0  0 .2 0 0 0  0 0 .2 0 0  0 0 0 .26 0" result="stoneNoise"/>
+      <feBlend in="SourceGraphic" in2="stoneNoise" mode="screen"/>
+    </filter>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#171817"/>
+      <stop offset=".48" stop-color="#0d0f0f"/>
+      <stop offset="1" stop-color="#1a1917"/>
+    </linearGradient>
+  </defs>
+  <rect width="2048" height="1024" fill="url(#base)" filter="url(#stone)"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M-100 850 C260 720 350 430 710 380 S1270 510 2140 130" stroke="#7b5e31" stroke-width="5" opacity=".52"/>
+    <path d="M-80 870 C260 760 420 470 760 420 S1300 535 2140 190" stroke="#c49a4f" stroke-width="1.5" opacity=".72"/>
+    <path d="M280 -80 C430 170 520 280 750 320 S1140 220 1280 60" stroke="#8b6a39" stroke-width="3" opacity=".34"/>
+    <path d="M980 1100 C1100 800 1320 730 1490 700 S1840 730 2140 570" stroke="#a17b3e" stroke-width="2.5" opacity=".42"/>
+    <path d="M1360 -70 C1500 170 1610 270 1860 320" stroke="#d1a45b" stroke-width="1.3" opacity=".48"/>
+  </g>
+</svg>

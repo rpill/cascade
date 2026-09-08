@@ -1,0 +1,21 @@
+{
+  "themeId": "burgundy_club",
+  "runtimeChangesOnly": [
+    "board surface",
+    "card back",
+    "tableau/foundation/stock-free-cell placeholders"
+  ],
+  "assets": {
+    "boardSurface": "board-surface.webp",
+    "cardBack": "card-back.png",
+    "slots": {
+      "tableau": "slots/tableau-empty.png",
+      "clubs": "slots/clubs.png",
+      "diamonds": "slots/diamonds.png",
+      "hearts": "slots/hearts.png",
+      "spades": "slots/spades.png",
+      "stockFreeCell": "slots/stock-free-cell.png"
+    }
+  },
+  "notes": "No HUD, shell, cursor, typography, layout or face-card changes."
+}

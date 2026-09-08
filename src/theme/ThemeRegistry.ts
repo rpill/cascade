@@ -3,6 +3,7 @@ import type { ThemeDefinition, ThemeId } from './ThemeDefinition.ts';
 export const DEFAULT_THEME_ID: ThemeId = 'walnut_study';
 
 const GREEN_FELT_ROOT = './assets/themes/green-felt-club';
+const BURGUNDY_ROOT = './assets/themes/burgundy-club';
 
 export const THEMES = {
   walnut_study: {
@@ -79,6 +80,54 @@ export const THEMES = {
     controls: {
       surface: '#d0c5a2', hover: '#e0d6b6', ink: '#233c31', edge: '#80977b',
       labelSurface: '#142e24', labelInk: '#d5c596', focus: '#e0d5a6',
+    },
+  },
+  burgundy_club: {
+    id: 'burgundy_club',
+    name: 'Burgundy Club',
+    boardSurface: {
+      key: 'cascade-board-surface-burgundy-club',
+      url: `${BURGUNDY_ROOT}/board-surface.webp`,
+    },
+    surfaceScale: 'cover',
+    cardBack: {
+      key: 'card-back-burgundy-club',
+      url: `${BURGUNDY_ROOT}/card-back.png`,
+    },
+    slots: {
+      kind: 'images',
+      assets: {
+        tableauEmpty: {
+          key: 'burgundy-slot-tableau-empty',
+          url: `${BURGUNDY_ROOT}/slots/tableau-empty.png`,
+        },
+        foundations: {
+          clubs: {
+            key: 'burgundy-slot-clubs',
+            url: `${BURGUNDY_ROOT}/slots/clubs.png`,
+          },
+          diamonds: {
+            key: 'burgundy-slot-diamonds',
+            url: `${BURGUNDY_ROOT}/slots/diamonds.png`,
+          },
+          hearts: {
+            key: 'burgundy-slot-hearts',
+            url: `${BURGUNDY_ROOT}/slots/hearts.png`,
+          },
+          spades: {
+            key: 'burgundy-slot-spades',
+            url: `${BURGUNDY_ROOT}/slots/spades.png`,
+          },
+        },
+        stockFreeCell: {
+          key: 'burgundy-slot-stock-free-cell',
+          url: `${BURGUNDY_ROOT}/slots/stock-free-cell.png`,
+        },
+      },
+    },
+    controls: {
+      surface: '#dbc394', hover: '#ead6ac', ink: '#3a231e', edge: '#9b6d57',
+      labelSurface: '#2f1719', labelInk: '#e4c67d', focus: '#f0d48f',
     },
   },
 } as const satisfies Readonly<Record<string, ThemeDefinition>>;
