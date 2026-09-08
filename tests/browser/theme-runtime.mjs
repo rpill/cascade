@@ -158,10 +158,8 @@ try {
       slotVisible: stock.image.visible, glyphVisible: stock.glyph.visible,
       separateLayers: stock.image !== stock.glyph,
       frameDimensions: [stock.image.displayWidth,stock.image.displayHeight],
-      surfacePieces: board.appearance.surface.pieces.map(piece => ({
-        x:piece.x,y:piece.y,w:piece.displayWidth,h:piece.displayHeight,
-        sourceW:piece.frame.realWidth,sourceH:piece.frame.realHeight,
-      })),
+      surfacePieceCount: board.appearance.surface.pieces.length,
+      surfaceUsesSingleCover: board.appearance.surface.tile !== null,
     };
   });
   assert.equal(burgundyMetrics.backWidth,burgundyMetrics.cardWidth);
@@ -170,11 +168,8 @@ try {
   assert.deepEqual(burgundyMetrics.frameDimensions,[burgundyMetrics.cardWidth,burgundyMetrics.cardHeight]);
   assert.ok(burgundyMetrics.edgeKeys.every(key => key === 'cascade-stock-paper-edge'));
   assert.ok(burgundyMetrics.slotVisible && burgundyMetrics.glyphVisible && burgundyMetrics.separateLayers);
-  assert.equal(burgundyMetrics.surfacePieces.length,9);
-  for (const index of [0,2,6,8]) {
-    const p = burgundyMetrics.surfacePieces[index];
-    assert.ok(Math.abs(p.w/p.sourceW-p.h/p.sourceH)<1e-8);
-  }
+  assert.equal(burgundyMetrics.surfacePieceCount,0);
+  assert.equal(burgundyMetrics.surfaceUsesSingleCover,true);
   await burgundy.mouse.move(900,900);
   await burgundy.screenshot({path:'artifacts/burgundy-desktop.png'});
 

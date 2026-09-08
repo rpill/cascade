@@ -63,9 +63,7 @@ export const THEMES = {
       key: 'cascade-board-surface-burgundy-club',
       url: `${BURGUNDY_ROOT}/board-surface-refined.webp`,
     },
-    surfaceScale: 'framed',
-    surfaceSlices: { left: 340, right: 370, top: 430, bottom: 450 },
-    surfaceCrop: { width: 1672, height: 922 },
+    surfaceScale: 'cover',
     cardBack: {
       key: 'card-back-burgundy-club',
       url: `${BURGUNDY_ROOT}/card-back.png`,
