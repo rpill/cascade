@@ -38,7 +38,8 @@ test('gameplay HUD exposes separate undo restart new-deal and Home controls outs
 
 test('Daily hides duplicate New Deal and ignores the N shortcut', () => {
   assert.match(controlsSource, /this\.newDealButton\.hidden = isDaily/);
-  assert.match(sceneSource, /gameControls\.setDaily\(gameState\.mode === 'daily'\)/);
+  assert.match(controlsSource, /this\.setDaily\(mode === 'daily'\)/);
+  assert.match(sceneSource, /gameControls\.setMode\(gameState\.mode\)/);
   assert.match(
     sceneSource,
     /startNewDeal\(\): void \{[\s\S]*currentDeal\?\.mode === 'daily'/,

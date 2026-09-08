@@ -11,7 +11,9 @@
 
 - Runtime location: `public/assets/theme/fine-grained-wood.jpg`
 - Source texture: Fine Grained Wood color/albedo map from Poly Haven.
-- Poly Haven assets are provided under CC0. Only the color/albedo image is shipped in the game; normal, roughness, and AO maps are not needed for this 2D board surface.
+- License: CC0.
+- Used by the menu/detail treatment; normal, roughness, and AO maps are not shipped.
+
 
 ## Poly Haven — Dark Wooden Planks
 
@@ -78,3 +80,13 @@
   - `public/assets/ui/frames/home-shell-frame-9slice.png`
   - `public/assets/ui/frames/home-mode-card-frame-9slice.png`
 - The source corner is mirrored into the four fixed nine-slice corners and joined by simple straight rules. The central atlas region is transparent; only the edge slices carry the straight frame lines.
+
+## Tabler Icons 3.46.0 — Gameplay HUD action icons
+
+- Runtime implementation: `src/game/view/ui/UiIcons.ts`.
+- Selected outline glyphs: `arrow-back-up` (Undo), `refresh` (Restart), `cards` (New Deal), `home` (Home).
+- Source: Tabler Icons 3.46.0, https://tabler.io/icons / https://github.com/tabler/tabler-icons.
+- License: MIT.
+- License copy: `public/assets/licenses/tabler-icons-license.txt`.
+- The four gameplay actions intentionally use the same 24×24 outline family and 2px stroke language.
+

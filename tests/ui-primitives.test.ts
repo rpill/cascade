@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 type Attrs = Map<string, string>;
 
@@ -79,35 +80,24 @@ test('icon controls expose accessible labels and native title fallback', () => {
   assert.equal(button.querySelector('svg')?.getAttribute('aria-hidden'), 'true');
 });
 
-test('new-deal icon is its own card-plus glyph rather than shuffle', () => {
-  const svg = createUiIcon('new-deal');
-  assert.equal(svg.dataset.icon, 'new-deal');
-  assert.equal(svg.querySelectorAll('[data-card]').length >= 1, true);
-  assert.equal(svg.querySelectorAll('[data-plus]').length, 1);
-});
-
-test('new-deal glyph reads as fanned cards with a visible card mark and plus', () => {
-  const svg = createUiIcon('new-deal');
-  assert.equal(svg.querySelectorAll('[data-card]').length, 2);
-  assert.equal(svg.querySelectorAll('[data-card-mark]').length, 1);
-  assert.equal(svg.querySelectorAll('[data-plus]').length, 1);
-});
-
-
-test('shared icon vocabulary includes Home presentation glyphs', () => {
-  for (const icon of ['spade', 'heart', 'crown', 'calendar', 'trophy'] as const) {
-    const svg = createUiIcon(icon);
-    assert.equal(svg.dataset.icon, icon);
-    assert.equal(svg.children.length > 0, true);
+test('gameplay action icons identify the shared Tabler icon set', () => {
+  for (const name of ['undo', 'restart', 'new-deal', 'home'] as const) {
+    const svg = createUiIcon(name);
+    assert.equal(svg.dataset.icon, name);
+    assert.equal(svg.dataset.iconSet, 'tabler');
+    assert.equal(svg.getAttribute('viewBox'), '0 0 24 24');
   }
 });
 
-test('Home display icons use bolder silhouette treatment than compact HUD glyphs', () => {
-  const crown = createUiIcon('crown');
-  assert.equal(crown.children[0]?.getAttribute('fill'), 'currentColor');
+test('Home display icons use authored assets rather than the compact HUD path vocabulary', () => {
+  const homeArtSource = readFileSync(
+    new URL('../src/game/view/ui/HomeArtIcons.ts', import.meta.url),
+    'utf8',
+  );
 
-  for (const icon of ['calendar', 'trophy'] as const) {
-    const svg = createUiIcon(icon);
-    assert.equal(svg.children[0]?.getAttribute('stroke-width'), '2.2');
-  }
+  assert.match(homeArtSource, /const ICON_ASSETS/);
+  assert.match(homeArtSource, /crown:\s*'\.\/assets\/ui\/icons\/crown\.svg'/);
+  assert.match(homeArtSource, /calendar:\s*'\.\/assets\/ui\/icons\/calendar\.svg'/);
+  assert.match(homeArtSource, /trophy:\s*'\.\/assets\/ui\/icons\/trophy\.svg'/);
+  assert.match(homeArtSource, /--home-art-icon/);
 });

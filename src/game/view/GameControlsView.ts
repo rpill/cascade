@@ -1,6 +1,8 @@
 import type Phaser from 'phaser';
 
+import type { GameMode } from '../model/types.ts';
 import { createIconControl } from './ui/UiControls.ts';
+import './GameControlsView.css';
 
 export interface GameControlsActions {
   readonly undo: () => void;
@@ -9,14 +11,38 @@ export interface GameControlsActions {
   readonly home: () => void;
 }
 
+const HUD_PAPER_TEXTURE = './assets/ui/paper-001-color.jpg';
+
+function resolveAssetUrl(path: string): string {
+  return new URL(path, document.baseURI).href;
+}
+
+function toCssUrl(path: string): string {
+  return `url("${resolveAssetUrl(path)}")`;
+}
+
+const MODE_LABELS: Readonly<Record<GameMode, string>> = {
+  winnable: 'STANDARD',
+  original: 'CLASSIC',
+  daily: 'DAILY',
+};
+
 export class GameControlsView {
   private readonly root: HTMLDivElement;
+  private readonly modeLabel: HTMLDivElement;
   private readonly newDealButton: HTMLButtonElement;
 
   constructor(scene: Phaser.Scene, actions: GameControlsActions) {
     this.root = document.createElement('div');
-    this.root.className = 'game-controls';
-    this.root.setAttribute('aria-label', 'Управление игрой');
+    this.root.className = 'game-hud';
+    this.root.style.setProperty('--game-hud-paper', toCssUrl(HUD_PAPER_TEXTURE));
+
+    this.modeLabel = document.createElement('div');
+    this.modeLabel.className = 'game-mode-label';
+    this.modeLabel.setAttribute('aria-label', 'Текущий режим игры');
+
+    const controls = document.createElement('div');
+    controls.className = 'game-controls';
 
     const undo = createIconControl({
       icon: 'undo',
@@ -44,13 +70,14 @@ export class GameControlsView {
       onClick: actions.home,
     });
 
-    this.root.append(undo, restart, this.newDealButton, home);
+    controls.append(undo, restart, this.newDealButton, home);
+    this.root.append(this.modeLabel, controls);
+    scene.game.canvas.parentElement?.append(this.root);
+  }
 
-    const host = scene.game.canvas.parentElement;
-    if (host === null) {
-      throw new Error('Game canvas must have a parent element for screen-space controls.');
-    }
-    host.append(this.root);
+  setMode(mode: GameMode): void {
+    this.modeLabel.textContent = MODE_LABELS[mode];
+    this.setDaily(mode === 'daily');
   }
 
   setDaily(isDaily: boolean): void {

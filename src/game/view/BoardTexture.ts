@@ -1,7 +1,5 @@
-import Phaser from 'phaser';
+import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
 
-const BOARD_TEXTURE_KEY = 'cascade-board-surface';
-
-export function getBoardTexture(_scene: Phaser.Scene): string {
-  return BOARD_TEXTURE_KEY;
+export function getBoardTexture(theme: ThemeDefinition): string {
+  return theme.boardSurface.key;
 }

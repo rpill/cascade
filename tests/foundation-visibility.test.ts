@@ -26,7 +26,11 @@ test('foundation keeps every collected card placed while the next card flies in'
 test('foundation placeholder outer frame matches the exact card footprint', () => {
   assert.match(
     boardSource,
-    /graphics\.strokeRect\(x,\s*y,\s*layout\.cardWidth,\s*layout\.cardHeight\)/,
+    /this\.scene\.add\.rectangle\([\s\S]*?this\.layout\.cardWidth,[\s\S]*?this\.layout\.cardHeight,/,
+  );
+  assert.match(
+    boardSource,
+    /\.setDisplaySize\(layout\.cardWidth,\s*layout\.cardHeight\)/,
   );
   assert.doesNotMatch(boardSource, /const inset =/);
 });

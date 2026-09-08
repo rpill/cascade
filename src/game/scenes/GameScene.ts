@@ -59,6 +59,9 @@ import {
 import type { PlatformServices } from '../../platform/services.ts';
 import { deriveGameplayActivity } from '../../platform/GameplayActivity.ts';
 import { LeaderboardService } from '../../leaderboards/LeaderboardService.ts';
+import { getTheme } from '../../theme/ThemeRegistry.ts';
+import { resolveThemeId } from '../../theme/ThemeSelection.ts';
+import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
 
 interface DailyContext {
   readonly dailyId: string;
@@ -124,12 +127,14 @@ export class GameScene extends Phaser.Scene {
   private metaRepository: MetaRepository | null = null;
   private metaState: MetaSave = createDefaultMetaSave();
   private dailyContext: DailyContext | null = null;
+  private activeTheme!: ThemeDefinition;
 
   constructor() {
     super('GameScene');
   }
 
   create(): void {
+    this.activeTheme = getTheme(resolveThemeId(window.location.search));
     this.input.dragDistanceThreshold = 7;
     this.applyViewportLayout();
     this.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this);
@@ -387,7 +392,7 @@ export class GameScene extends Phaser.Scene {
       },
       settled: () => this.onBoardSettled(gameState),
       undo: () => this.history.undo(gameState),
-    }, layout);
+    }, layout, this.activeTheme);
 
     this.gameControls?.destroy();
     this.gameControls = new GameControlsView(this, {
@@ -396,6 +401,7 @@ export class GameScene extends Phaser.Scene {
       newDeal: () => this.startNewDeal(),
       home: () => this.openMainMenu(),
     });
+    this.gameControls.setMode(gameState.mode);
     this.gameControls.setDaily(gameState.mode === 'daily');
 
     if (restored !== undefined) {

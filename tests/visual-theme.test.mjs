@@ -10,8 +10,20 @@ const boardTextureSource = readFileSync(
   new URL('../src/game/view/BoardTexture.ts', import.meta.url),
   'utf8',
 );
+const themeRegistrySource = readFileSync(
+  new URL('../src/theme/ThemeRegistry.ts', import.meta.url),
+  'utf8',
+);
 const controlsSource = readFileSync(
   new URL('../src/game/view/GameControlsView.ts', import.meta.url),
+  'utf8',
+);
+const controlsPolishStylesSource = readFileSync(
+  new URL('../src/game/view/GameControlsView.css', import.meta.url),
+  'utf8',
+);
+const gameSceneSource = readFileSync(
+  new URL('../src/game/scenes/GameScene.ts', import.meta.url),
   'utf8',
 );
 const boardViewSource = readFileSync(
@@ -23,38 +35,49 @@ const stylesSource = readFileSync(
   'utf8',
 );
 
-test('board surface comes from a preloaded external theme texture instead of a generated dot pattern', () => {
-  assert.match(bootSource, /\/assets\/theme\//);
+test('board surface comes from a registered external theme texture instead of a generated dot pattern', () => {
+  assert.match(bootSource, /loadThemeAsset\(theme\.boardSurface\)/);
+  assert.match(themeRegistrySource, /assets\/theme\/walnut-table\.jpg/);
+  assert.match(themeRegistrySource, /assets\/themes\/green-felt-club/);
   assert.doesNotMatch(boardTextureSource, /generateTexture\(|fillCircle\(|fillRect\(/);
-  assert.match(boardTextureSource, /return\s+BOARD_TEXTURE_KEY/);
+  assert.match(boardTextureSource, /theme\.boardSurface\.key/);
   assert.equal(
-    existsSync(new URL('../public/assets/theme/fine-grained-wood.jpg', import.meta.url)),
+    existsSync(new URL('../public/assets/theme/walnut-table.jpg', import.meta.url)),
     true,
   );
 });
 
-test('historical board pass keeps wood visible under the foundation rail and darkens the surface non-destructively', () => {
+test('Walnut board keeps the registered wood texture unmuted and does not restore a utility panel', () => {
   assert.match(boardViewSource, /boardSurface\.setTint\(/);
+  assert.match(themeRegistrySource, /walnut_study:[\s\S]*boardTint:\s*0xffffff/);
   assert.doesNotMatch(boardViewSource, /private utilityPanel/);
   assert.doesNotMatch(boardViewSource, /this\.utilityPanel\s*=\s*this\.scene\.add\.rectangle/);
 });
 
-test('foundation decoration is drawn as lightweight responsive vectors instead of a solid panel or raster frame', () => {
-  assert.match(boardViewSource, /foundationFrameGraphics/);
-  assert.match(boardViewSource, /redrawFoundationFrames\(/);
-  assert.match(boardViewSource, /strokeRect\(/);
+test('Walnut placeholders use one continuous card-sized frame language without decorative corner ticks', () => {
+  assert.match(boardViewSource, /private createSlot\(/);
+  assert.match(boardViewSource, /setStrokeStyle\(1,\s*0x92713f,\s*strokeAlpha\)/);
+  assert.doesNotMatch(boardViewSource, /foundationFrameGraphics|redrawFoundationFrames|const tick\s*=/);
   assert.doesNotMatch(boardViewSource, /FOUNDATION_FRAME_TEXTURE_KEY/);
 });
 
-test('gameplay icon controls reuse the shared parchment language without legacy text-button geometry', () => {
-  const controlRule = stylesSource.match(/\.ui-icon-control\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+test('stock free-cell affordance uses a card plus placement arrow instead of a lone text arrow', () => {
+  assert.match(boardViewSource, /freeCellGlyphGraphics/);
+  assert.match(boardViewSource, /redrawFreeCellGlyph\(/);
+  assert.match(boardViewSource, /strokeRoundedRect\(/);
+  assert.match(boardViewSource, /arrowTipY/);
+  assert.doesNotMatch(boardViewSource, /scene\.add\.text\([^]*['"]↓['"]/);
+});
+
+test('gameplay icon controls reuse the menu parchment family while preserving shared control geometry', () => {
+  const controlRule = controlsPolishStylesSource.match(/\.game-hud \.ui-icon-control\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
   assert.match(controlRule, /--ui-hit-size/);
-  assert.match(controlRule, /--ui-parchment/);
-  assert.match(controlRule, /--ui-ink/);
-  assert.doesNotMatch(controlRule, /#b8473e|rgba\(184,\s*71,\s*62/);
+  assert.match(controlRule, /var\(--game-hud-paper\)/);
+  assert.match(controlRule, /#dcc58e/);
+  assert.match(controlRule, /#35261a/);
+  assert.doesNotMatch(controlRule, /#2b1b12|#352117|#24170f/);
   assert.doesNotMatch(stylesSource, /\.game-control-button/);
   assert.match(controlsSource, /game-control-home/);
-  assert.match(stylesSource, /#game::after/);
 });
 
 test('Home is visually separated from destructive deal actions', () => {
@@ -63,15 +86,16 @@ test('Home is visually separated from destructive deal actions', () => {
 });
 
 
-test('gameplay HUD stays inside the decorative board frame', () => {
-  assert.match(stylesSource, /--ui-frame-inset:\s*10px/);
-  assert.match(stylesSource, /--ui-hud-frame-gap:\s*16px/);
-  assert.match(stylesSource, /#game::after\s*\{[\s\S]*inset:\s*var\(--ui-frame-inset\)/);
-  const hudRule = stylesSource.match(/\.game-controls\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
-  assert.match(hudRule, /var\(--ui-frame-inset\)/);
-  assert.match(hudRule, /var\(--ui-hud-frame-gap\)/);
-  assert.doesNotMatch(hudRule, /top:\s*max\(8px/);
-  assert.doesNotMatch(hudRule, /right:\s*max\(12px/);
+test('gameplay removes the decorative perimeter frame and shows the active mode without changing board geometry', () => {
+  assert.match(
+    controlsPolishStylesSource,
+    /#game:has\(\.game-hud\)::after\s*\{[^}]*display:\s*none/s,
+  );
+  assert.match(controlsSource, /game-mode-label/);
+  assert.match(controlsSource, /winnable:\s*['"]STANDARD['"]/);
+  assert.match(controlsSource, /original:\s*['"]CLASSIC['"]/);
+  assert.match(controlsSource, /daily:\s*['"]DAILY['"]/);
+  assert.match(gameSceneSource, /gameControls\.setMode\(gameState\.mode\)/);
 });
 
 test('hybrid shell uses one quiet parchment surface instead of the legacy framed modal stack', () => {

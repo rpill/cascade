@@ -16,6 +16,7 @@ import {
   type Point,
 } from './layout.ts';
 import type { ViewportLayout } from './ViewportLayout.ts';
+import type { ThemeDefinition, ThemeAssetRef } from '../../theme/ThemeDefinition.ts';
 import { getBoardTexture } from './BoardTexture.ts';
 import {
   getCardMotionDuration,
@@ -71,6 +72,7 @@ export class BoardView {
   private readonly scene: Phaser.Scene;
   private readonly game: SolitaireGame;
   private readonly actions: BoardActions;
+  private readonly theme: ThemeDefinition;
   private readonly cardImages = new Map<string, Phaser.GameObjects.Image>();
   private readonly stockBacks: Phaser.GameObjects.Image[] = [];
   private readonly ownedObjects: Phaser.GameObjects.GameObject[] = [];
@@ -83,9 +85,9 @@ export class BoardView {
   private layout: ViewportLayout;
   private boardSurface!: Phaser.GameObjects.TileSprite;
   private readonly slotRects: Phaser.GameObjects.Rectangle[] = [];
-  private foundationFrameGraphics!: Phaser.GameObjects.Graphics;
+  private readonly themedSlotImages: Phaser.GameObjects.Image[] = [];
   private readonly foundationSymbols: Phaser.GameObjects.Text[] = [];
-  private freeArrow!: Phaser.GameObjects.Text;
+  private freeCellGlyphGraphics: Phaser.GameObjects.Graphics | null = null;
 
   private dragState: DragState | null = null;
   private inputLocked = true;
@@ -97,11 +99,13 @@ export class BoardView {
     game: SolitaireGame,
     actions: BoardActions,
     layout: ViewportLayout,
+    theme: ThemeDefinition,
   ) {
     this.scene = scene;
     this.game = game;
     this.actions = actions;
     this.layout = layout;
+    this.theme = theme;
     this.stockVisual = new StockVisualState(game.stock.length);
 
     this.createBoardSurface();
@@ -190,7 +194,10 @@ export class BoardView {
     this.dragState = null;
     this.layout = layout;
 
-    this.boardSurface.setDisplaySize(layout.viewportWidth, layout.viewportHeight);
+    this.boardSurface
+      .setSize(layout.viewportWidth, layout.viewportHeight)
+      .setScale(1)
+      .setTexture(getBoardTexture(this.theme));
 
     const slots = getBoardSlots(layout);
     this.slotRects.forEach((slot, index) => {
@@ -207,8 +214,17 @@ export class BoardView {
         )
         .setDisplaySize(layout.cardWidth, layout.cardHeight);
     });
+    this.themedSlotImages.forEach((slot, index) => {
+      const target = slots[index];
 
-    this.redrawFoundationFrames(layout);
+      if (target === undefined) {
+        return;
+      }
+
+      slot
+        .setPosition(target.x, target.y)
+        .setDisplaySize(layout.cardWidth, layout.cardHeight);
+    });
 
     this.foundationSymbols.forEach((symbol, index) => {
       const point = layout.foundations[index];
@@ -219,12 +235,9 @@ export class BoardView {
         )
         .setFontSize(Math.round(layout.cardWidth * 0.4));
     });
-    this.freeArrow
-      .setPosition(
-        layout.stock.x + layout.cardWidth / 2,
-        layout.stock.y + layout.cardHeight / 2,
-      )
-      .setFontSize(Math.round(layout.cardWidth * 0.39));
+    if (this.freeCellGlyphGraphics !== null) {
+      this.redrawFreeCellGlyph(layout);
+    }
 
     this.cardImages.forEach((image) => {
       image.setDisplaySize(layout.cardWidth, layout.cardHeight);
@@ -250,22 +263,25 @@ export class BoardView {
       0,
       this.layout.viewportWidth,
       this.layout.viewportHeight,
-      getBoardTexture(this.scene),
+      getBoardTexture(this.theme),
     ).setOrigin(0).setDepth(0);
 
-    this.boardSurface.setTint(0x8a7b6d);
+    if (this.theme.boardTint !== undefined) {
+      this.boardSurface.setTint(this.theme.boardTint);
+    }
 
     this.ownedObjects.push(this.boardSurface);
   }
 
   private createSlots(): void {
+    if (this.theme.slots !== undefined) {
+      this.createThemedSlots();
+      return;
+    }
+
     getBoardSlots(this.layout).forEach((slot) => {
       this.createSlot(slot.kind, slot.x, slot.y, slot.alpha);
     });
-
-    this.foundationFrameGraphics = this.scene.add.graphics().setDepth(7);
-    this.ownedObjects.push(this.foundationFrameGraphics);
-    this.redrawFoundationFrames(this.layout);
 
     SUITS.forEach((suit, index) => {
       const color = suit === 'diamonds' || suit === 'hearts'
@@ -288,18 +304,39 @@ export class BoardView {
       this.ownedObjects.push(symbol);
     });
 
-    this.freeArrow = this.scene.add.text(
-      this.layout.stock.x + this.layout.cardWidth / 2,
-      this.layout.stock.y + this.layout.cardHeight / 2,
-      '↓',
-      {
-        color: '#9a7b4f',
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '42px',
-      },
-    ).setOrigin(0.5).setAlpha(0.42).setDepth(10).setResolution(UI_TEXT_RESOLUTION);
+    this.freeCellGlyphGraphics = this.scene.add.graphics().setDepth(10);
+    this.ownedObjects.push(this.freeCellGlyphGraphics);
+    this.redrawFreeCellGlyph(this.layout);
+  }
 
-    this.ownedObjects.push(this.freeArrow);
+  private createThemedSlots(): void {
+    const slots = this.theme.slots;
+
+    if (slots === undefined) {
+      return;
+    }
+
+    const assets: ThemeAssetRef[] = [
+      ...SUITS.map((suit) => slots.foundations[suit]),
+      slots.stockFreeCell,
+      ...this.layout.tableauX.map(() => slots.tableauEmpty),
+    ];
+
+    getBoardSlots(this.layout).forEach((slot, index) => {
+      const asset = assets[index];
+
+      if (asset === undefined) {
+        return;
+      }
+
+      const image = this.scene.add.image(slot.x, slot.y, asset.key)
+        .setOrigin(0)
+        .setDisplaySize(this.layout.cardWidth, this.layout.cardHeight)
+        .setDepth(7);
+
+      this.themedSlotImages.push(image);
+      this.ownedObjects.push(image);
+    });
   }
 
   private createSlot(
@@ -308,66 +345,77 @@ export class BoardView {
     y: number,
     alpha = 0.32,
   ): void {
+    const fillAlpha = kind === 'tableau'
+      ? alpha * 0.16
+      : alpha * 0.26;
+    const strokeAlpha = kind === 'stock'
+      ? 0.5
+      : kind === 'foundation'
+        ? 0.4
+        : 0.28;
+
     const slot = this.scene.add.rectangle(
       x + this.layout.cardWidth / 2,
       y + this.layout.cardHeight / 2,
       this.layout.cardWidth,
       this.layout.cardHeight,
-      0x1a140f,
-      kind === 'tableau' ? alpha * 0.22 : alpha * 0.34,
-    ).setDepth(5);
-
-    if (kind !== 'foundation') {
-      slot.setStrokeStyle(1, 0x8a7047, kind === 'stock' ? 0.48 : 0.24);
-    }
+      0x17100b,
+      fillAlpha,
+    )
+      .setDepth(5)
+      .setStrokeStyle(1, 0x92713f, strokeAlpha);
 
     this.slotRects.push(slot);
     this.ownedObjects.push(slot);
   }
 
-  private redrawFoundationFrames(layout: ViewportLayout): void {
-    const graphics = this.foundationFrameGraphics;
-    const lineColor = 0x8a7047;
-    const lineAlpha = 0.58;
-    const accentAlpha = 0.72;
-    const corner = Math.max(7, Math.round(layout.cardWidth * 0.07));
-    const tick = Math.max(4, Math.round(layout.cardWidth * 0.045));
+  private redrawFreeCellGlyph(layout: ViewportLayout): void {
+    const graphics = this.freeCellGlyphGraphics;
+
+    if (graphics === null) {
+      return;
+    }
+
+    const centerX = layout.stock.x + layout.cardWidth / 2;
+    const centerY = layout.stock.y + layout.cardHeight / 2;
+
+    const cardWidth = layout.cardWidth * 0.38;
+    const cardHeight = layout.cardHeight * 0.28;
+    const cardX = centerX - cardWidth / 2;
+    const cardY = centerY - layout.cardHeight * 0.29;
+    const cardBottom = cardY + cardHeight;
+
+    const stemWidth = Math.max(3, layout.cardWidth * 0.055);
+    const stemHeight = layout.cardHeight * 0.16;
+    const stemX = centerX - stemWidth / 2;
+    const stemY = cardBottom + layout.cardHeight * 0.055;
+    const headY = stemY + stemHeight;
+    const arrowHalf = Math.max(6, layout.cardWidth * 0.085);
+    const arrowTipY = headY + layout.cardHeight * 0.11;
+    const lineWidth = Math.max(1, Math.min(2, layout.cardWidth * 0.015));
+    const lineColor = 0x9a7b4f;
 
     graphics.clear();
-    graphics.lineStyle(1, lineColor, lineAlpha);
+    graphics.lineStyle(lineWidth, lineColor, 0.76);
+    graphics.fillStyle(lineColor, 0.72);
 
-    layout.foundations.forEach(({ x, y }) => {
-      const left = x;
-      const top = y;
-      const right = x + layout.cardWidth;
-      const bottom = y + layout.cardHeight;
+    graphics.strokeRoundedRect(
+      cardX,
+      cardY,
+      cardWidth,
+      cardHeight,
+      Math.max(2, layout.cardWidth * 0.025),
+    );
 
-      graphics.strokeRect(x, y, layout.cardWidth, layout.cardHeight);
-      graphics.lineStyle(1, lineColor, accentAlpha);
-
-      graphics.beginPath();
-      graphics.moveTo(left, top + corner);
-      graphics.lineTo(left + tick, top + corner);
-      graphics.moveTo(left + corner, top);
-      graphics.lineTo(left + corner, top + tick);
-
-      graphics.moveTo(right, top + corner);
-      graphics.lineTo(right - tick, top + corner);
-      graphics.moveTo(right - corner, top);
-      graphics.lineTo(right - corner, top + tick);
-
-      graphics.moveTo(left, bottom - corner);
-      graphics.lineTo(left + tick, bottom - corner);
-      graphics.moveTo(left + corner, bottom);
-      graphics.lineTo(left + corner, bottom - tick);
-
-      graphics.moveTo(right, bottom - corner);
-      graphics.lineTo(right - tick, bottom - corner);
-      graphics.moveTo(right - corner, bottom);
-      graphics.lineTo(right - corner, bottom - tick);
-      graphics.strokePath();
-      graphics.lineStyle(1, lineColor, lineAlpha);
-    });
+    graphics.fillRect(stemX, stemY, stemWidth, stemHeight);
+    graphics.fillTriangle(
+      centerX - arrowHalf,
+      headY,
+      centerX + arrowHalf,
+      headY,
+      centerX,
+      arrowTipY,
+    );
   }
 
   private createCardImages(): void {
@@ -399,7 +447,7 @@ export class BoardView {
 
   private createStockStack(): void {
     for (let index = 0; index < MAX_STOCK_LAYERS; index += 1) {
-      const back = this.scene.add.image(this.layout.stock.x, this.layout.stock.y, 'card-back')
+      const back = this.scene.add.image(this.layout.stock.x, this.layout.stock.y, this.theme.cardBack.key)
         .setOrigin(0)
         .setDisplaySize(this.layout.cardWidth, this.layout.cardHeight)
         .setVisible(false)
