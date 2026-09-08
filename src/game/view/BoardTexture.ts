@@ -5,7 +5,7 @@ export function getBoardTexture(theme: ThemeDefinition): string {
 }
 
 export function getSurfaceTransform(
-  mode: ThemeDefinition['surfaceScale'],
+  mode: 'tile' | 'cover',
   width: number, height: number, textureWidth: number, textureHeight: number,
 ): { scale: number; x: number; y: number } {
   if (mode === 'tile') return { scale: 1, x: 0, y: 0 };

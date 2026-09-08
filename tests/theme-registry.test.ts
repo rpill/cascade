@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getSlotAsset } from '../src/theme/ThemeAssets.ts';
+import { getSlotFrameAsset, getSlotGlyphAsset } from '../src/theme/ThemeAssets.ts';
 
 import {
   DEFAULT_THEME_ID,
@@ -21,8 +21,8 @@ test('Green Felt Club is a complete registry theme', () => {
   assert.equal(theme.id, 'green_felt_club');
   assert.match(theme.boardSurface.url, /green-felt-club\/board-surface\.jpg$/);
   assert.match(theme.cardBack.url, /green-felt-club\/card-back\.png$/);
-  assert.match(getSlotAsset(theme, 'tableau').url, /green-felt-club\/slots\/tableau-empty\.png$/);
-  assert.match(getSlotAsset(theme, 'stock').url, /green-felt-club\/slots\/stock-free-cell\.png$/);
+  assert.ok(getSlotFrameAsset(theme).url.startsWith('data:image/svg+xml'));
+  assert.ok(getSlotGlyphAsset(theme, 'stock')?.url.startsWith('data:image/svg+xml'));
 });
 
 test('unknown ids never escape the registry and fall back to Walnut', () => {
@@ -36,8 +36,8 @@ test('Burgundy Club is a complete registry theme', () => {
   const theme = getTheme('burgundy_club');
 
   assert.equal(theme.id, 'burgundy_club');
-  assert.match(theme.boardSurface.url, /burgundy-club\/board-surface\.webp$/);
+  assert.match(theme.boardSurface.url, /burgundy-club\/board-surface-refined\.webp$/);
   assert.match(theme.cardBack.url, /burgundy-club\/card-back\.png$/);
-  assert.match(getSlotAsset(theme, 'tableau').url, /burgundy-club\/slots\/tableau-empty\.png$/);
-  assert.match(getSlotAsset(theme, 'stock').url, /burgundy-club\/slots\/stock-free-cell\.png$/);
+  assert.ok(getSlotFrameAsset(theme).url.startsWith('data:image/svg+xml'));
+  assert.ok(getSlotGlyphAsset(theme, 'stock')?.url.startsWith('data:image/svg+xml'));
 });

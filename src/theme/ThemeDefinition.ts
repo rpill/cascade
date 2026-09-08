@@ -5,17 +5,6 @@ export interface ThemeAssetRef {
   readonly url: string;
 }
 
-export interface ThemeSlotAssets {
-  readonly tableauEmpty: ThemeAssetRef;
-  readonly foundations: {
-    readonly clubs: ThemeAssetRef;
-    readonly diamonds: ThemeAssetRef;
-    readonly hearts: ThemeAssetRef;
-    readonly spades: ThemeAssetRef;
-  };
-  readonly stockFreeCell: ThemeAssetRef;
-}
-
 export interface SlotPalette {
   readonly recess: string;
   readonly edge: string;
@@ -24,9 +13,23 @@ export interface SlotPalette {
   readonly redSuit: string;
 }
 
-export type ThemeSlots =
-  | { readonly kind: 'vector'; readonly palette: SlotPalette }
-  | { readonly kind: 'images'; readonly assets: ThemeSlotAssets };
+export interface ThemeSlots {
+  readonly palette: SlotPalette;
+  /** Optional full-card frame only. Suit and stock symbols are separate layers. */
+  readonly frame?: ThemeAssetRef;
+}
+
+export interface CardBackAsset extends ThemeAssetRef {
+  /** Visible artwork in an imported bitmap; excludes transparent export padding. */
+  readonly crop?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+}
+
+export interface SurfaceInsets {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+}
 
 export interface ThemeControls {
   readonly surface: string;
@@ -38,13 +41,23 @@ export interface ThemeControls {
   readonly focus: string;
 }
 
-export interface ThemeDefinition {
+interface ThemeCosmetics {
   readonly id: string;
   readonly name: string;
-  readonly boardSurface: ThemeAssetRef;
-  readonly surfaceScale: 'tile' | 'cover';
-  readonly cardBack: ThemeAssetRef;
+  readonly cardBack: CardBackAsset;
   readonly slots: ThemeSlots;
   readonly controls: ThemeControls;
   readonly boardTint?: number;
 }
+
+export type ThemeDefinition = ThemeCosmetics & {
+  readonly boardSurface: ThemeAssetRef;
+} & (
+  | { readonly surfaceScale: 'tile' | 'cover' }
+  | {
+    readonly surfaceScale: 'framed';
+    readonly surfaceSlices: SurfaceInsets;
+    /** Optional source trim for balancing an imported scene's outer margins. */
+    readonly surfaceCrop?: { readonly width: number; readonly height: number };
+  }
+);

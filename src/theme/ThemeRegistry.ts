@@ -19,7 +19,6 @@ export const THEMES = {
       url: './assets/themes/walnut-study/card-back.svg',
     },
     slots: {
-      kind: 'vector',
       palette: {
         recess: '#160f0b',
         edge: '#bd9b63',
@@ -47,34 +46,9 @@ export const THEMES = {
       url: `${GREEN_FELT_ROOT}/card-back.png`,
     },
     slots: {
-      kind: 'images',
-      assets: {
-        tableauEmpty: {
-          key: 'green-felt-slot-tableau-empty',
-          url: `${GREEN_FELT_ROOT}/slots/tableau-empty.png`,
-        },
-        foundations: {
-          clubs: {
-            key: 'green-felt-slot-clubs',
-            url: `${GREEN_FELT_ROOT}/slots/clubs.png`,
-          },
-          diamonds: {
-            key: 'green-felt-slot-diamonds',
-            url: `${GREEN_FELT_ROOT}/slots/diamonds.png`,
-          },
-          hearts: {
-            key: 'green-felt-slot-hearts',
-            url: `${GREEN_FELT_ROOT}/slots/hearts.png`,
-          },
-          spades: {
-            key: 'green-felt-slot-spades',
-            url: `${GREEN_FELT_ROOT}/slots/spades.png`,
-          },
-        },
-        stockFreeCell: {
-          key: 'green-felt-slot-stock-free-cell',
-          url: `${GREEN_FELT_ROOT}/slots/stock-free-cell.png`,
-        },
+      palette: {
+        recess: '#102d24', edge: '#a89e69', highlight: '#d0c694',
+        blackSuit: '#b4a275', redSuit: '#ba7863',
       },
     },
     controls: {
@@ -87,42 +61,20 @@ export const THEMES = {
     name: 'Burgundy Club',
     boardSurface: {
       key: 'cascade-board-surface-burgundy-club',
-      url: `${BURGUNDY_ROOT}/board-surface.webp`,
+      url: `${BURGUNDY_ROOT}/board-surface-refined.webp`,
     },
-    surfaceScale: 'cover',
+    surfaceScale: 'framed',
+    surfaceSlices: { left: 340, right: 370, top: 430, bottom: 450 },
+    surfaceCrop: { width: 1672, height: 922 },
     cardBack: {
       key: 'card-back-burgundy-club',
       url: `${BURGUNDY_ROOT}/card-back.png`,
+      crop: { x: 2, y: 2, width: 356, height: 466 },
     },
     slots: {
-      kind: 'images',
-      assets: {
-        tableauEmpty: {
-          key: 'burgundy-slot-tableau-empty',
-          url: `${BURGUNDY_ROOT}/slots/tableau-empty.png`,
-        },
-        foundations: {
-          clubs: {
-            key: 'burgundy-slot-clubs',
-            url: `${BURGUNDY_ROOT}/slots/clubs.png`,
-          },
-          diamonds: {
-            key: 'burgundy-slot-diamonds',
-            url: `${BURGUNDY_ROOT}/slots/diamonds.png`,
-          },
-          hearts: {
-            key: 'burgundy-slot-hearts',
-            url: `${BURGUNDY_ROOT}/slots/hearts.png`,
-          },
-          spades: {
-            key: 'burgundy-slot-spades',
-            url: `${BURGUNDY_ROOT}/slots/spades.png`,
-          },
-        },
-        stockFreeCell: {
-          key: 'burgundy-slot-stock-free-cell',
-          url: `${BURGUNDY_ROOT}/slots/stock-free-cell.png`,
-        },
+      palette: {
+        recess: '#1e1118', edge: '#ae956b', highlight: '#cfb68c',
+        blackSuit: '#c2a779', redSuit: '#c2a779',
       },
     },
     controls: {

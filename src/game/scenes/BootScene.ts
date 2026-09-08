@@ -5,6 +5,7 @@ import { getTheme } from '../../theme/ThemeRegistry.ts';
 import { resolveThemeId } from '../../theme/ThemeSelection.ts';
 import type { ThemeAssetRef } from '../../theme/ThemeDefinition.ts';
 import { getThemeAssets } from '../../theme/ThemeAssets.ts';
+import { prepareCardBack } from '../../theme/CardBackTexture.ts';
 
 const SUIT_FILE: Record<Suit, string> = {
   clubs: 'club',
@@ -46,6 +47,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    prepareCardBack(this, getTheme(resolveThemeId(window.location.search)));
     this.scene.start('GameScene');
   }
 

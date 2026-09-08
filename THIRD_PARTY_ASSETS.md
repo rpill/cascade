@@ -95,3 +95,9 @@
 - `public/assets/themes/walnut-study/board-surface.webp`: generated with the built-in ImageGen tool, then encoded as WebP. The final prompt and provenance are recorded in `public/assets/themes/walnut-study/README.md`.
 - `public/assets/themes/walnut-study/card-back.svg` and the slot paths in `src/theme/SlotArtwork.ts`: original project vector artwork, no external font or icon dependency.
 - Existing public-domain card faces and the Green Felt Club assets are unchanged.
+
+## Burgundy Club refinement (2026-09-08)
+
+- `public/assets/themes/burgundy-club/board-surface-refined.webp`: ImageGen edit of the user-supplied scene, encoded as WebP. Both prompts and geometry are recorded in the theme README. The provenance/license of the imported source is not independently established here.
+- The user-supplied `card-back.png` ornament is unchanged; a runtime texture frame excludes transparent padding.
+- Separate slot frames, shared suit/stock glyphs and paper-edge SVGs are project vector artwork in `src/theme/SlotArtwork.ts` and `src/theme/ThemeAssets.ts`.

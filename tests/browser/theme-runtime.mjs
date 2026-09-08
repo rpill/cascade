@@ -77,7 +77,7 @@ try {
   assert.equal(green.deal, before.deal);
   assert.equal(green.objects, before.objects);
   assert.equal(await page.locator('.game-hud').getAttribute('data-theme'), 'green_felt_club');
-  assert.ok(green.slots.every(slot => slot.key.startsWith('green-felt-slot-')));
+  assert.ok(green.slots.every(slot => slot.key === 'green_felt_club-slot-frame'));
   await page.screenshot({path: 'artifacts/theme-green.png'});
 
   for (let index = 0; index < 4; index++) {
@@ -142,6 +142,73 @@ try {
   assert.deepEqual(rapid, [false, true]);
   assert.equal(await failure.locator('.game-hud').getAttribute('data-theme'), 'walnut_study');
   await failure.close();
+
+  const burgundy = await newGamePage(1915, 953, '?theme=burgundy_club');
+  const burgundyMetrics = await burgundy.evaluate(() => {
+    const scene = globalThis.__themeTestGame.scene.getScene('GameScene');
+    const board = scene.board;
+    const backs = board.stockBacks.filter(image => image.visible);
+    const top = backs.at(-1);
+    const stock = board.appearance.slots.find(slot => slot.role === 'stock');
+    return {
+      backWidth: top.displayWidth, backHeight: top.displayHeight,
+      cardWidth: board.layout.cardWidth, cardHeight: board.layout.cardHeight,
+      crop: [top.frame.cutX, top.frame.cutY, top.frame.realWidth, top.frame.realHeight],
+      edgeKeys: backs.slice(0,-1).map(image => image.texture.key),
+      slotVisible: stock.image.visible, glyphVisible: stock.glyph.visible,
+      separateLayers: stock.image !== stock.glyph,
+      frameDimensions: [stock.image.displayWidth,stock.image.displayHeight],
+      surfacePieces: board.appearance.surface.pieces.map(piece => ({
+        x:piece.x,y:piece.y,w:piece.displayWidth,h:piece.displayHeight,
+        sourceW:piece.frame.realWidth,sourceH:piece.frame.realHeight,
+      })),
+    };
+  });
+  assert.equal(burgundyMetrics.backWidth,burgundyMetrics.cardWidth);
+  assert.equal(burgundyMetrics.backHeight,burgundyMetrics.cardHeight);
+  assert.deepEqual(burgundyMetrics.crop,[2,2,356,466]);
+  assert.deepEqual(burgundyMetrics.frameDimensions,[burgundyMetrics.cardWidth,burgundyMetrics.cardHeight]);
+  assert.ok(burgundyMetrics.edgeKeys.every(key => key === 'cascade-stock-paper-edge'));
+  assert.ok(burgundyMetrics.slotVisible && burgundyMetrics.glyphVisible && burgundyMetrics.separateLayers);
+  assert.equal(burgundyMetrics.surfacePieces.length,9);
+  for (const index of [0,2,6,8]) {
+    const p = burgundyMetrics.surfacePieces[index];
+    assert.ok(Math.abs(p.w/p.sourceW-p.h/p.sourceH)<1e-8);
+  }
+  await burgundy.mouse.move(900,900);
+  await burgundy.screenshot({path:'artifacts/burgundy-desktop.png'});
+
+  // Exact overlay proof: show half a face over a single back at the same coordinates.
+  await burgundy.evaluate(() => {
+    const scene = globalThis.__themeTestGame.scene.getScene('GameScene');
+    const {cardWidth:w,cardHeight:h} = scene.board.layout;
+    globalThis.__sizeProof = [
+      scene.add.image(800,700,scene.activeTheme.cardBack.key,'card-back-art').setOrigin(0).setDisplaySize(w,h).setDepth(2000),
+      scene.add.image(800+w/2,700,'spades-4').setOrigin(0).setDisplaySize(w,h).setDepth(2001),
+    ];
+  });
+  await burgundy.screenshot({path:'artifacts/burgundy-size-proof.png',clip:{x:785,y:685,width:235,height:215}});
+  await burgundy.evaluate(() => globalThis.__sizeProof.forEach(image => image.destroy()));
+
+  await burgundy.setViewportSize({width:844,height:390});
+  await burgundy.waitForTimeout(250);
+  await burgundy.screenshot({path:'artifacts/burgundy-compact.png'});
+  await burgundy.setViewportSize({width:1366,height:768});
+  await burgundy.waitForTimeout(250);
+  await burgundy.screenshot({path:'artifacts/burgundy-laptop.png'});
+  await burgundy.evaluate(() => {
+    const scene=globalThis.__themeTestGame.scene.getScene('GameScene');
+    const snapshot=scene.gameState.snapshot();
+    snapshot.waste.push(...snapshot.stock.splice(0),...snapshot.tableau[0].splice(0));
+    scene.gameState.restore(snapshot);
+    scene.board.showRestoredState();
+  });
+  await burgundy.screenshot({path:'artifacts/burgundy-empty-slots.png'});
+  assert.equal(await burgundy.evaluate(() => {
+    const board=globalThis.__themeTestGame.scene.getScene('GameScene').board;
+    return board.appearance.slots.find(slot=>slot.role==='stock').glyph.visible;
+  }),true);
+  await burgundy.close();
   assert.deepEqual(errors, []);
   console.log('Theme browser checks passed: full bundles, pause, repeated switches, deal preservation, exact slot bounds, draw/undo, resize, empty slots, saved selection, preview override, failed download/retry and rapid selections.');
 } finally {

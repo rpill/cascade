@@ -16,6 +16,8 @@ import {
 import type { ViewportLayout } from './ViewportLayout.ts';
 import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
 import { TableAppearanceView } from './TableAppearanceView.ts';
+import { STOCK_EDGE_ASSET } from '../../theme/ThemeAssets.ts';
+import { CARD_BACK_ART_FRAME } from '../../theme/CardBackTexture.ts';
 import {
   getCardMotionDuration,
   getFoundationStepDelay,
@@ -203,8 +205,7 @@ export class BoardView {
   setTheme(theme: ThemeDefinition): void {
     this.theme = theme;
     this.appearance.setTheme(theme, this.layout);
-    this.stockBacks.forEach(back => back.setTexture(theme.cardBack.key)
-      .setDisplaySize(this.layout.cardWidth, this.layout.cardHeight));
+    this.updateStockStack();
   }
 
   private createCardImages(): void {
@@ -255,8 +256,12 @@ export class BoardView {
     this.stockBacks.forEach((back, index) => {
       const offset = offsets[index];
       const visible = offset !== undefined;
+      const top = index === offsets.length - 1;
 
       back
+        .setTexture(top ? this.theme.cardBack.key : STOCK_EDGE_ASSET.key,
+          top && this.theme.cardBack.crop !== undefined ? CARD_BACK_ART_FRAME : undefined)
+        .setDisplaySize(this.layout.cardWidth, this.layout.cardHeight)
         .setVisible(visible)
         .setPosition(this.layout.stock.x, this.layout.stock.y + (offset ?? 0))
         .setDepth(50 + index);

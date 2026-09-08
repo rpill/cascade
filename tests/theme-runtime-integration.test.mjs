@@ -30,7 +30,7 @@ test('cached theme skips downloads and a complete download succeeds', async () =
   const {scene, loaded, queued} = downloadingScene();
   const theme = getTheme();
   const result = loadTheme(scene, theme);
-  assert.equal(queued.length, 8);
+  assert.equal(queued.length, 9);
   queued.forEach(asset => loaded.add(asset.key));
   scene.load.emit('complete');
   assert.equal(await result, true);
