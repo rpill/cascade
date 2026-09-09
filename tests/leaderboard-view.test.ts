@@ -55,5 +55,5 @@ test('leaderboard overlay is a passive native DOM view', () => {
 
 test('leaderboard overlay can show a non-fatal auth message without replacing ready rows', () => {
   assert.match(source, /state\.message !== undefined/);
-  assert.match(source, /this\.authCopy\.textContent = state\.message/);
+  assert.match(source, /this\.localization\.text\(this\.authCopy, \(\) => t\(state\.message \?\? ''\)\)/);
 });

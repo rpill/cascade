@@ -20,4 +20,6 @@ test('ordinary completion view shows mode time record stats and both actions', (
   assert.match(source, /actions\.newGame\(\)/);
   assert.match(source, /В МЕНЮ/);
   assert.match(source, /actions\.menu\(\)/);
+  assert.match(source, /reward\?: RewardSummaryState/);
+  assert.match(source, /RewardSummaryView/);
 });

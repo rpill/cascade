@@ -28,11 +28,14 @@ test('scene mounts leaderboard functionality into the Statistics shell page', ()
 test('leaderboard service is created only after platform and meta load, then shell meta refreshes', () => {
   const initialize = extractMethod(sceneSource, 'initializeMeta');
   assert.match(initialize, /this\.platform = await initializePlatform\(\)/);
-  assert.match(initialize, /const loaded = await this\.metaRepository\.load\(\)/);
-  assert.match(initialize, /this\.metaState = this\.metaMutations\.settleLoadedState\(loaded\)/);
+  assert.match(initialize, /await this\.loadMetaProfile\(\)/);
   assert.match(initialize, /this\.leaderboardService = new LeaderboardService\(this\.platform\)/);
   assert.match(initialize, /this\.refreshMenuMeta\(\)/);
-  assert.ok(initialize.indexOf('new LeaderboardService(this.platform)') > initialize.indexOf('settleLoadedState(loaded)'));
+  const loadedIndex = initialize.indexOf('await this.loadMetaProfile()');
+  const serviceIndex = initialize.indexOf('new LeaderboardService(this.platform)');
+  assert.notEqual(loadedIndex, -1);
+  assert.notEqual(serviceIndex, -1);
+  assert.ok(serviceIndex > loadedIndex);
   assert.doesNotMatch(initialize, /requestAuthorization\(/);
 });
 

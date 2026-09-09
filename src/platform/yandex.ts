@@ -33,12 +33,14 @@ interface YandexGameplayApi {
 }
 
 interface YandexPlayer {
+  getUniqueID?(): string;
   getData(keys?: string[]): Promise<Record<string, unknown>>;
   setData(data: Record<string, unknown>, flush?: boolean): Promise<void>;
   isAuthorized(): boolean;
 }
 
 export interface YandexSdk {
+  environment?: { i18n?: { lang?: string } };
   getPlayer(): Promise<YandexPlayer>;
   serverTime(): number;
   isAvailableMethod(method: string): Promise<boolean>;
@@ -289,7 +291,9 @@ export async function createYandexPlatformServices(
   const platformPause = createYandexPlatformPause(ysdk);
 
   return {
+    language: ysdk.environment?.i18n?.lang,
     playerStorage: {
+      scope: async () => `yandex-${(await getPlayer()).getUniqueID?.() ?? 'player'}`,
       load: async () => (await getPlayer()).getData(),
       save: async (data, flush = false) =>
         (await getPlayer()).setData(data, flush),

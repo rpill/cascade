@@ -34,11 +34,25 @@
 - Active-game checkpoints are browser-local and frequent. They are updated at settled gameplay boundaries plus menu/visibility/pagehide boundaries; the board snapshot is not uploaded to Yandex after every move.
 - The ordinary attempt timer starts when the opening/automatic chain has settled and input becomes available. Menu time, hidden-tab time, and time while the page is closed are excluded.
 - Reloading a started Standard/Classic attempt does not increment `played` again. Restart creates a new attempt and increments `played` after the new board reaches the playable boundary; New Game does the same with a fresh seed.
-- `MetaSave` is version 2. Standard (`winnable`) and Classic (`original`) persist separate `played`, `wins`, and `bestTimeMs` values; win rate is derived from wins/played rather than stored.
-- V1 player saves migrate to V2 without losing collection/equipped/achievements, Daily records, weekly progress, or claimed milestones.
+- `MetaSave` is version 3. Standard (`winnable`) and Classic (`original`) persist separate `played`, `wins`, and `bestTimeMs` values; win rate is derived from wins/played rather than stored.
+- V1/V2 saves migrate to V3 without losing existing progress. A valid previously equipped theme is retained and granted; old wins do not mint retroactive XP or coins.
 - Meta mutations made before Yandex Player data finishes loading are replayed over the loaded cloud state so a fast local start/win cannot be overwritten by stale remote statistics.
 - Ordinary wins finalize statistics exactly once, flush the newest meta state, clear the unfinished active checkpoint, and show a native DOM result overlay.
 - The ordinary result overlay shows mode, elapsed time, best time, new-record state, wins/played, derived win rate, `ЕЩЁ ПАРТИЯ`, and `В МЕНЮ`.
+
+## Collections, shop and progression
+
+- The free starting theme is `walnut_study`. The published catalog sells `navy_study` and `burgundy_club` for 300 coins each; purchase unlocks the whole theme, and applying it is a separate action.
+- Collection supports All/Mine filters, ownership and equipped states. Shop and collection use lightweight previews in a bounded card grid with internal vertical scrolling. Compact landscape uses horizontal cards; a single owned item never stretches across a desktop panel. New products are catalog data, independent of experimental registered themes.
+- The former weekly footer on the Play page now shows player level and XP progress. Weekly indicators remain inside the Daily card; the shell wallet shows the current coin balance.
+- The XP strip also shows the next-level reward (+50 coins). Daily retains seven neutral indicators when trusted time is unavailable, without inventing dates or awarding progress.
+- Phone menus have wider side gutters, card/button insets and a vertical mode layout in portrait. Statistics stacks vertically and scrolls inside the panel on narrow phones.
+- The settings gear opens a modal with persistent sound and Russian/English controls. SDK language initializes on first launch; manual selection wins on later launches. Language changes refresh all text without reloading the game or resetting Undo.
+- `cascadePreferences` stores device settings. The Phaser audio manager respects user mute, window focus, visibility and platform pause. There are currently no music/effect assets; the controller already governs future Phaser sounds.
+- Standard wins give 100 XP/25 coins; Classic gives 120/30; the first completion of each Daily gives 150/75. Repeated Daily completion can improve a record but gives no further rewards.
+- The first win on a trusted UTC day gives another 50 XP/30 coins. Each level gives 50 coins; the XP needed for the next level is `100 + 50 * (level - 1)`. Weekly 3/5/7 Daily milestones award 75/150/250 coins once each.
+- Result overlays show reward breakdowns and pending rewards. Stable attempt IDs survive F5; journal and completion receipts prevent replayed operations from paying twice.
+- Purchases require a loaded profile. Failed reads, writes, or theme downloads have explicit retry states; failed theme loading preserves the current appearance. Applying a theme preserves the board, Undo history and timer.
 
 ## Daily / weekly retention foundation
 
@@ -54,8 +68,10 @@
 
 ## Platform persistence / Yandex integration
 
-- `cascadeMeta` is the long-lived structured player save managed by `MetaRepository`; `cascadeActiveGame` is a separate browser-local current-session checkpoint.
-- When the Yandex platform is unavailable, PlayerStorage falls back to `localStorage` under `cascadePlayerData`; memory is only the last resort when browser storage itself is unavailable or throws.
+- `cascadeMeta` is the long-lived structured player save managed at runtime by `MetaSession`; `cascadeActiveGame` is a separate browser-local current-session checkpoint and includes the stable attempt ID.
+- `MetaJournal` persists typed operations under `cascadeMetaJournal:<profile scope>` before applying them, replays them over loaded state, and removes them only after an acknowledged save. Writes are serialized and flushed; failed operations remain available for retry.
+- When Yandex is unavailable, PlayerStorage uses `cascadePlayerData`. The economy uses strict reads/writes: storage failures cannot masquerade as a new profile or an acknowledged save. A memory-only environment is indicated in the UI.
+- Journals are scoped by platform player identity. Switching accounts leaves the old journal intact and clears the old active board; authorization is unavailable while gameplay or unsaved meta operations are pending.
 - The Yandex adapter dynamically loads `/sdk.js` before `YaGames.init()` in the HTTPS Yandex/proxy environment. Plain local HTTP development intentionally falls back to the unavailable-platform adapter.
 - `pnpm yandex:dev` builds `dist` and launches the official Yandex SDK development proxy for local SDK smoke-testing.
 - `LoadingAPI.ready()` is exposed through the platform boundary and called after platform/meta initialization reaches the current ready boundary.
@@ -67,7 +83,7 @@
 ## Statistics / Yandex leaderboards
 
 - Standard and Classic statistics are available from a dedicated native DOM `СТАТИСТИКА` modal; they are no longer expanded inline inside the main menu.
-- Main-menu information/modals follow a strict no-scroll rule. Statistics, leaderboards, and future shop screens must fit the viewport; use compact responsive layout, tabs, or pagination instead of scrollbars.
+- The shell stays within the viewport. Catalogs and narrow-phone statistics use internal vertical scrolling; fixed menus/results remain fitted to the available space. This replaces the earlier blanket no-scroll rule at the user's request.
 - The main menu exposes a dedicated `ТАБЛИЦА ЛИДЕРОВ` action. The leaderboard modal has Standard/Classic tabs, top-10, loading/empty/error/unavailable states, an optional personal row, explicit sign-in, and close/Esc behavior.
 - Built-in Yandex leaderboards use the fixed technical names `standardbesttime` (`winnable`) and `classicbesttime` (`original`). Daily intentionally has no built-in global leaderboard.
 - Public top-10 browsing does not require authorization. Personal rank and score submission require Yandex authorization; the game never opens the auth dialog automatically.
@@ -128,4 +144,4 @@ The solver can be regenerated separately with `pnpm generate:winnable-pool` when
 
 ## Current next focus
 
-The local Phase C statistics/leaderboard implementation and unified Yandex gameplay lifecycle are complete. The remaining leaderboard release gate is external: create `standardbesttime` and `classicbesttime` in the Yandex Games Console exactly as documented in `docs/YANDEX_LEADERBOARDS_SETUP.md`, then run the real draft E2E checklist. The next implementation focus is advertising at logical pauses using the shared gameplay lifecycle boundary, followed by language auto-detection/localization, final platform declarations/mobile verification if mobile is enabled, and release verification that re-tests lifecycle behavior plus F5/session persistence in the actual Yandex environment. Economy systems (XP, coins, shop), achievements, and purchases remain intentionally outside the completed phase.
+Local collections, theme purchases with earned coins, XP/levels, RU/EN settings, statistics/leaderboards and the unified gameplay lifecycle are implemented. The remaining leaderboard release gate is external: create `standardbesttime` and `classicbesttime` in the Yandex Games Console as documented in `docs/YANDEX_LEADERBOARDS_SETUP.md`, then run the real draft E2E checklist, including profile persistence and economy recovery. `docs/YANDEX_UI_ACCEPTANCE.md` records the language, audio and mobile checks still needed on the actual platform. Future work includes advertising at logical pauses, audio content, achievements and release verification. Real-money purchases and multi-device conflict merging are outside this implementation.

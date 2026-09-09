@@ -9,12 +9,13 @@ const scene = readFileSync(
 
 test('GameScene coordinates platform meta Daily timer and completion without putting Yandex calls in solitaire model', () => {
   assert.match(scene, /initializePlatform/);
-  assert.match(scene, /MetaRepository/);
+  assert.match(scene, /MetaSession/);
+  assert.match(scene, /dispatchMeta/);
   assert.match(scene, /getDailyId/);
   assert.match(scene, /getDailySeed/);
   assert.match(scene, /AttemptTimer/);
-  assert.match(scene, /beginDailyAttempt/);
-  assert.match(scene, /completeDailyAttempt/);
+  assert.match(scene, /kind:\s*'begin'/);
+  assert.match(scene, /completionEvent\('daily',\s*elapsedMs\)/);
   assert.match(scene, /DailyCompleteView/);
   assert.match(scene, /visibilitychange/);
   assert.match(scene, /pendingDailyRestore/);

@@ -16,11 +16,13 @@ test('hybrid shell exposes one brand, destination nav, utilities, and content ho
   assert.doesNotMatch(shellSource, /ГЛАВНОЕ МЕНЮ/);
 });
 
-test('collection and shop are present but inaccessible until real pages exist', () => {
+test('collection and shop are navigable and the shell exposes a wallet state', () => {
   assert.match(shellSource, /'collection'/);
   assert.match(shellSource, /'shop'/);
-  assert.match(shellSource, /aria-disabled/);
-  assert.match(shellSource, /disabled\s*=\s*true/);
+  assert.match(shellSource, /setCoins\(coins: number \| null\)/);
+  assert.match(shellSource, /app-shell-wallet/);
+  assert.doesNotMatch(shellSource, /createNavButton\('collection',[^]*true\)/);
+  assert.doesNotMatch(shellSource, /createNavButton\('shop',[^]*true\)/);
 });
 
 test('shell back-to-game action is compact and contextual', () => {

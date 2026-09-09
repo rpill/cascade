@@ -1,6 +1,7 @@
+import { t, LocalizationBindings } from '../../localization/Localization.ts';
 import type Phaser from 'phaser';
 
-import { createIconControl } from './ui/UiControls.ts';
+import { createIconControl, refreshIconControls } from './ui/UiControls.ts';
 import { createUiIcon } from './ui/UiIcons.ts';
 import { createHomeArtIcon } from './ui/HomeArtIcons.ts';
 import { deferClickThroughAction } from './UiClickBarrier.ts';
@@ -10,6 +11,7 @@ export type ShellDestination = 'play' | 'statistics' | 'collection' | 'shop' | '
 export interface AppShellActions {
   readonly navigate: (destination: ShellDestination) => void;
   readonly cancel: () => void;
+  readonly settings: () => void;
 }
 
 export interface AppShellShowOptions {
@@ -39,10 +41,18 @@ function toCssUrl(path: string): string {
 }
 
 export class AppShellView {
+  private readonly localization = new LocalizationBindings();
+
+  refreshLocalization(): void {
+    this.localization.refresh();
+    refreshIconControls(this.root);
+  }
+
   readonly contentHost: HTMLDivElement;
 
   private readonly root: HTMLDivElement;
   private readonly returnButton: HTMLButtonElement;
+  private readonly wallet: HTMLSpanElement;
   private readonly navButtons = new Map<ShellDestination, HTMLButtonElement>();
 
   constructor(scene: Phaser.Scene, actions: AppShellActions) {
@@ -74,11 +84,11 @@ export class AppShellView {
     this.returnButton = document.createElement('button');
     this.returnButton.type = 'button';
     this.returnButton.className = 'app-shell-return';
-    this.returnButton.setAttribute('aria-label', 'К игре');
-    this.returnButton.title = 'К игре';
+    this.localization.attribute(this.returnButton, 'aria-label', () => t('К игре'));
+    this.localization.attribute(this.returnButton, 'title', () => t('К игре'));
     this.returnButton.append(createUiIcon('back'));
     const returnLabel = document.createElement('span');
-    returnLabel.textContent = 'К игре';
+    this.localization.text(returnLabel, () => t('К игре'));
     this.returnButton.append(returnLabel);
     this.returnButton.addEventListener('pointerdown', (event) => event.stopPropagation());
     this.returnButton.addEventListener('pointerup', (event) => event.stopPropagation());
@@ -90,10 +100,10 @@ export class AppShellView {
     brand.className = 'app-shell-brand';
     const brandTitle = document.createElement('div');
     brandTitle.className = 'app-shell-brand-title';
-    brandTitle.textContent = 'CASCADE';
+    this.localization.text(brandTitle, () => 'CASCADE');
     const brandSubtitle = document.createElement('div');
     brandSubtitle.className = 'app-shell-brand-subtitle';
-    brandSubtitle.textContent = 'КЛАССИЧЕСКИЙ ПАСЬЯНС';
+    this.localization.text(brandSubtitle, () => t('КЛАССИЧЕСКИЙ ПАСЬЯНС'));
     const brandFlourish = document.createElement('span');
     brandFlourish.className = 'app-shell-brand-flourish';
     brandFlourish.setAttribute('aria-hidden', 'true');
@@ -101,6 +111,9 @@ export class AppShellView {
 
     const utilities = document.createElement('div');
     utilities.className = 'app-shell-utilities';
+    this.wallet = document.createElement('span');
+    this.wallet.className = 'app-shell-wallet';
+    this.localization.attribute(this.wallet, 'aria-label', () => t('Баланс монет загружается'));
     const rulesButton = createIconControl({
       icon: 'rules',
       label: 'Правила',
@@ -115,26 +128,25 @@ export class AppShellView {
       label: 'Настройки',
       tooltip: 'Настройки',
       className: 'app-shell-utility',
+      onClick: () => actions.settings(),
     });
     settingsButton.replaceChildren(createHomeArtIcon('settings'));
-    settingsButton.disabled = true;
-    settingsButton.setAttribute('aria-disabled', 'true');
-    utilities.append(rulesButton, settingsButton);
+    utilities.append(this.wallet, rulesButton, settingsButton);
 
     topbar.append(this.returnButton, brand, utilities);
 
     const surface = document.createElement('section');
     surface.className = 'app-shell-surface';
-    surface.setAttribute('aria-label', 'CASCADE');
+    this.localization.attribute(surface, 'aria-label', () => 'CASCADE');
 
     const nav = document.createElement('nav');
     nav.className = 'app-shell-nav';
-    nav.setAttribute('aria-label', 'Разделы');
+    this.localization.attribute(nav, 'aria-label', () => t('Разделы'));
     nav.append(
-      this.createNavButton('play', 'ИГРАТЬ', actions, false),
-      this.createNavButton('statistics', 'СТАТИСТИКА', actions, false),
-      this.createNavButton('collection', 'КОЛЛЕКЦИЯ', actions, true),
-      this.createNavButton('shop', 'МАГАЗИН', actions, true),
+      this.createNavButton('play', 'ИГРАТЬ', actions),
+      this.createNavButton('statistics', 'СТАТИСТИКА', actions),
+      this.createNavButton('collection', 'КОЛЛЕКЦИЯ', actions),
+      this.createNavButton('shop', 'МАГАЗИН', actions),
     );
 
     this.contentHost = document.createElement('div');
@@ -148,7 +160,15 @@ export class AppShellView {
       throw new Error('Game canvas must have a parent element for the application shell.');
     }
     host.append(this.root);
+    this.setCoins(null);
     this.hide();
+  }
+
+  setCoins(coins: number | null): void {
+    const value = coins === null ? '—' : String(Math.max(0, Math.floor(coins)));
+    this.localization.text(this.wallet, () => value);
+    this.wallet.dataset.ready = String(coins !== null);
+    this.localization.attribute(this.wallet, 'aria-label', () => coins === null ? t('Баланс монет загружается') : t("Монеты: {value0}", {value0: value}));
   }
 
   show({ canCancel, destination }: AppShellShowOptions): void {
@@ -185,7 +205,7 @@ export class AppShellView {
     const image = document.createElement('img');
     image.className = `app-shell-decor-card ${className}`;
     image.src = src;
-    image.alt = '';
+    this.localization.attribute(image, 'alt', () => '');
     image.draggable = false;
     return image;
   }
@@ -194,19 +214,13 @@ export class AppShellView {
     destination: ShellDestination,
     label: string,
     actions: AppShellActions,
-    disabled: boolean,
   ): HTMLButtonElement {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'app-shell-nav-button';
     button.setAttribute('data-destination', destination);
-    button.textContent = label;
-    button.disabled = disabled;
-    if (disabled) {
-      button.setAttribute('aria-disabled', 'true');
-    } else {
-      button.addEventListener('click', () => actions.navigate(destination));
-    }
+    this.localization.text(button, () => t(label));
+    button.addEventListener('click', () => actions.navigate(destination));
     this.navButtons.set(destination, button);
     return button;
   }

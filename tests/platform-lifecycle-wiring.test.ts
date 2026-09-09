@@ -7,11 +7,22 @@ const sceneSource = readFileSync(
   'utf8',
 );
 
+function extractMethod(source: string, name: string): string {
+  const direct = source.indexOf(`private ${name}`);
+  const asyncStart = source.indexOf(`private async ${name}`);
+  const start = direct === -1 ? asyncStart : direct;
+  assert.notEqual(start, -1, `missing method ${name}`);
+  const next = source.indexOf('\n  private ', start + 1);
+  return source.slice(start, next === -1 ? source.length : next);
+}
+
 test('GameScene binds platform pause before player meta loading continues', () => {
-  assert.match(
-    sceneSource,
-    /this\.platform = await initializePlatform\(\);[\s\S]*bindPlatformLifecycle[\s\S]*new MetaRepository/,
-  );
+  const initialize = extractMethod(sceneSource, 'initializeMeta');
+  const bindIndex = initialize.indexOf('this.bindPlatformLifecycle(this.platform)');
+  const loadIndex = initialize.indexOf('await this.loadMetaProfile()');
+  assert.notEqual(bindIndex, -1);
+  assert.notEqual(loadIndex, -1);
+  assert.ok(bindIndex < loadIndex);
 });
 
 test('GameScene reconciles timer markup and external scene pause from one path', () => {

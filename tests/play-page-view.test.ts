@@ -19,14 +19,14 @@ test('Play destination renders Standard Daily Classic through one mode-card help
   assert.doesNotMatch(playSource, /createStandardCard|createDailyCard|createClassicCard/);
 });
 
-test('weekly progress is one compact seven-dot strip instead of debug week text', () => {
-  assert.match(playSource, /На этой неделе/);
-  assert.match(playSource, /main-shell-week-dot/);
-  assert.match(playSource, /completedCount/);
-  assert.match(playSource, /\$\{completedCount\}\/7/);
-  assert.doesNotMatch(playSource, /НЕДЕЛЯ \$\{/);
-  assert.doesNotMatch(playSource, /WEEKLY_MILESTONES/);
-  assert.doesNotMatch(playSource, /Пн|Вт|Ср|Чт|Пт|Сб|Вс/);
+test('level and XP replace the weekly footer while weekly dots remain in the Daily card', () => {
+  assert.match(playSource, /updateProgression\(state: PlayerProgressionState\)/);
+  assert.match(playSource, /Уровень/);
+  assert.match(playSource, /xpIntoLevel/);
+  assert.match(playSource, /xpForNextLevel/);
+  assert.match(playSource, /role[^]*progressbar/);
+  assert.match(playSource, /main-shell-daily-dots/);
+  assert.doesNotMatch(playSource, /main-shell-weekly|main-shell-week-dot|На этой неделе/);
 });
 
 test('Daily availability is enforced without changing ordinary mode actions', () => {
@@ -53,7 +53,6 @@ test('mode and footer artwork uses the dedicated Home art-icon layer instead of 
   assert.match(playSource, /createModeCard\('daily',\s*'crown'/);
   assert.match(playSource, /createModeCard\('original',\s*'heart'/);
   assert.match(playSource, /emblemNode\.append\(createHomeArtIcon\(icon\)\)/);
-  assert.match(playSource, /createHomeArtIcon\('calendar'\)/);
   assert.match(playSource, /createHomeArtIcon\('trophy'\)/);
   assert.doesNotMatch(playSource, /'♠'|'♛'|'♥'/);
 });

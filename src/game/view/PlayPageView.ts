@@ -1,3 +1,4 @@
+import { t, getLanguage } from '../../localization/Localization.ts';
 import type { GameMode } from '../model/types.ts';
 import { createHomeArtIcon, type HomeArtIconName } from './ui/HomeArtIcons.ts';
 
@@ -14,6 +15,13 @@ export interface DailyMenuState {
 export interface PlayPageActions {
   readonly play: (mode: GameMode) => void;
   readonly leaderboard: () => void;
+}
+
+export interface PlayerProgressionState {
+  readonly level: number;
+  readonly xpIntoLevel: number;
+  readonly xpForNextLevel: number;
+  readonly ready: boolean;
 }
 
 interface ModeCardParts {
@@ -35,47 +43,37 @@ const UNAVAILABLE_DAILY_STATE: DailyMenuState = {
   completedDailyIds: [],
 };
 
-const RUSSIAN_MONTHS = [
-  'января',
-  'февраля',
-  'марта',
-  'апреля',
-  'мая',
-  'июня',
-  'июля',
-  'августа',
-  'сентября',
-  'октября',
-  'ноября',
-  'декабря',
-] as const;
-
 function formatDailyDate(dailyId: string | null): string {
   if (dailyId === null) {
-    return 'Сегодня';
+    return t('Сегодня');
   }
 
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dailyId);
   if (match === null) {
-    return 'Сегодня';
+    return t('Сегодня');
   }
 
   const month = Number(match[2]);
   const day = Number(match[3]);
   if (month < 1 || month > 12 || day < 1 || day > 31) {
-    return 'Сегодня';
+    return t('Сегодня');
   }
 
-  return `${day} ${RUSSIAN_MONTHS[month - 1]}`;
+  return new Intl.DateTimeFormat(getLanguage(), { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${dailyId}T12:00:00Z`));
 }
 
 export class PlayPageView {
   private readonly actions: PlayPageActions;
   private readonly root: HTMLElement;
   private readonly modeCards = new Map<GameMode, ModeCardParts>();
-  private readonly weekly: HTMLElement;
-  private readonly weeklyDots: HTMLDivElement;
-  private readonly weeklyCount: HTMLSpanElement;
+  private readonly playerProgress: HTMLElement;
+  private readonly playerLevel: HTMLSpanElement;
+  private readonly playerXp: HTMLSpanElement;
+  private readonly levelReward: HTMLSpanElement;
+  private dailyState = UNAVAILABLE_DAILY_STATE;
+  private progressionState: PlayerProgressionState = {level:1,xpIntoLevel:0,xpForNextLevel:100,ready:false};
+  private readonly xpTrack: HTMLDivElement;
+  private readonly xpFill: HTMLDivElement;
   private readonly leaderboardButton: HTMLButtonElement;
   private selectedMode: GameMode | null = null;
 
@@ -96,24 +94,23 @@ export class PlayPageView {
     const footer = document.createElement('div');
     footer.className = 'main-shell-play-footer';
 
-    this.weekly = document.createElement('section');
-    this.weekly.className = 'main-shell-weekly';
-    this.weekly.setAttribute('aria-label', 'Прогресс недели');
-
-    const weeklyIcon = document.createElement('span');
-    weeklyIcon.className = 'main-shell-weekly-icon';
-    weeklyIcon.setAttribute('aria-hidden', 'true');
-    weeklyIcon.append(createHomeArtIcon('calendar'));
-
-    const weeklyLabel = document.createElement('span');
-    weeklyLabel.className = 'main-shell-weekly-label';
-    weeklyLabel.textContent = 'На этой неделе';
-
-    this.weeklyDots = document.createElement('div');
-    this.weeklyDots.className = 'main-shell-week-dots';
-    this.weeklyCount = document.createElement('span');
-    this.weeklyCount.className = 'main-shell-week-count';
-    this.weekly.append(weeklyIcon, weeklyLabel, this.weeklyDots, this.weeklyCount);
+    this.playerProgress = document.createElement('section');
+    this.playerProgress.className = 'main-shell-player-progress';
+    this.playerProgress.setAttribute('aria-label', 'Прогресс игрока');
+    this.playerLevel = document.createElement('span');
+    this.playerLevel.className = 'main-shell-player-level';
+    this.xpTrack = document.createElement('div');
+    this.xpTrack.className = 'main-shell-xp-track';
+    this.xpTrack.setAttribute('role', 'progressbar');
+    this.xpFill = document.createElement('div');
+    this.xpFill.className = 'main-shell-xp-fill';
+    this.xpTrack.append(this.xpFill);
+    this.playerXp = document.createElement('span');
+    this.playerXp.className = 'main-shell-player-xp';
+    this.levelReward = document.createElement('span');
+    this.levelReward.className = 'main-shell-level-reward';
+    this.levelReward.textContent = t('Следующий уровень: +50 монет');
+    this.playerProgress.append(this.playerLevel, this.xpTrack, this.playerXp, this.levelReward);
 
     this.leaderboardButton = document.createElement('button');
     this.leaderboardButton.type = 'button';
@@ -131,14 +128,17 @@ export class PlayPageView {
       }
     });
 
-    footer.append(this.weekly, this.leaderboardButton);
+    footer.append(this.playerProgress, this.leaderboardButton);
     this.root.append(grid, footer);
     host.append(this.root);
     this.updateDailyState(UNAVAILABLE_DAILY_STATE);
+    this.updateProgression({ level: 1, xpIntoLevel: 0, xpForNextLevel: 100, ready: false });
     this.updateLeaderboardsAvailable(false);
+    this.refreshLocalization();
   }
 
   updateDailyState(state: DailyMenuState): void {
+    this.dailyState = state;
     const completed = new Set(state.completedDailyIds);
     const completedCount = state.weekDailyIds.filter((id) => completed.has(id)).length;
     const hasWeek = state.available && state.weekDailyIds.length === 7;
@@ -150,22 +150,37 @@ export class PlayPageView {
       daily.root.classList.toggle('is-complete', state.completed);
       daily.copy.textContent = state.available
         ? formatDailyDate(state.dailyId)
-        : 'Серверное время недоступно';
-      daily.dailyProgress?.toggleAttribute('hidden', !hasWeek);
-      daily.dailyCount?.replaceChildren(document.createTextNode(hasWeek ? `${completedCount}/7` : ''));
+        : t('Серверное время недоступно');
+      daily.dailyProgress?.removeAttribute('hidden');
+      daily.dailyProgress?.setAttribute('aria-label', t(hasWeek ? 'Прогресс недели' : 'Прогресс недели пока недоступен'));
+      daily.dailyCount?.replaceChildren(document.createTextNode(hasWeek ? `${completedCount}/7` : '—/7'));
       daily.dailyDots?.replaceChildren(...this.createProgressDots(
         state,
         'main-shell-daily-dot',
       ));
     }
 
-    this.weekly.hidden = !hasWeek;
-    this.weeklyCount.textContent = hasWeek ? `${completedCount}/7` : '';
-    this.weeklyDots.replaceChildren(...this.createProgressDots(
-      state,
-      'main-shell-week-dot',
-    ));
     this.updateModeVisuals();
+  }
+
+  updateProgression(state: PlayerProgressionState): void {
+    this.progressionState = state;
+    const level = Math.max(1, Math.floor(state.level));
+    const required = Math.max(1, Math.floor(state.xpForNextLevel));
+    const current = Math.min(required, Math.max(0, Math.floor(state.xpIntoLevel)));
+    const progress = state.ready ? current / required : 0;
+
+    this.playerLevel.textContent = state.ready ? t('Уровень {level}', {level}) : t('Уровень —');
+    this.playerXp.textContent = state.ready
+      ? `${current} / ${required} XP`
+      : t('Прогресс загружается');
+    this.levelReward.textContent = t('Следующий уровень: +50 монет');
+    this.xpFill.style.width = `${Math.round(progress * 1000) / 10}%`;
+    this.xpTrack.setAttribute('aria-valuemin', '0');
+    this.xpTrack.setAttribute('aria-valuemax', String(required));
+    this.xpTrack.setAttribute('aria-valuenow', String(current));
+    this.xpTrack.setAttribute('aria-valuetext', this.playerXp.textContent);
+    this.xpTrack.toggleAttribute('aria-busy', !state.ready);
   }
 
   updateLeaderboardsAvailable(available: boolean): void {
@@ -177,6 +192,24 @@ export class PlayPageView {
   setSelectedMode(mode: GameMode | null): void {
     this.selectedMode = mode;
     this.updateModeVisuals();
+  }
+
+  refreshLocalization(): void {
+    const labels: Record<GameMode, [string, string]> = {
+      winnable: ['СТАНДАРТ', 'Проверенные раздачи'],
+      daily: ['ИСПЫТАНИЕ ДНЯ', 'Серверное время недоступно'],
+      original: ['КЛАССИКА', 'Случайные раздачи'],
+    };
+    this.root.setAttribute('aria-label', t('Играть'));
+    this.playerProgress.setAttribute('aria-label', t('Прогресс игрока'));
+    for (const [mode, parts] of this.modeCards) {
+      parts.root.querySelector('h2')!.textContent = t(labels[mode][0]);
+      parts.copy.textContent = t(labels[mode][1]);
+      parts.button.textContent = t('ИГРАТЬ');
+    }
+    this.leaderboardButton.lastElementChild!.textContent = t('Таблица лидеров');
+    this.updateDailyState(this.dailyState);
+    this.updateProgression(this.progressionState);
   }
 
   show(): void {
@@ -261,14 +294,15 @@ export class PlayPageView {
     className: string,
   ): HTMLSpanElement[] {
     const completed = new Set(state.completedDailyIds);
-    return state.weekDailyIds.map((id) => {
+    const ids = state.weekDailyIds.length === 7 ? state.weekDailyIds : Array.from({length:7}, () => '');
+    return ids.map((id, index) => {
       const dot = document.createElement('span');
       const isComplete = completed.has(id);
       const isToday = id === state.dailyId;
       dot.className = className;
       dot.classList.toggle('is-complete', isComplete);
       dot.classList.toggle('is-today', isToday);
-      dot.setAttribute('aria-label', `${id}: ${isComplete ? 'пройдено' : 'не пройдено'}`);
+      dot.setAttribute('aria-label', id ? `${id}: ${t(isComplete ? 'пройдено' : 'не пройдено')}` : t('День {day}: недоступно', {day:index+1}));
       if (isToday) {
         dot.setAttribute('aria-current', 'date');
       }

@@ -13,4 +13,6 @@ test('Daily completion view shows run time best time weekly progress and retry/m
   assert.match(source, /weekCompleted/);
   assert.match(source, /retry/);
   assert.match(source, /menu/);
+  assert.match(source, /reward\?: RewardSummaryState/);
+  assert.match(source, /RewardSummaryView/);
 });

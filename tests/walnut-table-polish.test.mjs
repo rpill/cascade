@@ -16,9 +16,10 @@ const polishStyles = readFileSync(
 );
 
 test('gameplay mode label maps the three real GameMode ids to product labels', () => {
-  assert.match(controlsSource, /winnable:\s*['"]STANDARD['"]/);
-  assert.match(controlsSource, /original:\s*['"]CLASSIC['"]/);
-  assert.match(controlsSource, /daily:\s*['"]DAILY['"]/);
+  assert.match(controlsSource, /winnable:\s*['"]СТАНДАРТ['"]/);
+  assert.match(controlsSource, /original:\s*['"]КЛАССИКА['"]/);
+  assert.match(controlsSource, /daily:\s*['"]ИСПЫТАНИЕ ДНЯ['"]/);
+  assert.match(controlsSource, /t\(MODE_LABELS\[mode\]\)/);
   assert.match(controlsSource, /setMode\(mode:\s*GameMode\)/);
 });
 

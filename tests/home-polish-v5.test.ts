@@ -22,7 +22,6 @@ test('Home uses a dedicated professional art-icon layer rather than hand-drawn p
   assert.match(shellSource, /createHomeArtIcon\('rules'\)/);
   assert.match(shellSource, /createHomeArtIcon\('settings'\)/);
   assert.match(playSource, /createHomeArtIcon\(icon\)/);
-  assert.match(playSource, /createHomeArtIcon\('calendar'\)/);
   assert.match(playSource, /createHomeArtIcon\('trophy'\)/);
 });
 

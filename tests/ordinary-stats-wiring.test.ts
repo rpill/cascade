@@ -1,68 +1,81 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { applyMetaOperation } from '../src/meta/MetaOperations.ts';
+import { createDefaultMetaSave } from '../src/meta/MetaSave.ts';
 
 const scene = readFileSync(
   new URL('../src/game/scenes/GameScene.ts', import.meta.url),
   'utf8',
 );
 
+function extractMethod(source: string, name: string): string {
+  const direct = source.indexOf(`private ${name}`);
+  const asyncStart = source.indexOf(`private async ${name}`);
+  const start = direct === -1 ? asyncStart : direct;
+  assert.notEqual(start, -1, `missing method ${name}`);
+  const next = source.indexOf('\n  private ', start + 1);
+  return source.slice(start, next === -1 ? source.length : next);
+}
+
+function assertOrdered(source: string, first: string, second: string): void {
+  const firstIndex = source.indexOf(first);
+  const secondIndex = source.indexOf(second);
+  assert.notEqual(firstIndex, -1, `missing ${first}`);
+  assert.notEqual(secondIndex, -1, `missing ${second}`);
+  assert.ok(firstIndex < secondIndex, `${first} must precede ${second}`);
+}
+
 test('ordinary attempts mutate persistent stats at the settled playable boundary', () => {
-  assert.match(scene, /MetaMutationQueue/);
-  assert.match(scene, /beginModeAttempt/);
-  assert.match(scene, /completeModeAttempt/);
-  assert.match(scene, /private readonly metaMutations = new MetaMutationQueue\(\)/);
+  assert.match(scene, /private metaSession!: MetaSession/);
+  assert.match(scene, /private dispatchMeta\(event: MetaOperation\)/);
   assert.match(scene, /private readonly attemptTimer = new AttemptTimer\(\)/);
   assert.match(scene, /private attemptStarted = false/);
   assert.match(scene, /private attemptFinalized = false/);
   assert.doesNotMatch(scene, /dailyTimer|dailyAttemptStarted/);
 
-  assert.match(
-    scene,
-    /if \(!this\.attemptStarted\)[^]*attemptTimer\.start\(now\)[^]*beginModeAttempt/,
-  );
-  assert.match(
-    scene,
-    /metaMutations\.apply\([^]*beginModeAttempt\(state, mode\)/,
-  );
-  assert.match(scene, /checkpointActiveGame\(gameState\)/);
+  const settled = extractMethod(scene, 'onBoardSettled');
+  assert.match(settled, /if \(!this\.attemptStarted\)/);
+  assert.match(settled, /dispatchMeta\(\{\s*kind:\s*'begin',[^}]*attemptId:\s*this\.attemptId,[^}]*mode/);
+  assertOrdered(settled, 'this.attemptTimer.start(now)', "this.dispatchMeta({kind:'begin'");
+  assertOrdered(settled, "this.dispatchMeta({kind:'begin'", 'this.checkpointActiveGame(gameState)');
 });
 
 test('restored started attempts resume timing without incrementing played again', () => {
-  assert.match(scene, /attemptStarted = restored\.attemptStarted/);
+  const startDeal = extractMethod(scene, 'startDeal');
+  assert.match(startDeal, /attemptStarted = restored\.attemptStarted/);
   assert.match(
-    scene,
+    startDeal,
     /if \(restored\.attemptStarted\)[^]*attemptTimer\.start\([^,]+, restored\.elapsedMs\)/,
   );
+  assert.match(startDeal, /onBoardSettled\(gameState\)[^]*return/);
+
+  const settled = extractMethod(scene, 'onBoardSettled');
   assert.match(
-    scene,
-    /if \(!this\.attemptStarted\)[^]*beginModeAttempt/,
+    settled,
+    /if \(!this\.attemptStarted\)[^]*dispatchMeta\(\{\s*kind:\s*'begin'/,
   );
 });
 
 test('ordinary wins finalize once before the unfinished checkpoint is cleared', () => {
-  assert.match(scene, /if \(this\.attemptFinalized\)/);
-  assert.match(scene, /attemptFinalized = true/);
-  assert.match(scene, /attemptTimer\.finish\(performance\.now\(\)\)/);
-  assert.match(
-    scene,
-    /metaMutations\.apply\([^]*completeModeAttempt\(state, mode, elapsedMs\)/,
-  );
-  assert.match(scene, /lastOrdinaryCompletion/);
-  assert.match(
-    scene,
-    /completeModeAttempt[^]*metaRepository\?\.save\(this\.metaState, true\)[^]*activeGameRepository\.clear\(\)/,
-  );
+  const ordinary = extractMethod(scene, 'finishOrdinaryAttempt');
+  assert.match(ordinary, /this\.attemptFinalized/);
+  assert.match(ordinary, /attemptFinalized = true/);
+  assert.match(ordinary, /attemptTimer\.finish\(performance\.now\(\)\)/);
+  assert.match(ordinary, /const event\s*=\s*this\.completionEvent\(mode,\s*elapsedMs\)/);
+  assert.match(ordinary, /completeRewardedAttempt\(this\.metaState,\s*event\)/);
+  assert.match(ordinary, /const recorded\s*=\s*this\.dispatchMeta\(event\)/);
+  assert.match(ordinary, /if \(recorded\) this\.activeGameRepository\.clear\(\)/);
+  assertOrdered(ordinary, 'this.dispatchMeta(event)', 'this.activeGameRepository.clear()');
 });
 
-test('cloud metadata is settled through the replay queue instead of overwriting runtime events', () => {
-  assert.match(scene, /const loaded = await this\.metaRepository\.load\(\)/);
-  assert.match(
-    scene,
-    /this\.metaState = this\.metaMutations\.settleLoadedState\(loaded\)/,
-  );
-  assert.match(scene, /metaRepository\.save\(this\.metaState\)/);
-  assert.doesNotMatch(scene, /this\.metaState = await this\.metaRepository\.load\(\)/);
+test('cloud metadata is loaded and replayed through MetaSession', () => {
+  const load = extractMethod(scene, 'loadMetaProfile');
+  assert.match(load, /new MetaSession\(this\.platform\.playerStorage,\s*nextJournal\)/);
+  assert.match(load, /for \(const event of transfer\)[^]*nextSession\.dispatch\(event\)/);
+  assert.match(load, /const loaded = await this\.metaSession\.load\(\)/);
+  assert.match(load, /this\.refreshSessionState\(\)/);
+  assert.doesNotMatch(load, /this\.metaState\s*=\s*await/);
 });
 
 test('one generic attempt timer pauses and resumes for every mode through shared reconciliation', () => {
@@ -80,28 +93,26 @@ test('one generic attempt timer pauses and resumes for every mode through shared
   assert.doesNotMatch(scene, /resumeAttemptTimerIfPlayable/);
 });
 
-test('Daily keeps DailyProgress rather than ordinary GameStats mutations', () => {
-  assert.match(scene, /beginDailyAttempt/);
-  assert.match(scene, /completeDailyAttempt/);
+test('Daily begin operations update Daily progress rather than ordinary GameStats', () => {
+  const initial = createDefaultMetaSave();
+  const next = applyMetaOperation(initial, {
+    kind: 'begin',
+    attemptId: 'wiring~1',
+    mode: 'daily',
+    dailyId: '2026-09-09',
+    weekId: '2026-W37',
+  });
 
-  const dailyBranch = scene.match(
-    /private onBoardSettled\(gameState: SolitaireGame\): void \{([^]*?)\n  \}/,
-  )?.[1] ?? '';
-  assert.match(dailyBranch, /beginDailyAttempt/);
-
-  const dailyFinish = scene.match(
-    /private finishDailyAttempt\(\): void \{([^]*?)\n  \}/,
-  )?.[1] ?? '';
-  assert.match(dailyFinish, /completeDailyAttempt/);
-  assert.doesNotMatch(dailyFinish, /completeModeAttempt/);
+  assert.equal(next.daily.records['2026-09-09']?.attempts, 1);
+  assert.deepEqual(next.stats, initial.stats);
 });
 
 
 test('pre-load ordinary completion snapshot is reconciled with merged cloud statistics', () => {
-  assert.match(
-    scene,
-    /settleLoadedState\(loaded\)[^]*lastOrdinaryCompletion[^]*loaded\.stats\[completion\.mode\][^]*this\.metaState\.stats\[completion\.mode\]/,
-  );
+  const refresh = extractMethod(scene, 'refreshSessionState');
+  assertOrdered(refresh, 'this.metaState = this.metaSession.state', 'this.lastOrdinaryCompletion');
+  assert.match(refresh, /stats:\s*\{\s*\.\.\.this\.metaState\.stats\[completion\.mode\]/);
+  assert.match(refresh, /metaSession\.getImprovedBest\(completion\.event\.attemptId\)/);
 });
 
 
@@ -121,17 +132,11 @@ test('ordinary completion is shown with merged stats and completion actions', ()
 
 
 test('ordinary best sync is gated by improvedBest and does not gate local completion', () => {
-  const start = scene.indexOf('private finishOrdinaryAttempt');
-  assert.notEqual(start, -1);
-  const next = scene.indexOf('\n  private ', start + 1);
-  const ordinary = scene.slice(start, next === -1 ? scene.length : next);
+  const ordinary = extractMethod(scene, 'finishOrdinaryAttempt');
 
   assert.match(ordinary, /completion\.improvedBest/);
   assert.match(ordinary, /void this\.leaderboardService\?\.syncBest\(mode, bestTimeMs\)/);
-  assert.ok(
-    ordinary.indexOf('this.metaRepository?.save(this.metaState, true)')
-      < ordinary.indexOf('syncBest(mode, bestTimeMs)'),
-  );
+  assertOrdered(ordinary, 'this.dispatchMeta(event)', 'syncBest(mode, bestTimeMs)');
 });
 
 test('ordinary attempt timing uses the shared gameplay activity reconciliation', () => {

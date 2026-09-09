@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 
 import './styles.css';
+import './game/view/ThemeCatalogView.css';
+import './game/view/SettingsView.css';
+import './game/view/MenuResponsive.css';
 
 import { startWhenHostReady } from './bootstrap/GameBootstrap.ts';
 import { BootScene } from './game/scenes/BootScene.ts';

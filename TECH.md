@@ -9,7 +9,13 @@
 - `src/game/view/BoardView.ts` — Phaser board input, card sync, target selection, motion, direct restored-state render, and persistence-neutral settled callback.
 - `src/game/view/DropGeometry.ts` — renderer-independent drop commitment geometry.
 - `src/game/view/CardFlight.ts` — quadratic flight path math.
-- `src/game/view/MainMenuView.ts` — compact native DOM main menu. Mode buttons start games directly; Daily status/current-week 3/5/7 progress, statistics/leaderboard modal launchers, and conditional `ЗАКРЫТЬ` are screen-space DOM.
+- `src/game/view/AppShellView.ts` / `PlayPageView.ts` — native DOM navigation, wallet, mode cards, Daily weekly indicators and player-level footer.
+- `src/game/view/ThemeCatalogView.ts` — passive DOM collection/shop, filters, bounded cards, internal scrolling and buy/apply/retry callbacks; no economy mutation in views.
+- `src/game/view/MenuResponsive.css` — shell gutters, portrait/landscape menus, level reward and narrow statistics layout, independent of canvas board geometry.
+- `src/game/view/SettingsView.ts` — native modal dialog preserving underlying menu destination, focus and board state.
+- `src/settings/Preferences.ts` / `AudioController.ts` — device-local manual language/sound preferences and the combined audio mute policy.
+- `src/localization/Localization.ts` / `English.ts` — explicit RU/EN translations and view-owned bindings; replaced DOM rows are released after rendering. No DOM text observer or page reload is used.
+- `src/game/view/RewardSummaryView.ts` — shared XP/coin breakdown and pending reward state for result overlays.
 - `src/game/view/DailyCompleteView.ts` — native DOM Daily result overlay with retry/menu actions.
 - `src/game/view/GameCompleteView.ts` — native DOM Standard/Classic result overlay with elapsed/best/stats/win-rate and new-game/menu actions.
 - `src/game/view/StatisticsView.ts` — passive no-scroll native DOM statistics modal for Standard/Classic played/wins/win-rate/best time.
@@ -20,13 +26,17 @@
 - `src/game/scenes/GameScene.ts` — coordinator for flow, history, model, local active-session checkpoints, unified attempt lifecycle, Daily/meta state, pre-load meta mutation replay, platform initialization, statistics/leaderboard/auth lifecycle, and DOM views.
 - `src/persistence/ActiveGameSave.ts` — versioned browser-local active-game checkpoint schema, strict normalization, canonical card reconstruction, and checkpoint-to-Deal conversion.
 - `src/persistence/ActiveGameRepository.ts` — safe `cascadeActiveGame` localStorage load/save/clear boundary; corrupt/invalid data is discarded best-effort.
-- `src/meta/MetaSave.ts` — `MetaSave` V2 structured player save, V1→V2 migration, and runtime normalization.
-- `src/meta/MetaRepository.ts` — queued long-lived player persistence under `cascadeMeta`; keeps the newest unsaved snapshot for retry after write failure.
+- `src/meta/MetaSave.ts` — V3 player save, V1→V2→V3 migration, ownership, progression and receipt normalization.
+- `src/meta/MetaSession.ts` — runtime profile load/replay/dispatch and serialized acknowledged writes under `cascadeMeta`; exposes readiness, save errors and result rewards.
+- `src/meta/MetaJournal.ts` — durable per-profile operation journal with stable stream/sequence IDs; acknowledged operations are compacted only after successful writes.
+- `src/meta/MetaOperations.ts` / `Economy.ts` / `Progression.ts` — pure attempt, reward, purchase, equip and level rules. Completion high-water marks outlive the bounded recent-attempt cache.
+- `src/theme/ThemeCatalog.ts` — published products and lightweight previews, separate from the full renderer registry.
+- `src/meta/MetaRepository.ts` — retained legacy snapshot persistence helper; runtime economy uses `MetaSession`.
 - `src/meta/DailyCalendar.ts` — trusted-UTC Daily IDs, ISO week IDs/dates, and deterministic Daily seed mapping.
 - `src/meta/DailyProgress.ts` — pure Daily attempt, completion, personal-best, and weekly progress rules.
 - `src/meta/AttemptTimer.ts` — generic pause-aware attempt timer with restored elapsed-duration support.
 - `src/meta/GameStats.ts` — pure Standard/Classic `played` / `wins` / `bestTimeMs` mutations; Daily is intentionally excluded.
-- `src/meta/MetaMutationQueue.ts` — pure pre-load mutation queue that replays local meta events once over the asynchronously loaded player save.
+- `src/meta/MetaMutationQueue.ts` — retained legacy pre-load helper; runtime typed operations use `MetaJournal` and `MetaSession`.
 - `src/leaderboards/LeaderboardConfig.ts` — fixed ordinary-mode to Yandex technical leaderboard name mapping (`standardbesttime`, `classicbesttime`).
 - `src/leaderboards/LeaderboardSubmissionQueue.ts` — global serialized leaderboard write queue; coalesces pending best times and enforces a 1100 ms submission interval.
 - `src/leaderboards/LeaderboardService.ts` — gameplay-safe top/personal-entry loading, authorization delegation, and best-time synchronization that never overwrites a faster server result.
@@ -37,11 +47,14 @@
 
 ## Persistence boundaries
 
-There are three intentionally separate persistence concerns:
+There are four separate persistence concerns:
 
 1. **Active game checkpoint (`cascadeActiveGame`)** — browser-local, frequent, current unfinished board only. Contains mode/seed, full mutable board zones, `attemptStarted`, accumulated elapsed time, optional Daily identity, and `playing` / `menu-paused` state. It is written at settled gameplay boundaries and lifecycle boundaries such as menu/visibility/pagehide.
-2. **Long-lived meta save (`cascadeMeta`)** — collection/equipped/achievements, Standard/Classic statistics, Daily records, and weekly progress. This goes through `MetaRepository` / platform PlayerStorage and is not written once per card move.
+2. **Long-lived meta save (`cascadeMeta`)** — collection/equipped/achievements, XP, coins, receipts, ordinary statistics, Daily records and weekly progress. This goes through `MetaSession` / platform PlayerStorage and is not written once per card move.
 3. **Unavailable-platform PlayerStorage fallback (`cascadePlayerData`)** — localStorage mirror used when Yandex PlayerStorage is not available; memory is only the final page-lifetime fallback.
+4. **Operation journal (`cascadeMetaJournal:<encoded scope>`)** — typed begin/complete/purchase/equip operations persisted before application. Cloud receipts prevent duplicate replay; confirmed saves permit local compaction. Scope follows player identity and never transfers an old account's operations to a new account.
+
+The economy calls optional `PlayerStorage.loadStrict` / `saveStrict` methods to surface local storage errors and uses acknowledged `flush: true` writes. A failed read is not an empty profile. A failed write retains pending operations. Attempt IDs are stored with the active checkpoint; structured stream/sequence completion receipts prevent duplicate rewards even after the recent-attempt cache is pruned. These guarantees cover ordered attempts in one active session; cross-device concurrent merging requires a separate design.
 
 Do not merge the active board checkpoint into `cascadeMeta` or upload a full board through Yandex Player `setData()` after every move. The active checkpoint is deliberately local and frequent; meta/cloud writes are coalesced and reserved for long-lived player state.
 
@@ -55,7 +68,7 @@ Do not merge the active board checkpoint into `cascadeMeta` or upload a full boa
 - Standard/Classic reload does not increment `played`; Restart and New Game each create a new attempt when their new board reaches the playable boundary.
 - Ordinary completion must update stats exactly once and only then clear `cascadeActiveGame`. The completion board remains visible underneath the result/menu until another deal starts.
 - The generic attempt timer excludes main-menu time, hidden-tab time, and closed-page time. Resume only when `attemptStarted && !attemptFinalized && flow.state === 'playing' && document.visibilityState === 'visible'`.
-- Meta changes that happen before the remote save finishes loading must go through `MetaMutationQueue`; never assign the loaded save directly over runtime state before replay.
+- Meta changes before remote load must go through `MetaSession.dispatch` and its durable journal; never assign loaded state over pending operations. Purchases remain unavailable until loading succeeds.
 
 ## Platform gameplay lifecycle
 
@@ -77,11 +90,11 @@ Do not merge the active board checkpoint into `cascadeMeta` or upload a full boa
 ## Statistics / leaderboard constraints
 
 - Statistics and leaderboards live in separate fixed native DOM modals; do not expand their full contents inline in the main menu.
-- Main menu and all meta modals are no-scroll UI. Do not introduce `overflow: auto` / `scroll`; use responsive compression, tabs, or pagination when content grows.
+- Keep the shell inside the viewport. The user approved internal vertical scrolling for growing catalogs; narrow-phone statistics also stacks and scrolls. Preserve touch scrolling, focus and reachability of actions. Do not stretch a single catalog card to fill the panel.
 - Built-in Yandex leaderboards are ordinary-mode only: `winnable -> standardbesttime`, `original -> classicbesttime`. Daily must never map to either board.
 - Both Console leaderboards are `time` values in milliseconds and sort ascending. Standard is the single main leaderboard. See `docs/YANDEX_LEADERBOARDS_SETUP.md`.
 - Public top-10 (`getEntries`) may load without authorization. Personal rank and `setScore` require authorization. Never trigger `openAuthDialog()` automatically.
-- Authorization remains unavailable while an unfinished active-game checkpoint/board is active. This prevents a guest board from being finalized against a different account's cloud meta after account/progress selection.
+- Authorization remains unavailable while an unfinished board, profile load, save error or pending journal exists. This prevents a guest board or reward from being finalized against a different account's cloud meta.
 - On `ACCOUNT_SELECTION_DIALOG_CLOSED`, invalidate current leaderboard requests and reload the page so Yandex Player/meta is reacquired from the user's selected progress.
 - Leaderboard view loads are request-token guarded; an older async response must not replace a newer tab selection or a closed view.
 - Score writes go only through `LeaderboardSubmissionQueue`. Keep at least 1100 ms between actual `setScore` calls and coalesce multiple pending values for one board to the lowest time.

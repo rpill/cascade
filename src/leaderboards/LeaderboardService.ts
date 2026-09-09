@@ -50,7 +50,7 @@ function normalizeRow(entry: PlatformLeaderboardEntry): LeaderboardRow | null {
   return {
     rank: entry.rank,
     scoreMs: entry.score,
-    publicName: entry.publicName.trim() || 'Игрок',
+    publicName: entry.publicName.trim(),
   };
 }
 

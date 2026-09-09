@@ -1,0 +1,37 @@
+.settings-dialog {
+  box-sizing: border-box;
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  margin: auto;
+  padding: clamp(22px, 5vw, 36px);
+  border: 2px solid #b39560;
+  border-radius: 18px;
+  color: #432c1f;
+  background: #eee0c2;
+  box-shadow: 0 16px 70px #150d09b3, inset 0 0 0 5px #f6ebd5;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+.settings-dialog::backdrop { background: #17100bc4; }
+.settings-title { margin: 0 0 25px; text-align: center; font-size: 28px; }
+.settings-row { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:18px 0; font-size:18px; }
+.settings-sound,.settings-language,.settings-close {
+  min-height:44px;
+  border:1px solid #ac8c5e;
+  border-radius:8px;
+  padding:10px 14px;
+  font:inherit;
+  color:inherit;
+  background:#fff6e1;
+  cursor:pointer;
+}
+.settings-sound { min-width:120px; }
+.settings-sound[aria-checked='true'] { background:#e1e7cb; border-color:#7b8758; }
+.settings-close { display:block; width:100%; margin-top:28px; color:#fff5da; background:#725337; }
+.settings-dialog :is(button,select):focus-visible { outline:3px solid #386e98; outline-offset:3px; }
+@media (max-height:400px) {
+  .settings-dialog { padding:18px 28px; }
+  .settings-title { margin-bottom:12px; font-size:24px; }
+  .settings-row { margin:10px 0; }
+  .settings-close { margin-top:14px; }
+}

@@ -29,7 +29,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    const theme = getTheme(resolveThemeId(window.location.search));
+    const theme = getTheme(resolveThemeId(import.meta.env.DEV ? window.location.search : ''));
 
     getThemeAssets(theme).forEach(asset => this.loadThemeAsset(asset));
 
@@ -47,7 +47,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    prepareCardBack(this, getTheme(resolveThemeId(window.location.search)));
+    prepareCardBack(this, getTheme(resolveThemeId(import.meta.env.DEV ? window.location.search : '')));
     this.scene.start('GameScene');
   }
 

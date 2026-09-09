@@ -60,6 +60,11 @@ test('active game save survives JSON round-trip and converts back to a Deal', ()
   assert.deepEqual(deal.freeCell, normalized?.snapshot.freeCell);
 });
 
+test('stable attempt identity survives checkpoint normalization', () => {
+  const raw = {...createValidSave(), attemptId:'attempt-42'};
+  assert.equal((normalizeActiveGameSave(raw) as typeof raw | null)?.attemptId, 'attempt-42');
+});
+
 test('active game save preserves Daily identity and menu-paused UI state', () => {
   const raw = clone(createValidSave('daily'));
   raw.uiState = 'menu-paused';

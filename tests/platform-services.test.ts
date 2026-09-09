@@ -12,6 +12,14 @@ import {
   type YandexSdk,
 } from '../src/platform/yandex.ts';
 
+test('platform exposes the SDK environment language for preference initialization', async () => {
+  const sdk = createFakeYsdk();
+  sdk.environment = { i18n: { lang: 'en' } };
+  const platform = await createYandexPlatformServices(sdk);
+  assert.equal(platform.language, 'en');
+  assert.equal(createUnavailablePlatformServices(null).language, undefined);
+});
+
 class FakeStorage {
   private readonly values = new Map<string, string>();
 
@@ -609,13 +617,21 @@ test('platform loads the proxied SDK before YaGames.init and caches initializati
 });
 
 test('package exposes one-command Yandex dev proxy launch', async () => {
+  const { readFile } = await import('node:fs/promises');
   const packageJson = JSON.parse(
-    await import('node:fs/promises').then(({ readFile }) =>
-      readFile(new URL('../package.json', import.meta.url), 'utf8'),
-    ),
+    await readFile(new URL('../package.json', import.meta.url), 'utf8'),
   ) as { scripts?: Record<string, string> };
+  const launcherSource = await readFile(
+    new URL('../scripts/yandex-dev-proxy.mjs', import.meta.url),
+    'utf8',
+  );
 
-  assert.match(packageJson.scripts?.['yandex:dev'] ?? '', /sdk-dev-proxy/);
-  assert.match(packageJson.scripts?.['yandex:dev'] ?? '', /--dev-mode=true/);
   assert.match(packageJson.scripts?.['yandex:dev'] ?? '', /pnpm build/);
+  assert.match(packageJson.scripts?.['yandex:dev'] ?? '', /scripts\/yandex-dev-proxy\.mjs/);
+  assert.match(launcherSource, /createProxyLaunch/);
+  const { createProxyLaunch } = await import(new URL('../scripts/yandex-dev-proxy-lib.mjs', import.meta.url).href);
+  const launch = createProxyLaunch(8080, 'linux');
+  assert.ok(launch.args.includes('@yandex-games/sdk-dev-proxy'));
+  assert.ok(launch.args.includes('--dev-mode=true'));
+  assert.ok(launch.args.includes('--port=8080'));
 });

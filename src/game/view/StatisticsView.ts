@@ -1,3 +1,4 @@
+import { t, LocalizationBindings } from '../../localization/Localization.ts';
 import type Phaser from 'phaser';
 
 export interface StatisticsModeState {
@@ -38,6 +39,12 @@ function formatBest(bestTimeMs: number | null): string {
 }
 
 export class StatisticsView {
+  private readonly localization = new LocalizationBindings();
+
+  refreshLocalization(): void {
+    this.localization.refresh();
+  }
+
   private readonly actions: StatisticsViewActions;
   private readonly root: HTMLDivElement;
   private readonly modes = new Map<'winnable' | 'original', StatisticsModeElements>();
@@ -52,11 +59,11 @@ export class StatisticsView {
 
     const panel = document.createElement('section');
     panel.className = 'meta-modal-panel statistics-panel';
-    panel.setAttribute('aria-label', 'Статистика');
+    this.localization.attribute(panel, 'aria-label', () => t('Статистика'));
 
     const title = document.createElement('h2');
     title.className = 'meta-modal-title';
-    title.textContent = 'СТАТИСТИКА';
+    this.localization.text(title, () => t('СТАТИСТИКА'));
 
     const standard = this.createModeBlock('winnable', 'СТАНДАРТ');
     const classic = this.createModeBlock('original', 'КЛАССИКА');
@@ -64,7 +71,7 @@ export class StatisticsView {
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'meta-modal-close';
-    close.textContent = 'ЗАКРЫТЬ';
+    this.localization.text(close, () => t('ЗАКРЫТЬ'));
     close.addEventListener('click', () => this.actions.close());
 
     panel.append(title, standard, classic, close);
@@ -109,7 +116,7 @@ export class StatisticsView {
 
     const title = document.createElement('h3');
     title.className = 'statistics-mode-title';
-    title.textContent = titleText;
+    this.localization.text(title, () => t(titleText));
 
     const played = this.createValueRow('Партий:');
     const wins = this.createValueRow('Побед:');
@@ -134,7 +141,7 @@ export class StatisticsView {
     row.className = 'statistics-row';
 
     const label = document.createElement('span');
-    label.textContent = labelText;
+    this.localization.text(label, () => t(labelText));
 
     const value = document.createElement('span');
     value.className = 'statistics-value';
@@ -153,9 +160,9 @@ export class StatisticsView {
       return;
     }
 
-    elements.played.textContent = String(state.played);
-    elements.wins.textContent = String(state.wins);
-    elements.winRate.textContent = `${getWinRate(state)}%`;
-    elements.best.textContent = formatBest(state.bestTimeMs);
+    this.localization.text(elements.played, () => String(state.played));
+    this.localization.text(elements.wins, () => String(state.wins));
+    this.localization.text(elements.winRate, () => `${getWinRate(state)}%`);
+    this.localization.text(elements.best, () => formatBest(state.bestTimeMs));
   }
 }

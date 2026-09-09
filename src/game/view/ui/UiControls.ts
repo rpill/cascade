@@ -1,4 +1,18 @@
 import { createUiIcon, type UiIconName } from './UiIcons.ts';
+import { t } from '../../../localization/Localization.ts';
+
+const controlLabels = new WeakMap<HTMLButtonElement, IconControlOptions>();
+
+export function refreshIconControls(root: HTMLElement): void {
+  for (const button of root.querySelectorAll<HTMLButtonElement>('.ui-icon-control')) {
+    const options = controlLabels.get(button);
+    if (options) {
+      button.setAttribute('aria-label', t(options.label));
+      button.title = t(options.tooltip);
+      button.dataset.tooltip = t(options.tooltip);
+    }
+  }
+}
 
 export interface IconControlOptions {
   readonly icon: UiIconName;
@@ -14,9 +28,10 @@ export function createIconControl(options: IconControlOptions): HTMLButtonElemen
   button.className = ['ui-icon-control', options.className]
     .filter(Boolean)
     .join(' ');
-  button.setAttribute('aria-label', options.label);
-  button.title = options.tooltip;
-  button.dataset.tooltip = options.tooltip;
+  controlLabels.set(button, options);
+  button.setAttribute('aria-label', t(options.label));
+  button.title = t(options.tooltip);
+  button.dataset.tooltip = t(options.tooltip);
   button.append(createUiIcon(options.icon));
 
   if (options.onClick !== undefined) {

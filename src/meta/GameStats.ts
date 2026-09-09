@@ -1,13 +1,12 @@
 import type {
   MetaSave,
-  MetaSaveV2,
   ModeStats,
 } from './MetaSave.ts';
 
 export type OrdinaryGameMode = 'original' | 'winnable';
 
 export interface ModeCompletionResult {
-  readonly state: MetaSaveV2;
+  readonly state: MetaSave;
   readonly stats: ModeStats;
   readonly improvedBest: boolean;
 }
@@ -22,7 +21,7 @@ export function getModeStats(
 export function beginModeAttempt(
   state: MetaSave,
   mode: OrdinaryGameMode,
-): MetaSaveV2 {
+): MetaSave {
   const previous = state.stats[mode];
 
   return {

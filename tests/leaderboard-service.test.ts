@@ -59,7 +59,7 @@ test('load requests top 10 and preserves one-based SDK entry ranks', async () =>
     authorized: false,
     entries: [
       { rank: 1, scoreMs: 2500, publicName: 'Ada' },
-      { rank: 2, scoreMs: 3000, publicName: 'Игрок' },
+      { rank: 2, scoreMs: 3000, publicName: '' },
     ],
     playerEntry: null,
   });
@@ -171,7 +171,7 @@ test('load filters malformed rows and falls back blank public names', async () =
     authorized: false,
     entries: [
       { rank: 1, scoreMs: 2500, publicName: 'Ada' },
-      { rank: 2, scoreMs: 3000, publicName: 'Игрок' },
+      { rank: 2, scoreMs: 3000, publicName: '' },
     ],
     playerEntry: null,
   });

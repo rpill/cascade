@@ -1,3 +1,4 @@
+import { t, LocalizationBindings } from '../../localization/Localization.ts';
 import { RULE_SLIDES, type RuleSlide } from './RulesSlides.ts';
 import { createUiIcon } from './ui/UiIcons.ts';
 
@@ -10,6 +11,12 @@ function resolveAssetUrl(path: string): string {
 }
 
 export class RulesView {
+  private readonly localization = new LocalizationBindings();
+
+  refreshLocalization(): void {
+    this.localization.refresh();
+  }
+
   private readonly root: HTMLElement;
   private readonly stage: HTMLElement;
   private readonly heading: HTMLHeadingElement;
@@ -22,7 +29,7 @@ export class RulesView {
   constructor(host: HTMLElement, actions: RulesViewActions) {
     this.root = document.createElement('section');
     this.root.className = 'main-shell-rules';
-    this.root.setAttribute('aria-label', 'Правила');
+    this.localization.attribute(this.root, 'aria-label', () => t('Правила'));
 
     const header = document.createElement('div');
     header.className = 'main-shell-rules-header';
@@ -30,16 +37,16 @@ export class RulesView {
     const back = document.createElement('button');
     back.type = 'button';
     back.className = 'main-shell-rules-back';
-    back.setAttribute('aria-label', 'Назад');
+    this.localization.attribute(back, 'aria-label', () => t('Назад'));
     back.append(createUiIcon('back'));
     const backLabel = document.createElement('span');
-    backLabel.textContent = 'Назад';
+    this.localization.text(backLabel, () => t('Назад'));
     back.append(backLabel);
     back.addEventListener('click', () => actions.back());
 
     const title = document.createElement('h1');
     title.className = 'main-shell-rules-title';
-    title.textContent = 'ПРАВИЛА';
+    this.localization.text(title, () => t('ПРАВИЛА'));
 
     const headerBalance = document.createElement('span');
     headerBalance.className = 'main-shell-rules-header-balance';
@@ -79,13 +86,13 @@ export class RulesView {
 
     const dotNavigation = document.createElement('nav');
     dotNavigation.className = 'main-shell-rules-dots';
-    dotNavigation.setAttribute('aria-label', 'Слайды правил');
+    this.localization.attribute(dotNavigation, 'aria-label', () => t('Слайды правил'));
     this.dots = RULE_SLIDES.map((ruleSlide, index) => {
       const dot = document.createElement('button');
       dot.type = 'button';
       dot.className = 'main-shell-rules-dot';
       dot.dataset.ruleSlideIndex = String(index);
-      dot.setAttribute('aria-label', `${index + 1}. ${ruleSlide.title}`);
+      this.localization.attribute(dot, 'aria-label', () => `${index + 1}. ${t(ruleSlide.title)}`);
       dot.addEventListener('click', () => this.goToSlide(index));
       dotNavigation.append(dot);
       return dot;
@@ -141,8 +148,8 @@ export class RulesView {
     }
 
     this.activeSlideIndex = boundedIndex;
-    this.heading.textContent = slide.title;
-    this.copy.textContent = slide.body;
+    this.localization.text(this.heading, () => t(slide.title));
+    this.localization.text(this.copy, () => t(slide.body));
     this.stage.replaceChildren(this.createSlideScene(slide));
 
     this.previousButton.disabled = boundedIndex === 0;
@@ -171,7 +178,7 @@ export class RulesView {
     const image = document.createElement('img');
     image.className = 'rules-screenshot-image';
     image.src = resolveAssetUrl(slide.image);
-    image.alt = slide.imageAlt;
+    this.localization.attribute(image, 'alt', () => t(slide.imageAlt));
     image.draggable = false;
 
     const cursor = this.createScreenshotCursor();
@@ -206,8 +213,8 @@ export class RulesView {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = `main-shell-rules-arrow ${className}`;
-    button.setAttribute('aria-label', label);
-    button.textContent = glyph;
+    this.localization.attribute(button, 'aria-label', () => t(label));
+    this.localization.text(button, () => glyph);
     button.addEventListener('click', onClick);
     return button;
   }

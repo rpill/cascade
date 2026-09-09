@@ -12,7 +12,7 @@ export interface DailyCompletionResult {
 }
 
 function normalizeWeek(state: MetaSave, weekId: string): MetaSave['weekly'] {
-  return state.weekly.weekId === weekId
+  return state.weekly.weekId >= weekId
     ? {
         ...state.weekly,
         completedDailyIds: [...state.weekly.completedDailyIds],
@@ -58,7 +58,7 @@ export function completeDailyAttempt(
   const improvedBest = previousBest === undefined || elapsedMs < previousBest;
   const bestTimeMs = improvedBest ? elapsedMs : previousBest;
   const beforeCount = weekly.completedDailyIds.length;
-  const completedDailyIds = firstCompletion
+  const completedDailyIds = firstCompletion && weekly.weekId === weekId
     ? [...weekly.completedDailyIds, dailyId]
     : [...weekly.completedDailyIds];
   const afterCount = completedDailyIds.length;

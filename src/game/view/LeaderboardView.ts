@@ -1,3 +1,4 @@
+import { t, LocalizationBindings } from '../../localization/Localization.ts';
 import type Phaser from 'phaser';
 import type { LeaderboardRow } from '../../leaderboards/LeaderboardService.ts';
 import type { OrdinaryGameMode } from '../../meta/GameStats.ts';
@@ -33,6 +34,12 @@ function formatDuration(ms: number): string {
 }
 
 export class LeaderboardView {
+  private readonly localization = new LocalizationBindings();
+
+  refreshLocalization(): void {
+    this.localization.refresh();
+  }
+
   private readonly actions: LeaderboardViewActions;
   private readonly root: HTMLDivElement;
   private readonly standardTab: HTMLButtonElement;
@@ -54,11 +61,11 @@ export class LeaderboardView {
 
     const panel = document.createElement('section');
     panel.className = 'meta-modal-panel leaderboard-panel';
-    panel.setAttribute('aria-label', 'Таблица лидеров');
+    this.localization.attribute(panel, 'aria-label', () => t('Таблица лидеров'));
 
     const title = document.createElement('h2');
     title.className = 'meta-modal-title';
-    title.textContent = 'ТАБЛИЦА ЛИДЕРОВ';
+    this.localization.text(title, () => t('ТАБЛИЦА ЛИДЕРОВ'));
 
     const tabs = document.createElement('div');
     tabs.className = 'leaderboard-tabs';
@@ -72,7 +79,7 @@ export class LeaderboardView {
 
     this.list = document.createElement('div');
     this.list.className = 'leaderboard-list';
-    this.list.setAttribute('aria-label', 'Лучшие результаты');
+    this.localization.attribute(this.list, 'aria-label', () => t('Лучшие результаты'));
 
     this.playerResult = document.createElement('div');
     this.playerResult.className = 'leaderboard-player-result';
@@ -86,14 +93,14 @@ export class LeaderboardView {
     this.authButton = document.createElement('button');
     this.authButton.type = 'button';
     this.authButton.className = 'leaderboard-auth-button';
-    this.authButton.textContent = 'ВОЙТИ';
+    this.localization.text(this.authButton, () => t('ВОЙТИ'));
     this.authButton.addEventListener('click', () => this.actions.authorize());
     this.authBlock.append(this.authCopy, this.authButton);
 
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'meta-modal-close leaderboard-close';
-    close.textContent = 'ЗАКРЫТЬ';
+    this.localization.text(close, () => t('ЗАКРЫТЬ'));
     close.addEventListener('click', () => this.actions.close());
 
     panel.append(
@@ -141,7 +148,7 @@ export class LeaderboardView {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'leaderboard-tab';
-    button.textContent = label;
+    this.localization.text(button, () => t(label));
     button.addEventListener('click', action);
     return button;
   }
@@ -182,9 +189,9 @@ export class LeaderboardView {
     if (state.authorized) {
       this.authBlock.hidden = true;
       this.playerResult.hidden = false;
-      this.playerResult.textContent = state.playerEntry === null
-        ? 'Ваш результат: пока нет результата'
-        : `Ваш результат: ${state.playerEntry.rank} место · ${formatDuration(state.playerEntry.scoreMs)}`;
+      this.localization.text(this.playerResult, () => state.playerEntry === null
+        ? t('Ваш результат: пока нет результата')
+        : t("Ваш результат: {value0} место · {value1}", {value0: state.playerEntry.rank, value1: formatDuration(state.playerEntry.scoreMs)}));
       return;
     }
 
@@ -192,15 +199,15 @@ export class LeaderboardView {
     this.authBlock.hidden = false;
 
     if (!state.authorizationAllowed) {
-      this.authCopy.textContent = 'Завершите текущую партию, чтобы войти и сохранить рекорд.';
+      this.localization.text(this.authCopy, () => t('Завершите текущую партию, чтобы войти и сохранить рекорд.'));
     } else if (state.message !== undefined) {
-      this.authCopy.textContent = state.message;
+      this.localization.text(this.authCopy, () => t(state.message ?? ''));
     } else {
-      this.authCopy.textContent = 'Войдите с Яндекс ID, чтобы сохранить рекорд и увидеть своё место в таблице.';
+      this.localization.text(this.authCopy, () => t('Войдите с Яндекс ID, чтобы сохранить рекорд и увидеть своё место в таблице.'));
     }
 
     this.authButton.disabled = state.authPending || !state.authorizationAllowed;
-    this.authButton.textContent = state.authPending ? 'Вход…' : 'ВОЙТИ';
+    this.localization.text(this.authButton, () => state.authPending ? t('Вход…') : t('ВОЙТИ'));
   }
 
   private createLeaderboardRow(entry: LeaderboardRow): HTMLDivElement {
@@ -209,22 +216,22 @@ export class LeaderboardView {
 
     const rank = document.createElement('span');
     rank.className = 'leaderboard-rank';
-    rank.textContent = `${entry.rank}.`;
+    this.localization.text(rank, () => `${entry.rank}.`);
 
     const name = document.createElement('span');
     name.className = 'leaderboard-name';
-    name.textContent = entry.publicName;
+    this.localization.text(name, () => entry.publicName || t('Игрок'));
 
     const time = document.createElement('span');
     time.className = 'leaderboard-time';
-    time.textContent = formatDuration(entry.scoreMs);
+    this.localization.text(time, () => formatDuration(entry.scoreMs));
 
     row.append(rank, name, time);
     return row;
   }
 
   private setStatus(message: string): void {
-    this.status.textContent = message;
+    this.localization.text(this.status, () => t(message));
     this.status.hidden = message.length === 0;
   }
 }

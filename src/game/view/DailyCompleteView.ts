@@ -1,10 +1,13 @@
+import { t, LocalizationBindings } from '../../localization/Localization.ts';
 import type Phaser from 'phaser';
+import { RewardSummaryView, type RewardSummaryState } from './RewardSummaryView.ts';
 
 export interface DailyCompleteState {
   readonly elapsedMs: number;
   readonly bestTimeMs: number;
   readonly improvedBest: boolean;
   readonly weekCompleted: number;
+  readonly reward?: RewardSummaryState;
 }
 
 export interface DailyCompleteActions {
@@ -20,10 +23,18 @@ function formatDuration(ms: number): string {
 }
 
 export class DailyCompleteView {
+  private readonly localization = new LocalizationBindings();
+
+  refreshLocalization(): void {
+    this.localization.refresh();
+    this.rewardSummary.refreshLocalization();
+  }
+
   private readonly root: HTMLDivElement;
   private readonly elapsed: HTMLParagraphElement;
   private readonly best: HTMLParagraphElement;
   private readonly weekly: HTMLParagraphElement;
+  private readonly rewardSummary: RewardSummaryView;
 
   constructor(scene: Phaser.Scene, actions: DailyCompleteActions) {
     this.root = document.createElement('div');
@@ -34,11 +45,11 @@ export class DailyCompleteView {
 
     const panel = document.createElement('section');
     panel.className = 'daily-complete-panel';
-    panel.setAttribute('aria-label', 'Результат испытания дня');
+    this.localization.attribute(panel, 'aria-label', () => t('Результат испытания дня'));
 
     const title = document.createElement('h2');
     title.className = 'daily-complete-title';
-    title.textContent = 'ИСПЫТАНИЕ ДНЯ ЗАВЕРШЕНО';
+    this.localization.text(title, () => t('ИСПЫТАНИЕ ДНЯ ЗАВЕРШЕНО'));
 
     const divider = document.createElement('div');
     divider.className = 'daily-complete-divider';
@@ -59,13 +70,13 @@ export class DailyCompleteView {
     const retryButton = document.createElement('button');
     retryButton.type = 'button';
     retryButton.className = 'daily-complete-button daily-complete-retry';
-    retryButton.textContent = 'ПОВТОРИТЬ';
+    this.localization.text(retryButton, () => t('ПОВТОРИТЬ'));
     retryButton.addEventListener('click', () => actions.retry());
 
     const menuButton = document.createElement('button');
     menuButton.type = 'button';
     menuButton.className = 'daily-complete-button daily-complete-menu';
-    menuButton.textContent = 'В МЕНЮ';
+    this.localization.text(menuButton, () => t('В МЕНЮ'));
     menuButton.addEventListener('click', () => actions.menu());
 
     buttonRow.append(retryButton, menuButton);
@@ -75,8 +86,9 @@ export class DailyCompleteView {
       this.elapsed,
       this.best,
       this.weekly,
-      buttonRow,
     );
+    this.rewardSummary = new RewardSummaryView(panel);
+    panel.append(buttonRow);
     this.root.append(backdrop, panel);
 
     const host = scene.game.canvas.parentElement;
@@ -89,11 +101,12 @@ export class DailyCompleteView {
   }
 
   show(state: DailyCompleteState): void {
-    this.elapsed.textContent = `Время: ${formatDuration(state.elapsedMs)}`;
-    this.best.textContent = state.improvedBest
-      ? `Новый рекорд · ${formatDuration(state.bestTimeMs)}`
-      : `Лучшее: ${formatDuration(state.bestTimeMs)}`;
-    this.weekly.textContent = `Эта неделя: ${state.weekCompleted} / 7`;
+    this.localization.text(this.elapsed, () => t("Время: {value0}", {value0: formatDuration(state.elapsedMs)}));
+    this.localization.text(this.best, () => state.improvedBest
+      ? t("Новый рекорд · {value0}", {value0: formatDuration(state.bestTimeMs)})
+      : t("Лучшее: {value0}", {value0: formatDuration(state.bestTimeMs)}));
+    this.localization.text(this.weekly, () => t("Эта неделя: {value0} / 7", {value0: state.weekCompleted}));
+    this.rewardSummary.update(state.reward);
 
     this.root.hidden = false;
     this.root.style.pointerEvents = 'auto';

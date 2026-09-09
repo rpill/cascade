@@ -1,4 +1,6 @@
-export const META_SAVE_VERSION = 2 as const;
+import { DEFAULT_THEME_ID, isThemeId } from '../theme/ThemeRegistry.ts';
+
+export const META_SAVE_VERSION = 3 as const;
 export const DAILY_ALGORITHM_VERSION = 1 as const;
 export const WEEKLY_MILESTONES = [3, 5, 7] as const;
 
@@ -59,21 +61,57 @@ export interface MetaSaveV2 {
   weekly: WeeklyState;
 }
 
-export type MetaSave = MetaSaveV2;
+export interface ProgressionState {
+  totalXp: number;
+  coins: number;
+  lastWinDay: string;
+  startedAttempts: string[];
+  completedAttempts: string[];
+  receipts: Record<string, number>;
+}
+
+export interface MetaSaveV3 extends Omit<MetaSaveV2, 'version'> {
+  version: 3;
+  progression: ProgressionState;
+}
+
+export type MetaSave = MetaSaveV3;
+export const MAX_ECONOMY_VALUE = 1_000_000_000;
+
+export function normalizeProgression(raw: unknown): ProgressionState {
+  const value = isObject(raw) ? raw : {};
+  const integer = (n: unknown) => Number.isSafeInteger(n) && (n as number) >= 0
+    ? Math.min(n as number, MAX_ECONOMY_VALUE) : 0;
+  const receipts: Record<string, number> = {};
+  if (isObject(value.receipts)) {
+    for (const [id, sequence] of Object.entries(value.receipts)) {
+      if (/^[a-zA-Z0-9_-]{1,100}$/.test(id) && Number.isSafeInteger(sequence) && (sequence as number) >= 0) {
+        Object.defineProperty(receipts, id, {value:sequence,enumerable:true,writable:true,configurable:true});
+      }
+    }
+  }
+  return {
+    totalXp: integer(value.totalXp), coins: integer(value.coins),
+    lastWinDay: typeof value.lastWinDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.lastWinDay) ? value.lastWinDay : '',
+    startedAttempts: uniqueStrings(value.startedAttempts).slice(-128),
+    completedAttempts: uniqueStrings(value.completedAttempts).slice(-128), receipts,
+  };
+}
 
 function createDefaultModeStats(): ModeStats {
   return { played: 0, wins: 0 };
 }
 
-export function createDefaultMetaSave(): MetaSaveV2 {
+export function createDefaultMetaSave(): MetaSave {
   return {
     version: META_SAVE_VERSION,
     collection: {
       ownedCardBacks: [],
       ownedTables: [],
-      ownedThemes: [],
+      ownedThemes: [DEFAULT_THEME_ID],
     },
-    equipped: { cardBack: '', table: '', theme: '' },
+    equipped: { cardBack: '', table: '', theme: DEFAULT_THEME_ID },
+    progression: normalizeProgression(null),
     achievements: [],
     stats: {
       original: createDefaultModeStats(),
@@ -176,7 +214,7 @@ function normalizeWeekly(value: unknown): WeeklyState {
     : [];
 
   return {
-    weekId: typeof weekly.weekId === 'string' ? weekly.weekId : '',
+    weekId: typeof weekly.weekId === 'string' && /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/.test(weekly.weekId) ? weekly.weekId : '',
     completedDailyIds: uniqueStrings(weekly.completedDailyIds)
       .filter((id) => /^\d{4}-\d{2}-\d{2}$/.test(id)),
     claimedMilestones,
@@ -217,30 +255,37 @@ function normalizeLegacyV1(raw: Record<string, unknown>): MetaSaveV1 {
   };
 }
 
-export function normalizeMetaSave(raw: unknown): MetaSaveV2 {
+export function normalizeMetaSave(raw: unknown): MetaSave {
   const fallback = createDefaultMetaSave();
   if (!isObject(raw)) return fallback;
 
   if (raw.version === 1) {
     const legacy = normalizeLegacyV1(raw);
-    return {
-      version: META_SAVE_VERSION,
+    return normalizeMetaSave({
       collection: legacy.collection,
       equipped: legacy.equipped,
       achievements: legacy.achievements,
       stats: fallback.stats,
       daily: legacy.daily,
       weekly: legacy.weekly,
-    };
+      version: 2,
+    });
   }
 
-  if (raw.version !== META_SAVE_VERSION) return fallback;
+  if (raw.version !== 2 && raw.version !== META_SAVE_VERSION) return fallback;
 
   const stats = isObject(raw.stats) ? raw.stats : {};
+  const collection = normalizeCollection(raw.collection);
+  const equipped = normalizeEquipped(raw.equipped);
+  collection.ownedThemes = [...new Set([DEFAULT_THEME_ID, ...collection.ownedThemes,
+    ...(raw.version === 2 && isThemeId(equipped.theme) ? [equipped.theme] : []),
+  ])];
+  if (!isThemeId(equipped.theme) || !collection.ownedThemes.includes(equipped.theme)) equipped.theme = DEFAULT_THEME_ID;
   return {
     version: META_SAVE_VERSION,
-    collection: normalizeCollection(raw.collection),
-    equipped: normalizeEquipped(raw.equipped),
+    collection,
+    equipped,
+    progression: normalizeProgression(raw.version === 2 ? null : raw.progression),
     achievements: uniqueStrings(raw.achievements),
     stats: {
       original: normalizeModeStats(stats.original),

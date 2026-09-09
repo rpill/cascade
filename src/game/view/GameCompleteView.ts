@@ -1,4 +1,6 @@
+import { t, LocalizationBindings } from '../../localization/Localization.ts';
 import type Phaser from 'phaser';
+import { RewardSummaryView, type RewardSummaryState } from './RewardSummaryView.ts';
 
 export interface GameCompleteState {
   readonly mode: 'original' | 'winnable';
@@ -7,6 +9,7 @@ export interface GameCompleteState {
   readonly improvedBest: boolean;
   readonly wins: number;
   readonly played: number;
+  readonly reward?: RewardSummaryState;
 }
 
 export interface GameCompleteActions {
@@ -22,16 +25,24 @@ function formatDuration(ms: number): string {
 }
 
 function getModeLabel(mode: GameCompleteState['mode']): string {
-  return mode === 'winnable' ? 'СТАНДАРТ' : 'КЛАССИКА';
+  return mode === 'winnable' ? t('СТАНДАРТ') : t('КЛАССИКА');
 }
 
 export class GameCompleteView {
+  private readonly localization = new LocalizationBindings();
+
+  refreshLocalization(): void {
+    this.localization.refresh();
+    this.rewardSummary.refreshLocalization();
+  }
+
   private readonly root: HTMLDivElement;
   private readonly mode: HTMLParagraphElement;
   private readonly elapsed: HTMLParagraphElement;
   private readonly best: HTMLParagraphElement;
   private readonly record: HTMLParagraphElement;
   private readonly stats: HTMLParagraphElement;
+  private readonly rewardSummary: RewardSummaryView;
 
   constructor(scene: Phaser.Scene, actions: GameCompleteActions) {
     this.root = document.createElement('div');
@@ -42,11 +53,11 @@ export class GameCompleteView {
 
     const panel = document.createElement('section');
     panel.className = 'daily-complete-panel game-complete-panel';
-    panel.setAttribute('aria-label', 'Результат партии');
+    this.localization.attribute(panel, 'aria-label', () => t('Результат партии'));
 
     const title = document.createElement('h2');
     title.className = 'daily-complete-title game-complete-title';
-    title.textContent = 'ПОБЕДА';
+    this.localization.text(title, () => t('ПОБЕДА'));
 
     const divider = document.createElement('div');
     divider.className = 'daily-complete-divider game-complete-divider';
@@ -73,13 +84,13 @@ export class GameCompleteView {
     const newGameButton = document.createElement('button');
     newGameButton.type = 'button';
     newGameButton.className = 'daily-complete-button game-complete-new-game';
-    newGameButton.textContent = 'ЕЩЁ ПАРТИЯ';
+    this.localization.text(newGameButton, () => t('ЕЩЁ ПАРТИЯ'));
     newGameButton.addEventListener('click', () => actions.newGame());
 
     const menuButton = document.createElement('button');
     menuButton.type = 'button';
     menuButton.className = 'daily-complete-button game-complete-menu';
-    menuButton.textContent = 'В МЕНЮ';
+    this.localization.text(menuButton, () => t('В МЕНЮ'));
     menuButton.addEventListener('click', () => actions.menu());
 
     buttonRow.append(newGameButton, menuButton);
@@ -91,8 +102,9 @@ export class GameCompleteView {
       this.best,
       this.record,
       this.stats,
-      buttonRow,
     );
+    this.rewardSummary = new RewardSummaryView(panel);
+    panel.append(buttonRow);
     this.root.append(backdrop, panel);
 
     const host = scene.game.canvas.parentElement;
@@ -109,12 +121,13 @@ export class GameCompleteView {
       ? 0
       : Math.round(state.wins / state.played * 100);
 
-    this.mode.textContent = getModeLabel(state.mode);
-    this.elapsed.textContent = `Время: ${formatDuration(state.elapsedMs)}`;
-    this.best.textContent = `Лучшее: ${formatDuration(state.bestTimeMs)}`;
-    this.record.textContent = state.improvedBest ? 'Новый рекорд' : '';
+    this.localization.text(this.mode, () => getModeLabel(state.mode));
+    this.localization.text(this.elapsed, () => t("Время: {value0}", {value0: formatDuration(state.elapsedMs)}));
+    this.localization.text(this.best, () => t("Лучшее: {value0}", {value0: formatDuration(state.bestTimeMs)}));
+    this.localization.text(this.record, () => state.improvedBest ? t('Новый рекорд') : '');
     this.record.hidden = !state.improvedBest;
-    this.stats.textContent = `Победы: ${state.wins} / ${state.played} · ${winRate}%`;
+    this.localization.text(this.stats, () => t("Победы: {value0} / {value1} · {value2}%", {value0: state.wins, value1: state.played, value2: winRate}));
+    this.rewardSummary.update(state.reward);
 
     this.root.hidden = false;
     this.root.style.pointerEvents = 'auto';

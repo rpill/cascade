@@ -1,4 +1,7 @@
 export interface PlayerStorage {
+  scope?(): Promise<string>;
+  loadStrict?(): Promise<unknown>;
+  saveStrict?(data: Record<string, unknown>, flush?: boolean): Promise<void>;
   load(): Promise<unknown>;
   save(data: Record<string, unknown>, flush?: boolean): Promise<void>;
 }
@@ -41,6 +44,7 @@ export interface PlatformLeaderboards {
 }
 
 export interface PlatformServices {
+  readonly language?: string;
   readonly playerStorage: PlayerStorage;
   readonly trustedClock: TrustedClock;
   readonly auth: PlatformAuth;
@@ -79,6 +83,22 @@ export function createBrowserPlayerStorage(
   let memoryData: Record<string, unknown> = {};
 
   return {
+    scope: async () => 'browser-local',
+    async loadStrict(): Promise<unknown> {
+      if (storage !== null) {
+        const serialized = storage.getItem(PLAYER_DATA_KEY);
+        if (serialized !== null) {
+          const parsed: unknown = JSON.parse(serialized);
+          if (!isPlayerData(parsed)) throw new Error('Invalid player profile');
+          memoryData = cloneData(parsed);
+        }
+      }
+      return cloneData(memoryData);
+    },
+    async saveStrict(data: Record<string, unknown>): Promise<void> {
+      if (storage !== null) storage.setItem(PLAYER_DATA_KEY, JSON.stringify(data));
+      memoryData = cloneData(data);
+    },
     async load(): Promise<unknown> {
       if (storage !== null) {
         try {

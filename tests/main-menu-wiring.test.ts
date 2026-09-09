@@ -55,12 +55,12 @@ test('old MainMenuView is removed and mode cards start their selected mode immed
   assert.doesNotMatch(shellSource, /ЗАКРЫТЬ/);
 });
 
-test('Play destination exposes balanced Standard Daily Classic cards and compact week progress', () => {
+test('Play destination exposes balanced Standard Daily Classic cards and player progress', () => {
   assert.match(playSource, /СТАНДАРТ/);
   assert.match(playSource, /ИСПЫТАНИЕ ДНЯ/);
   assert.match(playSource, /КЛАССИКА/);
   assert.match(playSource, /main-shell-mode-grid/);
-  assert.match(playSource, /main-shell-weekly/);
-  assert.match(playSource, /На этой неделе/);
+  assert.match(playSource, /main-shell-player-progress/);
+  assert.match(playSource, /updateProgression/);
   assert.doesNotMatch(playSource, /WEEKLY_MILESTONES|НЕДЕЛЯ \$\{|Пн|Вт|Ср|Чт|Пт|Сб|Вс/);
 });

@@ -6,10 +6,10 @@ import {
   normalizeMetaSave,
 } from '../src/meta/MetaSave.ts';
 
-test('missing or malformed saves normalize to version 2 defaults', () => {
+test('missing or malformed saves normalize to version 3 defaults', () => {
   const defaults = createDefaultMetaSave();
 
-  assert.equal(defaults.version, 2);
+  assert.equal(defaults.version, 3);
   assert.deepEqual(defaults.stats, {
     original: { played: 0, wins: 0 },
     winnable: { played: 0, wins: 0 },
@@ -18,7 +18,7 @@ test('missing or malformed saves normalize to version 2 defaults', () => {
   assert.deepEqual(normalizeMetaSave({ version: 99 }), defaults);
 });
 
-test('version 1 save migrates to version 2 without losing persistent meta progress', () => {
+test('version 1 save migrates to version 3 without losing persistent meta progress', () => {
   const save = normalizeMetaSave({
     version: 1,
     collection: {
@@ -47,16 +47,16 @@ test('version 1 save migrates to version 2 without losing persistent meta progre
     },
   });
 
-  assert.equal(save.version, 2);
+  assert.equal(save.version, 3);
   assert.deepEqual(save.collection, {
     ownedCardBacks: ['paper', 'obsidian'],
     ownedTables: ['wood'],
-    ownedThemes: ['classic'],
+    ownedThemes: ['walnut_study', 'classic'],
   });
   assert.deepEqual(save.equipped, {
     cardBack: 'obsidian',
     table: 'wood',
-    theme: 'classic',
+    theme: 'walnut_study',
   });
   assert.deepEqual(save.achievements, ['first-win']);
   assert.deepEqual(save.stats, {

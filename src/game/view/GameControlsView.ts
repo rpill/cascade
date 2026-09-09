@@ -1,8 +1,9 @@
+import { t, LocalizationBindings } from '../../localization/Localization.ts';
 import type Phaser from 'phaser';
 
 import type { GameMode } from '../model/types.ts';
 import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
-import { createIconControl } from './ui/UiControls.ts';
+import { createIconControl, refreshIconControls } from './ui/UiControls.ts';
 import './GameControlsView.css';
 
 export interface GameControlsActions {
@@ -23,12 +24,19 @@ function toCssUrl(path: string): string {
 }
 
 const MODE_LABELS: Readonly<Record<GameMode, string>> = {
-  winnable: 'STANDARD',
-  original: 'CLASSIC',
-  daily: 'DAILY',
+  winnable: 'СТАНДАРТ',
+  original: 'КЛАССИКА',
+  daily: 'ИСПЫТАНИЕ ДНЯ',
 };
 
 export class GameControlsView {
+  private readonly localization = new LocalizationBindings();
+
+  refreshLocalization(): void {
+    this.localization.refresh();
+    refreshIconControls(this.root);
+  }
+
   private readonly root: HTMLDivElement;
   private readonly modeLabel: HTMLDivElement;
   private readonly newDealButton: HTMLButtonElement;
@@ -41,7 +49,7 @@ export class GameControlsView {
 
     this.modeLabel = document.createElement('div');
     this.modeLabel.className = 'game-mode-label';
-    this.modeLabel.setAttribute('aria-label', 'Текущий режим игры');
+    this.localization.attribute(this.modeLabel, 'aria-label', () => t('Текущий режим игры'));
 
     const controls = document.createElement('div');
     controls.className = 'game-controls';
@@ -78,7 +86,7 @@ export class GameControlsView {
   }
 
   setMode(mode: GameMode): void {
-    this.modeLabel.textContent = MODE_LABELS[mode];
+    this.localization.text(this.modeLabel, () => t(MODE_LABELS[mode]));
     this.setDaily(mode === 'daily');
   }
 

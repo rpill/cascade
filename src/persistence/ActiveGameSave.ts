@@ -13,6 +13,7 @@ export const ACTIVE_GAME_SAVE_VERSION = 1 as const;
 
 export interface ActiveGameSaveV1 {
   version: 1;
+  attemptId?: string;
   mode: GameMode;
   seed: string;
   snapshot: SolitaireSnapshot;
@@ -26,6 +27,7 @@ export interface ActiveGameSaveV1 {
 }
 
 export interface ActiveGameCheckpointInput {
+  attemptId?: string;
   mode: GameMode;
   seed: bigint;
   snapshot: SolitaireSnapshot;
@@ -224,6 +226,7 @@ export function normalizeActiveGameSave(raw: unknown): ActiveGameSaveV1 | null {
 
   return {
     version: ACTIVE_GAME_SAVE_VERSION,
+    ...(typeof raw.attemptId === 'string' && /^[a-zA-Z0-9_~\-]{1,100}$/.test(raw.attemptId) ? {attemptId:raw.attemptId} : {}),
     mode: raw.mode,
     seed,
     snapshot,
@@ -239,6 +242,7 @@ export function createActiveGameSave(
 ): ActiveGameSaveV1 {
   const normalized = normalizeActiveGameSave({
     version: ACTIVE_GAME_SAVE_VERSION,
+    attemptId: input.attemptId,
     mode: input.mode,
     seed: input.seed.toString(),
     snapshot: input.snapshot,
