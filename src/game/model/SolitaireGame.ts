@@ -202,8 +202,10 @@ export class SolitaireGame {
       && this.move(source, { zone: 'foundation', suit: card.suit });
   }
 
-  autoMoveToFoundation(): Card | null {
-    const source = this.findAutoFoundationSource();
+  autoMoveToFoundation(
+    excludedSuits: ReadonlySet<Suit> = new Set<Suit>(),
+  ): Card | null {
+    const source = this.findAutoFoundationSource(excludedSuits);
 
     if (source === null) {
       return null;
@@ -214,6 +216,30 @@ export class SolitaireGame {
     return card !== undefined && this.moveToFoundation(source)
       ? card
       : null;
+  }
+
+  autoMoveFoundationWave(): Card[] {
+    const moved: Card[] = [];
+    const movedSuits = new Set<Suit>();
+
+    while (movedSuits.size < SUITS.length) {
+      const source = this.findAutoFoundationSource(movedSuits);
+
+      if (source === null) {
+        break;
+      }
+
+      const card = this.cardsFromSource(source)[0];
+
+      if (card === undefined || !this.moveToFoundation(source)) {
+        break;
+      }
+
+      moved.push(card);
+      movedSuits.add(card.suit);
+    }
+
+    return moved;
   }
 
   private isOrderedRun(cards: readonly Card[]): boolean {
@@ -252,7 +278,9 @@ export class SolitaireGame {
       });
   }
 
-  private findAutoFoundationSource(): CardSource | null {
+  private findAutoFoundationSource(
+    excludedSuits: ReadonlySet<Suit> = new Set<Suit>(),
+  ): CardSource | null {
     for (let pile = 0; pile < this.tableau.length; pile += 1) {
       const index = this.tableau[pile].length - 1;
 
@@ -260,7 +288,11 @@ export class SolitaireGame {
         const source = { zone: 'tableau', pile, index } as const;
         const card = this.cardsFromSource(source)[0];
 
-        if (card !== undefined && this.isAutoFoundationEligible(card)) {
+        if (
+          card !== undefined
+          && !excludedSuits.has(card.suit)
+          && this.isAutoFoundationEligible(card)
+        ) {
           return source;
         }
       }
@@ -268,11 +300,19 @@ export class SolitaireGame {
 
     const wasteCard = this.waste.at(-1);
 
-    if (wasteCard !== undefined && this.isAutoFoundationEligible(wasteCard)) {
+    if (
+      wasteCard !== undefined
+      && !excludedSuits.has(wasteCard.suit)
+      && this.isAutoFoundationEligible(wasteCard)
+    ) {
       return { zone: 'waste' };
     }
 
-    if (this.freeCell !== null && this.isAutoFoundationEligible(this.freeCell)) {
+    if (
+      this.freeCell !== null
+      && !excludedSuits.has(this.freeCell.suit)
+      && this.isAutoFoundationEligible(this.freeCell)
+    ) {
       return { zone: 'free' };
     }
 

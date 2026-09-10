@@ -1,6 +1,11 @@
 import Phaser from 'phaser';
 
 import { GameFlow } from '../model/GameFlow.ts';
+import { createRandomDealSeed, GameSession } from '../model/GameSession.ts';
+import { VerifiedDealCatalog } from '../model/VerifiedDealCatalog.ts';
+import { StandardDifficultyDirector, type StandardSelection } from '../model/StandardDifficultyDirector.ts';
+import { shouldRecordStandardFailure } from '../model/StandardAttemptPolicy.ts';
+import { VERIFIED_DEALS_REGISTRY_KEY } from './BootScene.ts';
 import { GameHistory } from '../model/GameHistory.ts';
 import { SolitaireGame } from '../model/SolitaireGame.ts';
 import type { Deal, GameMode } from '../model/types.ts';
@@ -44,6 +49,7 @@ import {
 } from '../../meta/GameStats.ts';
 import {
   createDefaultMetaSave,
+  DAILY_ALGORITHM_VERSION,
   type MetaSave,
 } from '../../meta/MetaSave.ts';
 import { ActiveGameRepository } from '../../persistence/ActiveGameRepository.ts';
@@ -65,6 +71,7 @@ import { loadTheme } from '../../theme/ThemeLoader.ts';
 import { SettingsView } from '../view/SettingsView.ts';
 import { preferences } from '../../settings/Preferences.ts';
 import { AudioController } from '../../settings/AudioController.ts';
+import { SfxController } from '../../settings/SfxController.ts';
 import { getLanguage, subscribeLanguage } from '../../localization/Localization.ts';
 
 interface DailyContext {
@@ -83,6 +90,7 @@ interface OrdinaryCompletionSnapshot {
   readonly elapsedMs: number;
   readonly result: ModeCompletionResult;
   readonly reward: RewardSummary;
+  readonly totalXpBefore: number;
   readonly event: CompletionEvent;
 }
 
@@ -95,6 +103,7 @@ export class GameScene extends Phaser.Scene {
   private appShell!: AppShellView;
   private settingsView!: SettingsView;
   private audioController!: AudioController;
+  private sfxController!: SfxController;
   private unsubscribeLanguage: (() => void) | null = null;
   private catalogView!: ThemeCatalogView;
   private catalogBusyId: string | undefined;
@@ -145,6 +154,8 @@ export class GameScene extends Phaser.Scene {
   private unsubscribePlatformPause: (() => void) | null = null;
   private leaderboardService: LeaderboardService | null = null;
   private metaState: MetaSave = createDefaultMetaSave();
+  private verifiedDealCatalog!: VerifiedDealCatalog;
+  private standardDifficultyDirector!: StandardDifficultyDirector;
   private dailyContext: DailyContext | null = null;
   private activeTheme!: ThemeDefinition;
   private themeRequest = 0;
@@ -156,6 +167,8 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.windowFocused = document.hasFocus();
     this.audioController = new AudioController(this.sound);
+    this.sfxController = new SfxController(this.sound);
+    this.game.canvas.parentElement?.addEventListener('click', this.handleButtonSfx);
     this.audioController.setSuspended(!this.windowFocused || document.visibilityState !== 'visible');
     this.activeTheme = getTheme(resolveOwnedThemeId(window.location.search, null, [], import.meta.env.DEV));
     try { this.metaScope = localStorage.getItem('cascadeMetaScope') ?? 'unbound'; } catch { /* unavailable storage */ }
@@ -173,7 +186,15 @@ export class GameScene extends Phaser.Scene {
     this.input.dragDistanceThreshold = 7;
     this.applyViewportLayout();
     this.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this);
-    this.flow = new GameFlow();
+    this.verifiedDealCatalog = this.registry.get(VERIFIED_DEALS_REGISTRY_KEY) as VerifiedDealCatalog;
+    if (!(this.verifiedDealCatalog instanceof VerifiedDealCatalog)) {
+      throw new Error('Verified deal catalog is not registered.');
+    }
+    this.flow = new GameFlow(new GameSession({ catalog: this.verifiedDealCatalog }));
+    this.standardDifficultyDirector = new StandardDifficultyDirector(
+      this.verifiedDealCatalog,
+      () => Number(createRandomDealSeed() & 0xffff_ffffn),
+    );
     this.appShell = new AppShellView(this, {
       navigate: (destination) => this.navigateShell(destination),
       cancel: () => this.closeMainMenu(),
@@ -199,10 +220,12 @@ export class GameScene extends Phaser.Scene {
     this.dailyCompleteView = new DailyCompleteView(this, {
       retry: () => this.retryDaily(),
       menu: () => this.openMenuFromDailyComplete(),
+      sound: (cue) => this.sfxController.play(cue),
     });
     this.gameCompleteView = new GameCompleteView(this, {
       newGame: () => this.startNewDeal(),
       menu: () => this.openMenuFromGameComplete(),
+      sound: (cue) => this.sfxController.play(cue),
     });
     this.activeGameRepository = new ActiveGameRepository();
     this.unsubscribeLanguage = subscribeLanguage(() => this.refreshLocalization());
@@ -256,7 +279,7 @@ export class GameScene extends Phaser.Scene {
         dailyId,
         weekId: getIsoWeekId(now),
         weekDailyIds: getIsoWeekDailyIds(now),
-        seed: getDailySeed(dailyId, this.metaState.daily.algorithmVersion),
+        seed: getDailySeed(dailyId, this.verifiedDealCatalog),
       };
     }
 
@@ -384,7 +407,7 @@ export class GameScene extends Phaser.Scene {
         this.board?.destroy(); this.board=null;
         this.gameControls?.destroy(); this.gameControls=null;
         this.gameState=null;
-        this.flow=new GameFlow();
+        this.flow=new GameFlow(new GameSession({catalog:this.verifiedDealCatalog}));
         this.resetAttempt();
         this.activeGameRepository.clear();
         this.pendingActiveSave=null;
@@ -465,7 +488,7 @@ export class GameScene extends Phaser.Scene {
     const now=this.platform?.trustedClock.nowMs() ?? null;
     if (now===null || this.metaSession.status!=='ready') return null;
     const dailyId=getDailyId(now);
-    return {dailyId,weekId:getIsoWeekId(now),weekDailyIds:getIsoWeekDailyIds(now),seed:getDailySeed(dailyId,this.metaState.daily.algorithmVersion)};
+    return {dailyId,weekId:getIsoWeekId(now),weekDailyIds:getIsoWeekDailyIds(now),seed:getDailySeed(dailyId,this.verifiedDealCatalog)};
   }
 
   private completionEvent(mode:GameMode,elapsedMs:number): CompletionEvent {
@@ -511,7 +534,7 @@ export class GameScene extends Phaser.Scene {
     const daily = save.daily;
     const identityMatches = daily !== undefined
       && daily.dailyId === context.dailyId
-      && daily.algorithmVersion === this.metaState.daily.algorithmVersion
+      && daily.algorithmVersion === DAILY_ALGORITHM_VERSION
       && BigInt(save.seed) === context.seed;
 
     if (!identityMatches) {
@@ -577,15 +600,10 @@ export class GameScene extends Phaser.Scene {
         () => gameState.moveToFoundation(source),
         Boolean,
       ),
-      autoFoundationStep: () => {
-        const card = gameState.autoMoveToFoundation();
-        if (card === null) {
-          this.onBoardSettled(gameState);
-        }
-        return card;
-      },
+      autoFoundationStep: (excludedSuits) => gameState.autoMoveToFoundation(excludedSuits),
       settled: () => this.onBoardSettled(gameState),
       undo: () => this.history.undo(gameState),
+      sound: (cue) => this.sfxController.play(cue),
     }, layout, this.activeTheme);
 
     this.gameControls?.destroy();
@@ -676,6 +694,7 @@ export class GameScene extends Phaser.Scene {
     this.reconcileGameplayActivity();
     const event=this.completionEvent(mode,elapsedMs);
     const beforeBest=this.metaState.stats[mode].bestTimeMs;
+    const totalXpBefore=this.metaState.progression.totalXp;
     const result=completeRewardedAttempt(this.metaState,event);
     const recorded=this.dispatchMeta(event);
     const completion:ModeCompletionResult={state:this.metaState,stats:{...this.metaState.stats[mode]},improvedBest:beforeBest===undefined || elapsedMs<beforeBest};
@@ -685,6 +704,7 @@ export class GameScene extends Phaser.Scene {
       elapsedMs,
       result: completion,
       reward:{...result.reward,pending:this.metaSession.status!=='ready' || !recorded},
+      totalXpBefore,
       event,
     };
     this.showOrdinaryCompletion();
@@ -704,12 +724,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.gameCompleteView.show({
+      completionId: completion.event.attemptId,
       mode: completion.mode,
       elapsedMs: completion.elapsedMs,
-      bestTimeMs: completion.result.stats.bestTimeMs ?? completion.elapsedMs,
       improvedBest: completion.result.improvedBest,
-      wins: completion.result.stats.wins,
-      played: completion.result.stats.played,
+      totalXpBefore: completion.totalXpBefore,
       reward:{...(this.metaSession.getReward(completion.event.attemptId) ?? completion.reward),
         pending:this.metaSession.status!=='ready' || !hasCompletedAttempt(this.metaState,completion.event.attemptId)},
     });
@@ -740,7 +759,7 @@ export class GameScene extends Phaser.Scene {
         elapsedMs: this.getElapsedForCheckpoint(),
         daily: {
           dailyId: context.dailyId,
-          algorithmVersion: this.metaState.daily.algorithmVersion,
+          algorithmVersion: DAILY_ALGORITHM_VERSION,
         },
         uiState,
       });
@@ -807,6 +826,7 @@ export class GameScene extends Phaser.Scene {
     const event=this.lastDailyEvent;
     if (!event?.dailyId || !event.weekId || !this.lastDailyReward) return;
     this.dailyCompleteView.show({
+      completionId:event.attemptId,
       elapsedMs:event.elapsedMs,
       bestTimeMs:this.metaState.daily.records[event.dailyId]?.bestTimeMs ?? event.elapsedMs,
       improvedBest:this.metaSession.getImprovedBest(event.attemptId) ?? this.lastDailyImprovedBest,
@@ -838,14 +858,25 @@ export class GameScene extends Phaser.Scene {
   }
 
   private startNewDeal(): void {
+    const currentDeal = this.flow.currentDeal;
     if (
       this.flow.state !== 'playing'
-      || this.flow.currentDeal?.mode === 'daily'
+      || currentDeal === null
+      || currentDeal.mode === 'daily'
     ) {
       return;
     }
 
-    const deal = this.flow.startNewInCurrentMode();
+    let deal: Deal;
+    if (currentDeal.mode === 'winnable') {
+      this.recordStandardFailureIfReplacing('winnable', null);
+      const selection = this.selectStandardDeal();
+      this.dispatchMeta({kind:'standard-served',seed:selection.seed.toString(),tier:selection.tier});
+      deal = this.flow.startNewInCurrentMode(selection.seed);
+    } else {
+      deal = this.flow.startNewInCurrentMode();
+    }
+
     this.board?.destroy();
     this.startDeal(deal);
   }
@@ -1101,6 +1132,15 @@ export class GameScene extends Phaser.Scene {
     ]);
   }
 
+  private handleButtonSfx = (event: Event): void => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest('button');
+    if (button instanceof HTMLButtonElement && !button.disabled) {
+      this.sfxController.play('button');
+    }
+  };
+
   private handleEscape = (): void => {
     if (this.settingsView.isOpen) {
       this.settingsView.hide();
@@ -1148,6 +1188,52 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private selectStandardDeal(): StandardSelection {
+    return this.standardDifficultyDirector.select({
+      wins: this.metaState.stats.winnable.wins,
+      failureStreak: this.metaState.standardDifficulty.failureStreak,
+      lastServedTier: this.metaState.standardDifficulty.lastServedTier,
+      recentSeeds: this.metaState.standardDifficulty.recentSeeds,
+    });
+  }
+
+  private recordStandardFailureIfReplacing(
+    replacementMode: GameMode,
+    replacementSeed: bigint | null,
+  ): void {
+    if (!shouldRecordStandardFailure({
+      currentMode: this.flow.currentDeal?.mode ?? null,
+      currentSeed: this.flow.currentDeal?.seed ?? null,
+      replacementMode,
+      replacementSeed,
+      attemptStarted: this.attemptStarted,
+      attemptFinalized: this.attemptFinalized,
+    })) {
+      return;
+    }
+
+    this.dispatchMeta({kind:'standard-failed',attemptId:this.attemptId});
+  }
+
+  private startSelectedMode(mode: GameMode): Deal {
+    if (mode === 'winnable') {
+      this.recordStandardFailureIfReplacing('winnable', null);
+      const selection = this.selectStandardDeal();
+      this.dispatchMeta({kind:'standard-served',seed:selection.seed.toString(),tier:selection.tier});
+      this.flow.selectMenuMode(mode);
+      return this.flow.playSelectedMode(selection.seed);
+    }
+
+    const replacementSeed = mode === 'daily' ? this.dailyContext?.seed ?? null : null;
+    this.recordStandardFailureIfReplacing(mode, replacementSeed);
+    this.flow.selectMenuMode(mode);
+    return mode === 'daily'
+      ? this.flow.playSelectedMode(
+          this.dailyContext?.seed ?? (() => { throw new Error('Daily seed is required.'); })(),
+        )
+      : this.flow.playSelectedMode();
+  }
+
   private playMenuMode(mode: GameMode): void {
     if (this.flow.state === 'playing') {
       return;
@@ -1158,10 +1244,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.closeStatisticsPage();
-    this.flow.selectMenuMode(mode);
-    const deal = mode === 'daily'
-      ? this.flow.playSelectedMode(this.dailyContext!.seed)
-      : this.flow.playSelectedMode();
+    const deal = this.startSelectedMode(mode);
     this.appShell.hide();
     this.dailyCompleteView.hide();
     this.gameCompleteView.hide();
@@ -1327,6 +1410,7 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard?.off('keydown-Z', this.undoLastAction, this);
     this.input.keyboard?.off('keydown-N', this.startNewDeal, this);
     this.input.keyboard?.off('keydown-ESC', this.handleEscape, this);
+    this.game.canvas.parentElement?.removeEventListener('click', this.handleButtonSfx);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     window.removeEventListener('blur', this.handleWindowBlur);
     window.removeEventListener('focus', this.handleWindowFocus);

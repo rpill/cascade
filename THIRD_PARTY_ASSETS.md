@@ -101,3 +101,15 @@
 - `public/assets/themes/burgundy-club/board-surface-refined.webp`: ImageGen edit of the user-supplied scene, encoded as WebP. Both prompts and geometry are recorded in the theme README. The provenance/license of the imported source is not independently established here.
 - The user-supplied `card-back.png` ornament is unchanged; a runtime texture frame excludes transparent padding.
 - Separate slot frames, shared suit/stock glyphs and paper-edge SVGs are project vector artwork in `src/theme/SlotArtwork.ts` and `src/theme/ThemeAssets.ts`.
+
+## Navy Study
+- Board surface and card-back artwork are first-party theme assets prepared specifically for this project; no third-party license is required.
+
+## Kenney — live tabletop SFX (2026-09-10)
+
+- Runtime directory: `public/assets/audio/sfx/`.
+- Card handling and reward foley source: **Casino Audio 1.1** by Kenney Vleugels (Kenney.nl), supplied as `kenney_casino-audio.zip`. License: CC0 1.0; license copy: `public/assets/licenses/kenney-casino-audio-cc0.txt`.
+- Menu click source: **UI SFX Set** by Kenney Vleugels (Kenney.nl), supplied as `UI_SFX_Set.zip`. The bundled readme grants use in personal and commercial projects and says credit is optional; copy: `public/assets/licenses/kenney-ui-sfx-readme.txt`.
+- Runtime OGG files are trimmed/level-adjusted derivatives of those live recordings. No synthesized/MIDI placeholder SFX remain in the runtime directory.
+- `card-touch-*` uses one stable short real card-shove/rustle transient; `deal-*` uses short cropped rustle transients from Kenney's real `card-shuffle.ogg` recording, one per dealt card; `card-place-*` uses card placement recordings for every successful landing including foundations; `undo-*` uses card slides. Victory uses a card fan; level-up and coin reward use real casino-chip foley.
+

@@ -1,5 +1,4 @@
-import { WINNABLE_SEEDS } from '../game/model/winnableSeeds.ts';
-import { DAILY_ALGORITHM_VERSION } from './MetaSave.ts';
+import type { VerifiedDealCatalog } from '../game/model/VerifiedDealCatalog.ts';
 
 const DAY_MS = 86_400_000;
 
@@ -35,27 +34,36 @@ export function getIsoWeekDailyIds(timestampMs: number): readonly string[] {
   );
 }
 
-function stableHash32(value: string): number {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
+function parseDailyIdUtc(dailyId: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(dailyId)) {
+    throw new Error(`Invalid Daily ID: ${dailyId}`);
   }
-  return hash >>> 0;
+  const millis = Date.parse(`${dailyId}T00:00:00Z`);
+  if (!Number.isFinite(millis) || new Date(millis).toISOString().slice(0, 10) !== dailyId) {
+    throw new Error(`Invalid Daily ID: ${dailyId}`);
+  }
+  return millis;
 }
 
 export function getDailySeed(
   dailyId: string,
-  algorithmVersion: number = DAILY_ALGORITHM_VERSION,
-  pool: readonly bigint[] = WINNABLE_SEEDS,
+  catalog: VerifiedDealCatalog,
 ): bigint {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dailyId)) {
-    throw new Error('Invalid Daily ID.');
+  const target = parseDailyIdUtc(dailyId);
+  const startId = catalog.metadata.dailyScheduleStart;
+  const start = parseDailyIdUtc(startId);
+  const delta = target - start;
+  const offset = delta / DAY_MS;
+
+  if (!Number.isInteger(offset)) {
+    throw new Error(`Daily ID ${dailyId} does not map to an exact UTC schedule day.`);
   }
-  if (pool.length === 0) {
-    throw new Error('Daily seed pool is empty.');
+  if (offset < 0) {
+    throw new RangeError(`Daily ID ${dailyId} is before verified schedule start ${startId}.`);
+  }
+  if (offset >= catalog.metadata.dailyScheduleLength) {
+    throw new RangeError(`Daily ID ${dailyId} is after verified schedule range.`);
   }
 
-  const index = stableHash32(`${algorithmVersion}:${dailyId}`) % pool.length;
-  return pool[index];
+  return catalog.getDailySeedByOffset(offset);
 }

@@ -5,7 +5,10 @@
 - `src/game/model/SolitaireGame.ts` — mutable solitaire state and legality rules.
 - `src/game/model/GameHistory.ts` — deep pre-action snapshots and LIFO undo.
 - `src/game/model/GameFlow.ts` — pure main-menu / active-game flow transitions, including resume of a saved deal.
-- `src/game/model/GameSession.ts` — seed/mode lifecycle and pure saved-deal resume boundary.
+- `src/game/model/GameSession.ts` — seed/mode lifecycle, explicit verified Standard/Daily starts, and pure saved-deal resume boundary.
+- `src/game/model/DealProof.ts` — exact solver-proof replay through production `SolitaireGame` rules.
+- `src/game/model/VerifiedDealCatalog.ts` — typed read-only decoder/membership API for the generated uint32 binary catalog.
+- `src/game/model/StandardDifficultyDirector.ts` / `StandardAttemptPolicy.ts` — pure hidden Standard tier/seed selection and deliberate-abandonment semantics.
 - `src/game/view/BoardView.ts` — Phaser board input, card sync, target selection, motion, direct restored-state render, and persistence-neutral settled callback.
 - `src/game/view/DropGeometry.ts` — renderer-independent drop commitment geometry.
 - `src/game/view/CardFlight.ts` — quadratic flight path math.
@@ -26,13 +29,13 @@
 - `src/game/scenes/GameScene.ts` — coordinator for flow, history, model, local active-session checkpoints, unified attempt lifecycle, Daily/meta state, pre-load meta mutation replay, platform initialization, statistics/leaderboard/auth lifecycle, and DOM views.
 - `src/persistence/ActiveGameSave.ts` — versioned browser-local active-game checkpoint schema, strict normalization, canonical card reconstruction, and checkpoint-to-Deal conversion.
 - `src/persistence/ActiveGameRepository.ts` — safe `cascadeActiveGame` localStorage load/save/clear boundary; corrupt/invalid data is discarded best-effort.
-- `src/meta/MetaSave.ts` — V3 player save, V1→V2→V3 migration, ownership, progression and receipt normalization.
+- `src/meta/MetaSave.ts` — V4 player save, V1/V2/V3→V4 migration, ownership/progression/receipt normalization, and persisted hidden Standard difficulty state.
 - `src/meta/MetaSession.ts` — runtime profile load/replay/dispatch and serialized acknowledged writes under `cascadeMeta`; exposes readiness, save errors and result rewards.
 - `src/meta/MetaJournal.ts` — durable per-profile operation journal with stable stream/sequence IDs; acknowledged operations are compacted only after successful writes.
 - `src/meta/MetaOperations.ts` / `Economy.ts` / `Progression.ts` — pure attempt, reward, purchase, equip and level rules. Completion high-water marks outlive the bounded recent-attempt cache.
 - `src/theme/ThemeCatalog.ts` — published products and lightweight previews, separate from the full renderer registry.
 - `src/meta/MetaRepository.ts` — retained legacy snapshot persistence helper; runtime economy uses `MetaSession`.
-- `src/meta/DailyCalendar.ts` — trusted-UTC Daily IDs, ISO week IDs/dates, and deterministic Daily seed mapping.
+- `src/meta/DailyCalendar.ts` — trusted-UTC Daily IDs, ISO week IDs/dates, and date-offset lookup into the generated verified Daily schedule.
 - `src/meta/DailyProgress.ts` — pure Daily attempt, completion, personal-best, and weekly progress rules.
 - `src/meta/AttemptTimer.ts` — generic pause-aware attempt timer with restored elapsed-duration support.
 - `src/meta/GameStats.ts` — pure Standard/Classic `played` / `wins` / `bestTimeMs` mutations; Daily is intentionally excluded.
@@ -44,6 +47,9 @@
 - `src/platform/yandex.ts` — cached Yandex adapter: loads `/sdk.js` in the HTTPS Yandex/proxy environment, initializes/reacquires Player data/server time, exposes explicit auth + direct `ysdk.leaderboards` APIs, account-selection events, and LoadingAPI readiness.
 - `scripts/chatgpt-context-lib.mjs` — testable tree/Git/context-bundle core.
 - `scripts/chatgpt-context.mjs` — CLI used by `pnpm context*`.
+- `tools/deals/generate.mjs` — resumable parallel candidate scan, proof verification, difficulty scoring/partitioning, Daily schedule assignment, and atomic final catalog/proof-sample emission.
+- `tools/deals/verify-all.mjs` — long release gate that freshly solves every production seed at the slow ceiling and replays every proof through current TypeScript rules.
+- `tools/deals/report.mjs` — catalog/scan/difficulty/overlap/Daily-band report.
 
 ## Persistence boundaries
 
@@ -82,7 +88,7 @@ Do not merge the active board checkpoint into `cascadeMeta` or upload a full boa
 ## Daily constraints
 
 - Daily identity must come from trusted Yandex server time and UTC calendar boundaries; when trusted time is unavailable, disable Daily instead of falling back to the device clock.
-- Daily seed selection is deterministic from Daily ID + algorithm version into the frozen solver-proven pool.
+- Daily seed selection is a deterministic UTC date-offset lookup in `VerifiedDealCatalog`; dates outside the committed schedule fail instead of hashing/falling back to another pool.
 - A reloaded Daily checkpoint is only resumed after trusted context exists and `dailyId`, algorithm version, and deterministic seed all match. Stale/mismatched Daily checkpoints are discarded.
 - Daily Restart replays the fixed Daily seed. `НОВАЯ ИГРА` / `N` are intentionally unavailable in Daily because they would duplicate Restart.
 - Daily remains on `DailyProgress`; never write Daily attempts/wins into `GameStats`.
@@ -146,7 +152,19 @@ Do not merge the active board checkpoint into `cascadeMeta` or upload a full boa
 ```bash
 pnpm test
 pnpm build
+pnpm deals:verify-sample
 ```
+
+Verified-deal release/regeneration gates:
+
+```bash
+pnpm deals:build-solver
+pnpm deals:generate -- --standard-total 50000 --daily-days 36525 --jobs 4
+pnpm deals:report
+pnpm deals:verify-all
+```
+
+`artifacts/deals/` is resumable development output and must remain ignored. Production ships only `public/assets/deals/verified-deals.bin`, its manifest, and the small committed proof sample.
 
 Yandex SDK smoke test:
 

@@ -1,21 +1,28 @@
 import { t, LocalizationBindings } from '../../localization/Localization.ts';
+import { getLevelProgress } from '../../meta/Progression.ts';
 import type Phaser from 'phaser';
-import { RewardSummaryView, type RewardSummaryState } from './RewardSummaryView.ts';
+import type { RewardSummaryState } from './RewardSummaryView.ts';
+import { createVictoryProgressSequence, type VictoryProgressStep } from './VictoryProgress.ts';
+import type { SfxCue } from '../../settings/SfxController.ts';
 
 export interface GameCompleteState {
+  readonly completionId: string;
   readonly mode: 'original' | 'winnable';
   readonly elapsedMs: number;
-  readonly bestTimeMs: number;
   readonly improvedBest: boolean;
-  readonly wins: number;
-  readonly played: number;
+  readonly totalXpBefore: number;
   readonly reward?: RewardSummaryState;
 }
 
 export interface GameCompleteActions {
   readonly newGame: () => void;
   readonly menu: () => void;
+  readonly sound?: (cue: SfxCue) => void;
 }
+
+const FILL_DURATION_MS = 680;
+const LEVEL_REWARD_DURATION_MS = 780;
+const START_DELAY_MS = 300;
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(Math.max(0, ms) / 1000);
@@ -30,21 +37,25 @@ function getModeLabel(mode: GameCompleteState['mode']): string {
 
 export class GameCompleteView {
   private readonly localization = new LocalizationBindings();
-
-  refreshLocalization(): void {
-    this.localization.refresh();
-    this.rewardSummary.refreshLocalization();
-  }
-
   private readonly root: HTMLDivElement;
   private readonly mode: HTMLParagraphElement;
   private readonly elapsed: HTMLParagraphElement;
-  private readonly best: HTMLParagraphElement;
   private readonly record: HTMLParagraphElement;
-  private readonly stats: HTMLParagraphElement;
-  private readonly rewardSummary: RewardSummaryView;
+  private readonly coins: HTMLParagraphElement;
+  private readonly progression: HTMLElement;
+  private readonly level: HTMLSpanElement;
+  private readonly xpTrack: HTMLDivElement;
+  private readonly xpFill: HTMLDivElement;
+  private readonly xp: HTMLSpanElement;
+  private readonly levelReward: HTMLDivElement;
+  private readonly levelRewardTitle: HTMLSpanElement;
+  private readonly levelRewardValue: HTMLSpanElement;
+  private readonly actions: GameCompleteActions;
+  private currentCompletionId: string | null = null;
+  private animationTimers: number[] = [];
 
   constructor(scene: Phaser.Scene, actions: GameCompleteActions) {
+    this.actions = actions;
     this.root = document.createElement('div');
     this.root.className = 'daily-complete-dom game-complete-dom';
 
@@ -64,22 +75,48 @@ export class GameCompleteView {
     divider.setAttribute('aria-hidden', 'true');
 
     this.mode = document.createElement('p');
-    this.mode.className = 'daily-complete-stat game-complete-mode';
+    this.mode.className = 'game-complete-mode';
 
     this.elapsed = document.createElement('p');
-    this.elapsed.className = 'daily-complete-stat';
-
-    this.best = document.createElement('p');
-    this.best.className = 'daily-complete-stat';
+    this.elapsed.className = 'game-complete-time';
 
     this.record = document.createElement('p');
-    this.record.className = 'daily-complete-stat daily-complete-best game-complete-record';
+    this.record.className = 'game-complete-record';
 
-    this.stats = document.createElement('p');
-    this.stats.className = 'daily-complete-weekly game-complete-stats';
+    this.coins = document.createElement('p');
+    this.coins.className = 'game-complete-coins';
+
+    this.progression = document.createElement('section');
+    this.progression.className = 'game-complete-progression';
+    this.localization.attribute(this.progression, 'aria-label', () => t('Прогресс игрока'));
+
+    this.level = document.createElement('span');
+    this.level.className = 'game-complete-level';
+
+    this.xpTrack = document.createElement('div');
+    this.xpTrack.className = 'main-shell-xp-track game-complete-xp-track';
+    this.xpTrack.setAttribute('role', 'progressbar');
+
+    this.xpFill = document.createElement('div');
+    this.xpFill.className = 'main-shell-xp-fill game-complete-xp-fill';
+    this.xpTrack.append(this.xpFill);
+
+    this.xp = document.createElement('span');
+    this.xp.className = 'game-complete-xp';
+
+    this.levelReward = document.createElement('div');
+    this.levelReward.className = 'game-complete-level-reward';
+    this.levelReward.hidden = true;
+    this.levelRewardTitle = document.createElement('span');
+    this.levelRewardTitle.className = 'game-complete-level-reward-title';
+    this.levelRewardValue = document.createElement('span');
+    this.levelRewardValue.className = 'game-complete-level-reward-value';
+    this.levelReward.append(this.levelRewardTitle, this.levelRewardValue);
+
+    this.progression.append(this.level, this.xpTrack, this.xp, this.levelReward);
 
     const buttonRow = document.createElement('div');
-    buttonRow.className = 'daily-complete-actions';
+    buttonRow.className = 'daily-complete-actions game-complete-actions';
 
     const newGameButton = document.createElement('button');
     newGameButton.type = 'button';
@@ -94,17 +131,7 @@ export class GameCompleteView {
     menuButton.addEventListener('click', () => actions.menu());
 
     buttonRow.append(newGameButton, menuButton);
-    panel.append(
-      title,
-      divider,
-      this.mode,
-      this.elapsed,
-      this.best,
-      this.record,
-      this.stats,
-    );
-    this.rewardSummary = new RewardSummaryView(panel);
-    panel.append(buttonRow);
+    panel.append(title, divider, this.mode, this.elapsed, this.record, this.coins, this.progression, buttonRow);
     this.root.append(backdrop, panel);
 
     const host = scene.game.canvas.parentElement;
@@ -116,29 +143,128 @@ export class GameCompleteView {
     this.hide();
   }
 
+  refreshLocalization(): void {
+    this.localization.refresh();
+  }
+
   show(state: GameCompleteState): void {
-    const winRate = state.played === 0
-      ? 0
-      : Math.round(state.wins / state.played * 100);
+    const isNewCompletion = state.completionId !== this.currentCompletionId;
+    if (isNewCompletion) {
+      this.cancelAnimation();
+      this.currentCompletionId = state.completionId;
+    }
 
     this.localization.text(this.mode, () => getModeLabel(state.mode));
-    this.localization.text(this.elapsed, () => t("Время: {value0}", {value0: formatDuration(state.elapsedMs)}));
-    this.localization.text(this.best, () => t("Лучшее: {value0}", {value0: formatDuration(state.bestTimeMs)}));
+    this.elapsed.textContent = formatDuration(state.elapsedMs);
     this.localization.text(this.record, () => state.improvedBest ? t('Новый рекорд') : '');
     this.record.hidden = !state.improvedBest;
-    this.localization.text(this.stats, () => t("Победы: {value0} / {value1} · {value2}%", {value0: state.wins, value1: state.played, value2: winRate}));
-    this.rewardSummary.update(state.reward);
+
+    const reward = state.reward;
+    const hasReward = reward !== undefined;
+    this.coins.hidden = !hasReward;
+    this.progression.hidden = !hasReward;
+    if (reward !== undefined) {
+      this.coins.textContent = reward.pending
+        ? t('Награды начисляются…')
+        : t('{value0}{value1} монет', { value0: reward.coins > 0 ? '+' : '', value1: reward.coins });
+      if (isNewCompletion) {
+        this.showInitialProgress(state.totalXpBefore);
+      }
+    }
 
     this.root.hidden = false;
     this.root.style.pointerEvents = 'auto';
+    if (isNewCompletion) {
+      this.actions.sound?.('victory');
+    }
+
+    if (isNewCompletion && reward !== undefined && reward.xp > 0) {
+      this.schedule(() => this.playProgress(
+        createVictoryProgressSequence(state.totalXpBefore, reward.xp),
+        state.totalXpBefore + reward.xp,
+        0,
+      ), START_DELAY_MS);
+    }
   }
 
   hide(): void {
+    this.cancelAnimation();
     this.root.style.pointerEvents = 'none';
     this.root.hidden = true;
   }
 
   destroy(): void {
+    this.cancelAnimation();
     this.root.remove();
+  }
+
+  private showInitialProgress(totalXp: number): void {
+    const progress = getLevelProgress(totalXp);
+    this.setProgress(progress.level, progress.xpIntoLevel, progress.xpForNextLevel, false);
+    this.levelReward.hidden = true;
+    this.levelReward.classList.remove('is-visible');
+  }
+
+  private playProgress(
+    steps: readonly VictoryProgressStep[],
+    finalTotalXp: number,
+    index: number,
+  ): void {
+    const step = steps[index];
+    if (step === undefined) {
+      const final = getLevelProgress(finalTotalXp);
+      this.setProgress(final.level, final.xpIntoLevel, final.xpForNextLevel, false);
+      return;
+    }
+
+    if (step.kind === 'fill') {
+      this.setProgress(step.level, step.from, step.required, false);
+      void this.xpFill.offsetWidth;
+      this.setProgress(step.level, step.to, step.required, true);
+      this.schedule(() => this.playProgress(steps, finalTotalXp, index + 1), FILL_DURATION_MS);
+      return;
+    }
+
+    this.levelRewardTitle.textContent = t('Новый уровень!');
+    this.levelRewardValue.textContent = t('+{count} монет за уровень', { count: step.coins });
+    this.levelReward.hidden = false;
+    this.levelReward.classList.add('is-visible');
+    this.actions.sound?.('level-up');
+    this.schedule(() => this.actions.sound?.('coin-reward'), 150);
+
+    this.schedule(() => {
+      this.levelReward.classList.remove('is-visible');
+      this.levelReward.hidden = true;
+      const next = getLevelProgress(finalTotalXp);
+      const required = step.toLevel === next.level ? next.xpForNextLevel : 100 + 50 * (step.toLevel - 1);
+      this.setProgress(step.toLevel, 0, required, false);
+      this.playProgress(steps, finalTotalXp, index + 1);
+    }, LEVEL_REWARD_DURATION_MS);
+  }
+
+  private setProgress(level: number, current: number, required: number, animate: boolean): void {
+    const safeRequired = Math.max(1, Math.floor(required));
+    const safeCurrent = Math.min(safeRequired, Math.max(0, Math.floor(current)));
+    this.level.textContent = t('Уровень {level}', { level: Math.max(1, Math.floor(level)) });
+    this.xp.textContent = `${safeCurrent} / ${safeRequired} XP`;
+    this.xpFill.style.transitionDuration = animate ? `${FILL_DURATION_MS}ms` : '0ms';
+    this.xpFill.style.width = `${Math.round((safeCurrent / safeRequired) * 1000) / 10}%`;
+    this.xpTrack.setAttribute('aria-valuemin', '0');
+    this.xpTrack.setAttribute('aria-valuemax', String(safeRequired));
+    this.xpTrack.setAttribute('aria-valuenow', String(safeCurrent));
+    this.xpTrack.setAttribute('aria-valuetext', this.xp.textContent);
+  }
+
+  private schedule(callback: () => void, delayMs: number): void {
+    const timer = window.setTimeout(() => {
+      this.animationTimers = this.animationTimers.filter((value) => value !== timer);
+      callback();
+    }, delayMs);
+    this.animationTimers.push(timer);
+  }
+
+  private cancelAnimation(): void {
+    this.animationTimers.forEach((timer) => window.clearTimeout(timer));
+    this.animationTimers = [];
   }
 }

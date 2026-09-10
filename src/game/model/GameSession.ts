@@ -1,12 +1,11 @@
 import { createDealForMode } from './deal.ts';
 import { SUITS, type Deal, type Foundations, type GameMode } from './types.ts';
-import { WINNABLE_SEEDS } from './winnableSeeds.ts';
+import { VerifiedDealCatalog } from './VerifiedDealCatalog.ts';
 
 interface GameSessionOptions {
   readonly nextSeed?: () => bigint;
-  readonly winnableSeeds?: readonly bigint[];
+  readonly catalog: VerifiedDealCatalog;
 }
-
 
 function cloneDeal(deal: Deal): Deal {
   const foundations = deal.foundations === undefined
@@ -48,12 +47,12 @@ export function createRandomDealSeed(): bigint {
 
 export class GameSession {
   private readonly nextSeed: () => bigint;
-  private readonly winnableSeeds: readonly bigint[];
+  private readonly catalog: VerifiedDealCatalog;
   private activeDeal: Deal | null = null;
 
-  constructor(options: GameSessionOptions = {}) {
+  constructor(options: GameSessionOptions) {
     this.nextSeed = options.nextSeed ?? createRandomDealSeed;
-    this.winnableSeeds = options.winnableSeeds ?? WINNABLE_SEEDS;
+    this.catalog = options.catalog;
   }
 
   get currentMode(): GameMode | null {
@@ -68,24 +67,24 @@ export class GameSession {
     return this.activeDeal;
   }
 
-  startNew(mode: GameMode): Deal {
-    if (mode === 'daily') {
-      throw new Error('Use startDaily() with the deterministic Daily seed.');
+  startOriginal(): Deal {
+    const seed = this.selectOriginalSeed();
+    this.activeDeal = createDealForMode('original', seed);
+    return this.activeDeal;
+  }
+
+  startStandard(seed: bigint): Deal {
+    if (!this.catalog.hasStandardSeed(seed)) {
+      throw new Error(`Standard seed ${seed.toString()} is not a verified Standard catalog member.`);
     }
-
-    const seed = mode === 'winnable'
-      ? this.selectWinnableSeed()
-      : this.selectOriginalSeed();
-
-    this.activeDeal = createDealForMode(mode, seed);
+    this.activeDeal = createDealForMode('winnable', seed);
     return this.activeDeal;
   }
 
   startDaily(seed: bigint): Deal {
-    if (!this.winnableSeeds.includes(seed)) {
-      throw new Error('Daily seed must come from the solver-proven seed pool.');
+    if (!this.catalog.hasDailySeed(seed)) {
+      throw new Error(`Daily seed ${seed.toString()} is not a verified Daily catalog member.`);
     }
-
     this.activeDeal = createDealForMode('daily', seed);
     return this.activeDeal;
   }
@@ -107,34 +106,8 @@ export class GameSession {
   private selectOriginalSeed(): bigint {
     for (let attempt = 0; attempt < 32; attempt += 1) {
       const candidate = nonZeroUint64(this.nextSeed());
-
-      if (candidate !== this.currentSeed) {
-        return candidate;
-      }
+      if (candidate !== this.currentSeed) return candidate;
     }
-
     return nonZeroUint64((this.currentSeed ?? 0n) + 1n);
-  }
-
-  private selectWinnableSeed(): bigint {
-    if (this.winnableSeeds.length === 0) {
-      throw new Error('The winnable seed pool is empty.');
-    }
-
-    if (this.winnableSeeds.some((seed) => seed <= 0n)) {
-      throw new Error('The winnable seed pool contains an invalid seed.');
-    }
-
-    for (let attempt = 0; attempt < 32; attempt += 1) {
-      const entropy = nonZeroUint64(this.nextSeed());
-      const candidate = this.winnableSeeds[Number(entropy % BigInt(this.winnableSeeds.length))];
-
-      if (this.winnableSeeds.length === 1 || candidate !== this.currentSeed) {
-        return candidate;
-      }
-    }
-
-    return this.winnableSeeds.find((seed) => seed !== this.currentSeed)
-      ?? this.winnableSeeds[0];
   }
 }

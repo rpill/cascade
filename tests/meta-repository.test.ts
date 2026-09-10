@@ -42,7 +42,7 @@ test('failed save keeps the newest snapshot pending and retry writes only that s
   assert.deepEqual(writes, [{ cascadeMeta: second }]);
 });
 
-test('repository migrates stored version 1 meta to version 3 on load', async () => {
+test('repository migrates stored version 1 meta to version 4 on load', async () => {
   const storage: PlayerStorage = {
     load: async () => ({
       cascadeMeta: {
@@ -65,7 +65,7 @@ test('repository migrates stored version 1 meta to version 3 on load', async () 
 
   const state = await new MetaRepository(storage).load();
 
-  assert.equal(state.version, 3);
+  assert.equal(state.version, 4);
   assert.deepEqual(state.stats, {
     original: { played: 0, wins: 0 },
     winnable: { played: 0, wins: 0 },

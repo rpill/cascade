@@ -179,3 +179,25 @@ test('automatic foundation holds a three until both opposite-colour twos are saf
   assert.equal(game.autoMoveToFoundation()?.id, clubThree.id);
   assert.equal(game.autoMoveToFoundation(), null);
 });
+
+test('automatic foundation wave moves at most one card per suit while filling independent suits', () => {
+  const clubAce = createCard('clubs', 1);
+  const heartAce = createCard('hearts', 1);
+  const heartTwo = createCard('hearts', 2);
+  const game = new SolitaireGame({
+    seed: 1n,
+    mode: 'original',
+    tableau: [[clubAce], [], [], [], [], [], []],
+    stock: [],
+    waste: [heartTwo, heartAce],
+  });
+
+  const firstWave = game.autoMoveFoundationWave();
+
+  assert.deepEqual(firstWave.map((card) => card.id).sort(), [clubAce.id, heartAce.id].sort());
+  assert.deepEqual(game.foundations.clubs.map((card) => card.rank), [1]);
+  assert.deepEqual(game.foundations.hearts.map((card) => card.rank), [1]);
+  assert.deepEqual(game.waste.map((card) => card.rank), [2]);
+
+  assert.deepEqual(game.autoMoveFoundationWave().map((card) => card.id), [heartTwo.id]);
+});

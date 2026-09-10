@@ -38,9 +38,10 @@ test('Daily restore validates id algorithm version and deterministic seed', () =
   assert.match(scene, /save\.daily[^]*dailyId[^]*context\.dailyId/);
   assert.match(
     scene,
-    /save\.daily[^]*algorithmVersion[^]*this\.metaState\.daily\.algorithmVersion/,
+    /save\.daily[^]*algorithmVersion[^]*DAILY_ALGORITHM_VERSION/,
   );
   assert.match(scene, /BigInt\(save\.seed\)[^]*context\.seed/);
+  assert.match(scene, /DAILY_ALGORITHM_VERSION/);
   assert.match(
     scene,
     /tryRestoreDailySession[^]*activeGameRepository\.clear\(\)/,

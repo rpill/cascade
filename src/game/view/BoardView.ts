@@ -7,6 +7,7 @@ import {
   type Card,
   type CardSource,
   type MoveTarget,
+  type Suit,
 } from '../model/types.ts';
 import {
   tableauCardY,
@@ -21,6 +22,7 @@ import { CARD_BACK_ART_FRAME } from '../../theme/CardBackTexture.ts';
 import {
   getCardMotionDuration,
   getFoundationStepDelay,
+  getFoundationStreamInterval,
   getStockFlightOriginY,
   type CardMotionKind,
 } from './CardAnimation.ts';
@@ -31,14 +33,16 @@ import {
   MAX_STOCK_LAYERS,
   StockVisualState,
 } from './StockVisualState.ts';
+import type { SfxCue } from '../../settings/SfxController.ts';
 
 interface BoardActions {
   readonly draw: () => Card[];
   readonly move: (source: CardSource, target: MoveTarget) => boolean;
   readonly autoFoundation: (source: CardSource) => boolean;
-  readonly autoFoundationStep: () => Card | null;
+  readonly autoFoundationStep: (excludedSuits: ReadonlySet<Suit>) => Card | null;
   readonly settled: () => void;
   readonly undo: () => boolean;
+  readonly sound?: (cue: SfxCue) => void;
 }
 
 interface Placement extends Point {
@@ -73,6 +77,7 @@ export class BoardView {
     Phaser.GameObjects.Image,
     Phaser.Tweens.Tween
   >();
+  private readonly autoFoundationFlightsBySuit = new Map<Suit, string>();
   private readonly stockVisual: StockVisualState;
   private layout: ViewportLayout;
   private readonly appearance: TableAppearanceView;
@@ -152,6 +157,7 @@ export class BoardView {
 
         this.stockVisual.removeDealtCard();
         this.updateStockStack();
+        this.actions.sound?.('deal');
         image
           .setPosition(this.layout.stock.x, stockOriginY)
           .setVisible(true);
@@ -279,6 +285,7 @@ export class BoardView {
       return;
     }
 
+    this.actions.sound?.('undo');
     this.inputLocked = true;
     this.stockVisual.sync(this.game.stock.length);
     this.sync('undo');
@@ -343,6 +350,7 @@ export class BoardView {
         'stock',
         index * STOCK_DRAW_STAGGER,
         true,
+        { onStartSound: 'deal' },
       );
     });
 
@@ -370,14 +378,22 @@ export class BoardView {
       return;
     }
 
+    this.actions.sound?.('card-touch');
+
     const now = this.scene.time.now;
     const isDoubleTap = this.lastTap?.cardId === card.id
       && now - this.lastTap.time < 300;
 
     this.lastTap = { cardId: card.id, time: now };
 
-    if (isDoubleTap && this.actions.autoFoundation(source)) {
-      this.finishMoveWithAutoFoundation('foundation');
+    if (isDoubleTap) {
+      if (this.actions.autoFoundation(source)) {
+        this.finishMoveWithAutoFoundation(
+          'foundation',
+          true,
+          new Map([[card.id, 'card-place']]),
+        );
+      }
     }
   }
 
@@ -439,19 +455,27 @@ export class BoardView {
       : this.findDropTarget(dragState.source, root);
 
     if (target !== null && this.actions.move(dragState.source, target)) {
+      this.actions.sound?.('card-place');
       this.finishMoveWithAutoFoundation('player', false);
       return;
     }
 
+    this.actions.sound?.('card-place');
     this.sync(null);
   }
 
   private finishMoveWithAutoFoundation(
     initialMotion: 'foundation' | 'player',
     animateInitialMove = true,
+    landingSounds = new Map<string, SfxCue>(),
   ): void {
     this.inputLocked = true;
-    this.sync(animateInitialMove ? initialMotion : null);
+    this.sync(
+      animateInitialMove ? initialMotion : null,
+      new Set(),
+      new Map(),
+      landingSounds,
+    );
     this.scheduleAutoFoundationStep(
       initialMotion === 'foundation'
         ? getFoundationStepDelay()
@@ -461,16 +485,38 @@ export class BoardView {
 
   private scheduleAutoFoundationStep(delay: number): void {
     const timer = this.scene.time.delayedCall(delay, () => {
-      const movedCard = this.actions.autoFoundationStep();
+      const busySuits = new Set(this.autoFoundationFlightsBySuit.keys());
+      const activeFlightIds = new Set(this.autoFoundationFlightsBySuit.values());
+      const movedCard = this.actions.autoFoundationStep(busySuits);
 
       if (movedCard === null) {
-        this.inputLocked = false;
-        this.sync(null);
+        if (this.autoFoundationFlightsBySuit.size === 0) {
+          this.inputLocked = false;
+          this.sync(null);
+          this.actions.settled();
+          return;
+        }
+
+        this.scheduleAutoFoundationStep(getFoundationStreamInterval());
         return;
       }
 
-      this.sync('foundation');
-      this.scheduleAutoFoundationStep(getFoundationStepDelay());
+      this.autoFoundationFlightsBySuit.set(movedCard.suit, movedCard.id);
+      const landingSounds = new Map<string, SfxCue>();
+      landingSounds.set(movedCard.id, 'card-place');
+      this.sync('foundation', activeFlightIds, new Map(), landingSounds);
+
+      const releaseTimer = this.scene.time.delayedCall(
+        getCardMotionDuration('foundation'),
+        () => {
+          if (this.autoFoundationFlightsBySuit.get(movedCard.suit) === movedCard.id) {
+            this.autoFoundationFlightsBySuit.delete(movedCard.suit);
+          }
+        },
+      );
+      this.timers.push(releaseTimer);
+
+      this.scheduleAutoFoundationStep(getFoundationStreamInterval());
     });
 
     this.timers.push(timer);
@@ -541,6 +587,8 @@ export class BoardView {
   private sync(
     motion: CardMotionKind | null,
     skippedIds = new Set<string>(),
+    motionDelays = new Map<string, number>(),
+    landingSounds = new Map<string, SfxCue>(),
   ): void {
     const placements = this.calculatePlacements();
     const animated = motion !== null;
@@ -578,6 +626,9 @@ export class BoardView {
           image,
           { ...placement, depth: depth.resting },
           motion,
+          motionDelays.get(id) ?? 0,
+          false,
+          { onCompleteSound: landingSounds.get(id) },
         );
       } else if (!animated) {
         this.stopCardFlight(image);
@@ -599,6 +650,10 @@ export class BoardView {
     motion: CardMotionKind,
     delay = 0,
     revealOnStart = false,
+    soundOptions: {
+      readonly onStartSound?: SfxCue;
+      readonly onCompleteSound?: SfxCue;
+    } = {},
   ): void {
     this.stopCardFlight(image);
 
@@ -615,6 +670,9 @@ export class BoardView {
       onStart: () => {
         if (revealOnStart) {
           image.setVisible(true);
+        }
+        if (soundOptions.onStartSound !== undefined) {
+          this.actions.sound?.(soundOptions.onStartSound);
         }
       },
       onUpdate: (tween: Phaser.Tweens.Tween) => {
@@ -633,6 +691,10 @@ export class BoardView {
         image
           .setPosition(placement.x, placement.y)
           .setDepth(placement.depth);
+
+        if (soundOptions.onCompleteSound !== undefined) {
+          this.actions.sound?.(soundOptions.onCompleteSound);
+        }
       },
     });
 

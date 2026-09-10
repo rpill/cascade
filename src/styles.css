@@ -1454,19 +1454,152 @@ canvas {
   }
 }
 
-.game-complete-mode {
-  margin-bottom: 14px;
-  color: var(--ui-oxblood);
-  font-weight: 700;
-  letter-spacing: 0.08em;
+
+/* Ordinary win screen: celebration first, statistics elsewhere. */
+.game-complete-panel {
+  width: min(460px, calc(100vw - 48px));
+  padding: 34px 42px 30px;
 }
 
-.game-complete-record[hidden] {
+.game-complete-title {
+  font-size: 30px;
+}
+
+.game-complete-mode {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 7px;
+  color: var(--ui-oxblood);
+  font: 700 13px/1.2 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.1em;
+}
+
+.game-complete-time {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: var(--ui-ink);
+  font: 700 32px/1 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.02em;
+}
+
+.game-complete-record {
+  position: relative;
+  z-index: 1;
+  min-height: 20px;
+  margin: 8px 0 0;
+  color: var(--ui-oxblood);
+  font: 700 15px/1.2 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.025em;
+}
+
+.game-complete-record[hidden],
+.game-complete-coins[hidden],
+.game-complete-progression[hidden],
+.game-complete-level-reward[hidden] {
   display: none;
 }
 
-.game-complete-stats {
-  font-weight: 700;
+.game-complete-coins {
+  position: relative;
+  z-index: 1;
+  margin: 18px 0 12px;
+  color: #7b4525;
+  font: 700 18px/1.2 Georgia, "Times New Roman", serif;
+}
+
+.game-complete-progression {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto;
+  gap: 9px 10px;
+  align-items: center;
+  min-height: 76px;
+  padding: 13px 15px;
+  border: 1px solid rgba(101, 72, 40, 0.5);
+  border-radius: 10px;
+  background-color: #e2cea5;
+  background-image:
+    linear-gradient(180deg, rgba(255, 247, 219, 0.18), rgba(99, 65, 33, 0.045)),
+    var(--app-shell-paper-primary);
+  background-size: 100% 100%, cover;
+  background-position: center;
+  background-blend-mode: multiply, multiply;
+  box-shadow:
+    inset 0 0 0 1px rgba(248, 232, 191, 0.5),
+    0 5px 9px rgba(50, 31, 16, 0.13);
+}
+
+.game-complete-level,
+.game-complete-xp {
+  color: rgba(48, 38, 28, 0.82);
+  font: 700 12px/1 Georgia, "Times New Roman", serif;
+  white-space: nowrap;
+}
+
+.game-complete-xp {
+  font-size: 11px;
+  text-align: right;
+}
+
+.game-complete-xp-track {
+  min-width: 120px;
+  height: 11px;
+}
+
+.game-complete-xp-fill {
+  transition-property: width;
+  transition-timing-function: cubic-bezier(.2,.75,.25,1);
+}
+
+.game-complete-level-reward {
+  grid-column: 1 / -1;
+  min-height: 38px;
+  padding: 8px 10px;
+  border-top: 1px solid rgba(92, 69, 44, 0.28);
+  opacity: 0;
+  transform: translateY(4px) scale(0.985);
+  transition: opacity 140ms ease, transform 180ms ease;
+}
+
+.game-complete-level-reward.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.game-complete-level-reward-title,
+.game-complete-level-reward-value {
+  display: block;
+}
+
+.game-complete-level-reward-title {
+  color: var(--ui-oxblood);
+  font: 700 15px/1.15 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.035em;
+}
+
+.game-complete-level-reward-value {
+  margin-top: 3px;
+  color: #7b5520;
+  font: 700 12px/1.2 Georgia, "Times New Roman", serif;
+}
+
+.game-complete-actions {
+  margin-top: 20px;
+}
+
+@media (max-height: 600px) {
+  .game-complete-panel {
+    padding: 24px 34px 22px;
+  }
+  .game-complete-title { font-size: 24px; }
+  .game-complete-divider { margin-top: 5px; margin-bottom: 9px; height: 15px; }
+  .game-complete-time { font-size: 27px; }
+  .game-complete-coins { margin: 10px 0 8px; font-size: 16px; }
+  .game-complete-progression { min-height: 60px; padding: 9px 12px; gap: 7px 8px; }
+  .game-complete-level-reward { min-height: 31px; padding: 5px 8px; }
+  .game-complete-actions { margin-top: 13px; }
 }
 
 .leaderboard-panel {

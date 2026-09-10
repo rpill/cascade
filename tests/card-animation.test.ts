@@ -6,6 +6,7 @@ type CardMotionKind = 'stock' | 'foundation' | 'player' | 'undo';
 interface CardAnimationModule {
   getCardMotionDuration?: (kind: CardMotionKind) => number;
   getFoundationStepDelay?: () => number;
+  getFoundationStreamInterval?: () => number;
   getStockFlightOriginY?: (
     stockY: number,
     layerOffsets: readonly number[],
@@ -87,4 +88,28 @@ test('undo uses the same quick settle duration as a player move', async () => {
     getCardMotionDuration('undo'),
     getCardMotionDuration('player'),
   );
+});
+
+
+test('foundation autocomplete uses a slower overlapping stream cadence', async () => {
+  const {
+    getCardMotionDuration,
+    getFoundationStreamInterval,
+  } = await loadCardAnimation();
+
+  assert.equal(typeof getFoundationStreamInterval, 'function');
+
+  if (
+    getCardMotionDuration === undefined
+    || getFoundationStreamInterval === undefined
+  ) {
+    assert.fail('foundation stream timing is unavailable');
+  }
+
+  const duration = getCardMotionDuration('foundation');
+  const interval = getFoundationStreamInterval();
+
+  assert.ok(duration >= 320 && duration <= 380);
+  assert.ok(interval >= 140 && interval <= 160);
+  assert.ok(interval < duration);
 });

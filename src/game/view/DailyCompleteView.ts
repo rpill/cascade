@@ -1,8 +1,10 @@
 import { t, LocalizationBindings } from '../../localization/Localization.ts';
 import type Phaser from 'phaser';
 import { RewardSummaryView, type RewardSummaryState } from './RewardSummaryView.ts';
+import type { SfxCue } from '../../settings/SfxController.ts';
 
 export interface DailyCompleteState {
+  readonly completionId: string;
   readonly elapsedMs: number;
   readonly bestTimeMs: number;
   readonly improvedBest: boolean;
@@ -13,6 +15,7 @@ export interface DailyCompleteState {
 export interface DailyCompleteActions {
   readonly retry: () => void;
   readonly menu: () => void;
+  readonly sound?: (cue: SfxCue) => void;
 }
 
 function formatDuration(ms: number): string {
@@ -24,6 +27,8 @@ function formatDuration(ms: number): string {
 
 export class DailyCompleteView {
   private readonly localization = new LocalizationBindings();
+  private readonly actions: DailyCompleteActions;
+  private lastCelebratedCompletionId: string | null = null;
 
   refreshLocalization(): void {
     this.localization.refresh();
@@ -37,6 +42,7 @@ export class DailyCompleteView {
   private readonly rewardSummary: RewardSummaryView;
 
   constructor(scene: Phaser.Scene, actions: DailyCompleteActions) {
+    this.actions = actions;
     this.root = document.createElement('div');
     this.root.className = 'daily-complete-dom';
 
@@ -110,6 +116,10 @@ export class DailyCompleteView {
 
     this.root.hidden = false;
     this.root.style.pointerEvents = 'auto';
+    if (state.completionId !== this.lastCelebratedCompletionId) {
+      this.lastCelebratedCompletionId = state.completionId;
+      this.actions.sound?.('victory');
+    }
   }
 
   hide(): void {

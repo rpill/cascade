@@ -116,14 +116,18 @@ test('pre-load ordinary completion snapshot is reconciled with merged cloud stat
 });
 
 
-test('ordinary completion is shown with merged stats and completion actions', () => {
+test('ordinary completion shows celebratory result and pre-reward progression without win statistics', () => {
   assert.match(scene, /GameCompleteView/);
   assert.match(scene, /gameCompleteView\.show\(/);
   assert.match(scene, /lastOrdinaryCompletion/);
-  assert.match(scene, /elapsedMs: completion\.elapsedMs/);
-  assert.match(scene, /bestTimeMs: completion\.result\.stats\.bestTimeMs/);
-  assert.match(scene, /wins: completion\.result\.stats\.wins/);
-  assert.match(scene, /played: completion\.result\.stats\.played/);
+  const show = extractMethod(scene, 'showOrdinaryCompletion');
+  assert.match(show, /elapsedMs: completion\.elapsedMs/);
+  assert.match(show, /improvedBest: completion\.result\.improvedBest/);
+  assert.match(show, /totalXpBefore: completion\.totalXpBefore/);
+  assert.match(show, /reward:/);
+  assert.doesNotMatch(show, /bestTimeMs:/);
+  assert.doesNotMatch(show, /wins:/);
+  assert.doesNotMatch(show, /played:/);
   assert.match(scene, /newGame: \(\) => this\.startNewDeal\(\)/);
   assert.match(scene, /menu: \(\) => this\.openMenuFromGameComplete\(\)/);
   assert.match(scene, /startDeal[^]*gameCompleteView\.hide\(\)/);

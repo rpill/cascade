@@ -60,6 +60,8 @@ export const ENGLISH: Readonly<Record<string,string>> = {
   'На главную': 'Main menu',
   'Награды': 'Rewards',
   'Награды начисляются…': 'Adding rewards…',
+  'Новый уровень!': 'LEVEL UP!',
+  '+{count} монет за уровень': '+{count} coins for level up',
   'Нажимайте на колоду, чтобы открыть следующие три карты.': 'Click the stock to turn over the next three cards.',
   'Назад': 'Back',
   'Настройки': 'Settings',

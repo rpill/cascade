@@ -7,19 +7,27 @@ const source = readFileSync(
   'utf8',
 );
 
-test('ordinary completion view shows mode time record stats and both actions', () => {
+test('ordinary completion view celebrates the win without loading the player with statistics', () => {
   assert.match(source, /ПОБЕДА/);
   assert.match(source, /winnable[^]*СТАНДАРТ/);
   assert.match(source, /original[^]*КЛАССИКА/);
   assert.match(source, /elapsedMs/);
-  assert.match(source, /bestTimeMs/);
   assert.match(source, /Новый рекорд/);
-  assert.match(source, /Победы:/);
-  assert.match(source, /Math\.round\([^]*wins[^]*played[^]*100/);
+  assert.doesNotMatch(source, /Победы:/);
+  assert.doesNotMatch(source, /winRate/);
+  assert.doesNotMatch(source, /Лучшее:/);
+  assert.match(source, /game-complete-xp-track/);
+  assert.match(source, /game-complete-level-reward/);
+  assert.match(source, /createVictoryProgressSequence/);
   assert.match(source, /ЕЩЁ ПАРТИЯ/);
-  assert.match(source, /actions\.newGame\(\)/);
   assert.match(source, /В МЕНЮ/);
-  assert.match(source, /actions\.menu\(\)/);
-  assert.match(source, /reward\?: RewardSummaryState/);
-  assert.match(source, /RewardSummaryView/);
+});
+
+
+test('ordinary completion celebrates each completed attempt only once across reward refreshes', () => {
+  assert.match(source, /completionId:\s*string/);
+  assert.match(source, /currentCompletionId/);
+  assert.match(source, /isNewCompletion/);
+  assert.match(source, /if \(isNewCompletion\)[^]*sound\?\.\('victory'\)/);
+  assert.match(source, /if \(isNewCompletion[^]*createVictoryProgressSequence/);
 });

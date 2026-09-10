@@ -12,7 +12,7 @@ test('manual drag snaps directly into place whether accepted or rejected', async
   );
   assert.match(
     source,
-    /this\.sync\(animateInitialMove \? initialMotion : null\);/,
+    /this\.sync\(\s*animateInitialMove \? initialMotion : null,[\s\S]*?landingSounds,\s*\);/,
     'the complete-action finisher must support an immediate snap sync',
   );
   const endDrag = source.slice(

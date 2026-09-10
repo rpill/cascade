@@ -1,12 +1,61 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="360" height="480" viewBox="0 0 360 480">
-  <rect width="360" height="480" rx="18" fill="#0b2944"/>
-  <rect x="14" y="14" width="332" height="452" rx="14" fill="none" stroke="#d5b56c" stroke-width="6"/>
-  <rect x="28" y="28" width="304" height="424" rx="9" fill="none" stroke="#8f7546" stroke-width="2"/>
-  <defs><pattern id="p" width="42" height="42" patternUnits="userSpaceOnUse"><path d="M21 0 42 21 21 42 0 21Z" fill="none" stroke="#c5ad73" stroke-width="1.5" opacity=".5"/></pattern></defs>
-  <rect x="40" y="40" width="280" height="400" fill="url(#p)"/>
-  <g transform="translate(180 240)" fill="none" stroke="#edcf82">
-    <path d="M0-78 70 0 0 78-70 0Z" stroke-width="5"/>
-    <path d="M0-46 42 0 0 46-42 0Z" stroke-width="2.5"/>
-    <path d="M-12 0H12M0-12V12" stroke-width="3"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="432" height="604" viewBox="0 0 216 302">
+  <defs>
+    <linearGradient id="navy" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#081c2d"/>
+      <stop offset="0.55" stop-color="#0c2d45"/>
+      <stop offset="1" stop-color="#071827"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f0d38d"/>
+      <stop offset="0.45" stop-color="#b9934f"/>
+      <stop offset="1" stop-color="#e0bd73"/>
+    </linearGradient>
+    <pattern id="grid" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <path d="M0 0H14M0 7H14" stroke="#d8b76e" stroke-opacity=".12" stroke-width=".7"/>
+    </pattern>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation=".28"/>
+    </filter>
+  </defs>
+
+  <rect x="1" y="1" width="214" height="300" rx="10" fill="#eee1ba" stroke="#bea86f" stroke-width="1"/>
+  <rect x="5" y="5" width="206" height="292" rx="8" fill="url(#navy)" stroke="#6f5428" stroke-width="1.2"/>
+  <rect x="9" y="9" width="198" height="284" rx="6" fill="url(#grid)" stroke="url(#gold)" stroke-width="1.6"/>
+  <rect x="13" y="13" width="190" height="276" rx="5" fill="none" stroke="#e4c67d" stroke-opacity=".45" stroke-width=".7"/>
+
+  <!-- corner cartographic ornaments -->
+  <g fill="none" stroke="url(#gold)" stroke-width="1.1" stroke-linecap="round" opacity=".9">
+    <path d="M18 36c9-2 14-7 17-16m-13 12c5 0 9 2 12 6m-6-15c4 2 7 5 8 10"/>
+    <path d="M198 36c-9-2-14-7-17-16m13 12c-5 0-9 2-12 6m6-15c-4 2-7 5-8 10"/>
+    <path d="M18 266c9 2 14 7 17 16m-13-12c5 0 9-2 12-6m-6 15c4-2 7-5 8-10"/>
+    <path d="M198 266c-9 2-14 7-17 16m13-12c-5 0-9 2-12 6m6 15c-4-2-7-5-8-10"/>
   </g>
+
+  <!-- compass medallion -->
+  <g transform="translate(108 151)">
+    <circle r="61" fill="#061725" fill-opacity=".36" stroke="url(#gold)" stroke-width="1.5"/>
+    <circle r="53" fill="none" stroke="#e1bd71" stroke-opacity=".55" stroke-width=".8" stroke-dasharray="1.5 3"/>
+    <circle r="44" fill="none" stroke="#b9934f" stroke-opacity=".5" stroke-width=".7"/>
+    <g stroke="#dcb96c" stroke-opacity=".5" stroke-width=".7">
+      <path d="M0-55V55M-55 0H55M-39-39L39 39M39-39L-39 39"/>
+    </g>
+    <g fill="url(#gold)" stroke="#f2d88f" stroke-width=".5">
+      <path d="M0-46 9-10 0-17-9-10Z"/>
+      <path d="M46 0 10 9 17 0 10-9Z"/>
+      <path d="M0 46-9 10 0 17 9 10Z"/>
+      <path d="M-46 0-10-9-17 0-10 9Z"/>
+    </g>
+    <g fill="#e7c579" opacity=".82">
+      <path d="M0-32 5-6 0-10-5-6Z" transform="rotate(45)"/>
+      <path d="M0-32 5-6 0-10-5-6Z" transform="rotate(135)"/>
+      <path d="M0-32 5-6 0-10-5-6Z" transform="rotate(225)"/>
+      <path d="M0-32 5-6 0-10-5-6Z" transform="rotate(315)"/>
+    </g>
+    <circle r="5.5" fill="#ead087" stroke="#7d5c2a" stroke-width="1"/>
+    <circle r="1.8" fill="#0b263b"/>
+  </g>
+
+  <!-- subtle top/bottom star -->
+  <g transform="translate(108 30)" fill="#e0bd73" opacity=".8"><path d="M0-8 2-2 8 0 2 2 0 8-2 2-8 0-2-2Z"/></g>
+  <g transform="translate(108 272)" fill="#e0bd73" opacity=".8"><path d="M0-8 2-2 8 0 2 2 0 8-2 2-8 0-2-2Z"/></g>
 </svg>

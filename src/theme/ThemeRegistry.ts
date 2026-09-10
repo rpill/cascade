@@ -4,6 +4,7 @@ export const DEFAULT_THEME_ID: ThemeId = 'walnut_study';
 
 const GREEN_FELT_ROOT = './assets/themes/green-felt-club';
 const BURGUNDY_ROOT = './assets/themes/burgundy-club';
+const NAVY_STUDY_ROOT = './assets/themes/navy-study';
 
 export const THEMES = {
   walnut_study: {
@@ -78,6 +79,30 @@ export const THEMES = {
     controls: {
       surface: '#dbc394', hover: '#ead6ac', ink: '#3a231e', edge: '#9b6d57',
       labelSurface: '#2f1719', labelInk: '#e4c67d', focus: '#f0d48f',
+    },
+  },
+
+  navy_study: {
+    id: 'navy_study',
+    name: 'Navy Study',
+    boardSurface: {
+      key: 'cascade-board-surface-navy-study',
+      url: `${NAVY_STUDY_ROOT}/board-surface.webp`,
+    },
+    surfaceScale: 'cover',
+    cardBack: {
+      key: 'card-back-navy-study',
+      url: `${NAVY_STUDY_ROOT}/card-back.png`,
+    },
+    slots: {
+      palette: {
+        recess: '#071a2b', edge: '#9c8357', highlight: '#d3ba80',
+        blackSuit: '#b9a170', redSuit: '#a66f61',
+      },
+    },
+    controls: {
+      surface: '#d7c89b', hover: '#e7d8ad', ink: '#172b3a', edge: '#9b8356',
+      labelSurface: '#0c2335', labelInk: '#d9bd79', focus: '#ead391',
     },
   },
 } as const satisfies Readonly<Record<string, ThemeDefinition>>;

@@ -119,3 +119,40 @@ test('acknowledging a snapshot removes only included envelopes', () => {
 
   assert.deepEqual(journal.pending, [third]);
 });
+
+
+test('journal restores valid hidden Standard difficulty operations', () => {
+  const storage = new MemoryStorage();
+  const journal = new MetaJournal('player-difficulty', storage);
+
+  assert.ok(journal.append({ kind: 'standard-served', seed: '4294967295', tier: 'hard' }));
+  assert.ok(journal.append({ kind: 'standard-failed', attemptId: 'attempt-standard-1' }));
+
+  const restored = new MetaJournal('player-difficulty', storage);
+  assert.deepEqual(restored.pending.map(({ operation }) => operation), [
+    { kind: 'standard-served', seed: '4294967295', tier: 'hard' },
+    { kind: 'standard-failed', attemptId: 'attempt-standard-1' },
+  ]);
+});
+
+test('journal rejects malformed hidden Standard difficulty operations', () => {
+  const invalidOperations = [
+    { kind: 'standard-served', seed: '0', tier: 'easy' },
+    { kind: 'standard-served', seed: '12', tier: 'nightmare' },
+    { kind: 'standard-failed', attemptId: '' },
+  ];
+
+  for (const [index, operation] of invalidOperations.entries()) {
+    const storage = new MemoryStorage();
+    const seeded = new MetaJournal(`invalid-${index}`, storage);
+    seeded.append(begin('seed'));
+    const [key] = storage.values.keys();
+    storage.values.set(key, JSON.stringify({
+      version: 1,
+      stream: seeded.stream,
+      nextSequence: 2,
+      pending: [{ stream: seeded.stream, sequence: 1, operation }],
+    }));
+    assert.deepEqual(new MetaJournal(`invalid-${index}`, storage).pending, []);
+  }
+});

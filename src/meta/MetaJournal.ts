@@ -37,6 +37,20 @@ function isMode(value: unknown): value is 'winnable' | 'original' | 'daily' {
   return value === 'winnable' || value === 'original' || value === 'daily';
 }
 
+function isStandardTier(value: unknown): value is 'onboarding' | 'easy' | 'medium' | 'hard' {
+  return value === 'onboarding' || value === 'easy' || value === 'medium' || value === 'hard';
+}
+
+function isPositiveUint32SeedString(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^[1-9]\d{0,9}$/u.test(value)) return false;
+  try {
+    const seed = BigInt(value);
+    return seed >= 1n && seed <= 0xffff_ffffn;
+  } catch {
+    return false;
+  }
+}
+
 function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === 'string';
 }
@@ -46,6 +60,14 @@ function isMetaOperation(value: unknown): value is MetaOperation {
 
   if (value.kind === 'purchase' || value.kind === 'equip') {
     return typeof value.themeId === 'string' && value.themeId.length > 0;
+  }
+
+  if (value.kind === 'standard-served') {
+    return isPositiveUint32SeedString(value.seed) && isStandardTier(value.tier);
+  }
+
+  if (value.kind === 'standard-failed') {
+    return typeof value.attemptId === 'string' && value.attemptId.length > 0;
   }
 
   if (

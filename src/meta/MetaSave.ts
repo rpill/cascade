@@ -1,7 +1,8 @@
+import type { StandardTier } from '../game/model/VerifiedDealCatalog.ts';
 import { DEFAULT_THEME_ID, isThemeId } from '../theme/ThemeRegistry.ts';
 
-export const META_SAVE_VERSION = 3 as const;
-export const DAILY_ALGORITHM_VERSION = 1 as const;
+export const META_SAVE_VERSION = 4 as const;
+export const DAILY_ALGORITHM_VERSION = 2 as const;
 export const WEEKLY_MILESTONES = [3, 5, 7] as const;
 
 export interface DailyRecord {
@@ -75,7 +76,18 @@ export interface MetaSaveV3 extends Omit<MetaSaveV2, 'version'> {
   progression: ProgressionState;
 }
 
-export type MetaSave = MetaSaveV3;
+export interface StandardDifficultyState {
+  readonly failureStreak: 0 | 1 | 2 | 3;
+  readonly lastServedTier: '' | StandardTier;
+  readonly recentSeeds: string[];
+}
+
+export interface MetaSaveV4 extends Omit<MetaSaveV3, 'version'> {
+  version: 4;
+  standardDifficulty: StandardDifficultyState;
+}
+
+export type MetaSave = MetaSaveV4;
 export const MAX_ECONOMY_VALUE = 1_000_000_000;
 
 export function normalizeProgression(raw: unknown): ProgressionState {
@@ -98,6 +110,38 @@ export function normalizeProgression(raw: unknown): ProgressionState {
   };
 }
 
+const STANDARD_TIERS = new Set<StandardTier>(['onboarding', 'easy', 'medium', 'hard']);
+const MAX_UINT32_SEED = 0xffff_ffffn;
+
+export function normalizeStandardDifficulty(raw: unknown): StandardDifficultyState {
+  const value = isObject(raw) ? raw : {};
+  const rawFailureStreak = Number.isInteger(value.failureStreak) ? value.failureStreak as number : 0;
+  const failureStreak = Math.max(0, Math.min(3, rawFailureStreak)) as 0 | 1 | 2 | 3;
+  const lastServedTier = typeof value.lastServedTier === 'string' && STANDARD_TIERS.has(value.lastServedTier as StandardTier)
+    ? value.lastServedTier as StandardTier
+    : '';
+
+  const source = Array.isArray(value.recentSeeds) ? value.recentSeeds : [];
+  const newestFirst: string[] = [];
+  const seen = new Set<string>();
+  for (let index = source.length - 1; index >= 0; index -= 1) {
+    const seed = source[index];
+    if (typeof seed !== 'string' || !/^[1-9]\d{0,9}$/u.test(seed)) continue;
+    let parsed: bigint;
+    try { parsed = BigInt(seed); } catch { continue; }
+    if (parsed < 1n || parsed > MAX_UINT32_SEED || seen.has(seed)) continue;
+    seen.add(seed);
+    newestFirst.push(seed);
+    if (newestFirst.length >= 256) break;
+  }
+
+  return {
+    failureStreak,
+    lastServedTier,
+    recentSeeds: newestFirst.reverse(),
+  };
+}
+
 function createDefaultModeStats(): ModeStats {
   return { played: 0, wins: 0 };
 }
@@ -112,6 +156,7 @@ export function createDefaultMetaSave(): MetaSave {
     },
     equipped: { cardBack: '', table: '', theme: DEFAULT_THEME_ID },
     progression: normalizeProgression(null),
+    standardDifficulty: normalizeStandardDifficulty(null),
     achievements: [],
     stats: {
       original: createDefaultModeStats(),
@@ -197,10 +242,7 @@ function normalizeDaily(value: unknown): DailyState {
   }
 
   return {
-    algorithmVersion:
-      Number.isInteger(daily.algorithmVersion) && (daily.algorithmVersion as number) > 0
-        ? daily.algorithmVersion as number
-        : DAILY_ALGORITHM_VERSION,
+    algorithmVersion: DAILY_ALGORITHM_VERSION,
     records,
   };
 }
@@ -272,7 +314,7 @@ export function normalizeMetaSave(raw: unknown): MetaSave {
     });
   }
 
-  if (raw.version !== 2 && raw.version !== META_SAVE_VERSION) return fallback;
+  if (raw.version !== 2 && raw.version !== 3 && raw.version !== META_SAVE_VERSION) return fallback;
 
   const stats = isObject(raw.stats) ? raw.stats : {};
   const collection = normalizeCollection(raw.collection);
@@ -286,6 +328,7 @@ export function normalizeMetaSave(raw: unknown): MetaSave {
     collection,
     equipped,
     progression: normalizeProgression(raw.version === 2 ? null : raw.progression),
+    standardDifficulty: normalizeStandardDifficulty(raw.version === 4 ? raw.standardDifficulty : null),
     achievements: uniqueStrings(raw.achievements),
     stats: {
       original: normalizeModeStats(stats.original),

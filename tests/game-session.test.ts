@@ -4,37 +4,90 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 import { createCard } from '../src/game/model/cards.ts';
 import { GameSession } from '../src/game/model/GameSession.ts';
+import {
+  VerifiedDealCatalog,
+  type StandardTier,
+  type VerifiedDealManifest,
+} from '../src/game/model/VerifiedDealCatalog.ts';
 import type { Deal } from '../src/game/model/types.ts';
+
+const TIERS: readonly StandardTier[] = ['onboarding', 'easy', 'medium', 'hard'];
 
 function entropySequence(values: bigint[]): () => bigint {
   let index = 0;
   return () => values[Math.min(index++, values.length - 1)];
 }
 
+function tinyCatalog(): VerifiedDealCatalog {
+  const standard: Record<StandardTier, number[]> = {
+    onboarding: [11],
+    easy: [22],
+    medium: [33],
+    hard: [44],
+  };
+  const daily = [101, 102];
+  const values = [...TIERS.flatMap((tier) => standard[tier]), ...daily];
+  const buffer = new ArrayBuffer(values.length * 4);
+  const view = new DataView(buffer);
+  values.forEach((seed, index) => view.setUint32(index * 4, seed, true));
+  const standardCounts = {} as Record<StandardTier, number>;
+  const offsets = {} as Record<StandardTier | 'daily', { byteOffset: number; count: number }>;
+  let byteOffset = 0;
+  for (const tier of TIERS) {
+    standardCounts[tier] = standard[tier].length;
+    offsets[tier] = { byteOffset, count: standard[tier].length };
+    byteOffset += standard[tier].length * 4;
+  }
+  offsets.daily = { byteOffset, count: daily.length };
+  const manifest: VerifiedDealManifest = {
+    catalogVersion: 1,
+    difficultyModelVersion: 1,
+    dailyAlgorithmVersion: 2,
+    solverSourceHash: 'solver-hash',
+    gameRulesSourceHash: 'rules-hash',
+    standardCounts,
+    dailyScheduleStart: '2026-01-01',
+    dailyScheduleLength: daily.length,
+    fastNodeBudget: 250000,
+    slowNodeBudget: 2000000,
+    sourceScanRanges: [],
+    verifiedCount: values.length,
+    rejectedVerificationCount: 0,
+    crossPoolDuplicateCount: 0,
+    productionAssetHash: '0'.repeat(64),
+    offsets,
+  };
+  return VerifiedDealCatalog.decode(buffer, manifest);
+}
+
 test('original new games use fresh non-zero entropy and avoid the current seed', () => {
   const session = new GameSession({
     nextSeed: entropySequence([11n, 11n, 12n]),
-    winnableSeeds: [101n, 202n],
+    catalog: tinyCatalog(),
   });
 
-  assert.equal(session.startNew('original').seed, 11n);
-  assert.equal(session.startNew('original').seed, 12n);
+  assert.equal(session.startOriginal().seed, 11n);
+  assert.equal(session.startOriginal().seed, 12n);
   assert.equal(session.currentMode, 'original');
 });
 
-test('winnable new games select only pool members and avoid repeats', () => {
-  const pool = [11n, 22n] as const;
-  const session = new GameSession({
-    nextSeed: entropySequence([2n, 2n, 3n]),
-    winnableSeeds: pool,
-  });
+test('Standard starts only from Standard catalog members', () => {
+  const session = new GameSession({ catalog: tinyCatalog() });
 
-  assert.equal(session.startNew('winnable').seed, 11n);
-  assert.equal(session.startNew('winnable').seed, 22n);
-  assert.ok(pool.includes(session.currentSeed as 11n | 22n));
+  assert.equal(session.startStandard(22n).mode, 'winnable');
+  assert.equal(session.currentSeed, 22n);
+  assert.throws(() => session.startStandard(101n), /verified standard/iu);
+  assert.throws(() => session.startStandard(999n), /verified standard/iu);
 });
 
+test('Daily starts only from Daily catalog members and rejects Standard-only seeds', () => {
+  const session = new GameSession({ catalog: tinyCatalog() });
 
+  assert.equal(session.startDaily(101n).mode, 'daily');
+  assert.equal(session.currentSeed, 101n);
+  assert.throws(() => session.startDaily(22n), /verified daily/iu);
+  assert.throws(() => session.startDaily(999n), /verified daily/iu);
+});
 
 test('resume installs an exact cloned saved deal without re-dealing', () => {
   const savedDeal: Deal = {
@@ -46,10 +99,7 @@ test('resume installs an exact cloned saved deal without re-dealing', () => {
     freeCell: createCard('diamonds', 6),
     foundations: { clubs: [createCard('clubs', 1)] },
   };
-  const session = new GameSession({
-    nextSeed: () => 999n,
-    winnableSeeds: [101n],
-  });
+  const session = new GameSession({ nextSeed: () => 999n, catalog: tinyCatalog() });
 
   const resumed = session.resume(savedDeal);
 
@@ -79,12 +129,23 @@ test('resume installs an exact cloned saved deal without re-dealing', () => {
   assert.equal(session.currentDeal?.foundations?.clubs?.length, 1);
 });
 
-test('restart preserves mode, seed, tableau, and stock order', () => {
-  const session = new GameSession({
-    nextSeed: () => 42n,
-    winnableSeeds: [11n],
-  });
-  const first = session.startNew('original');
+test('restart preserves exact verified Standard and Daily seeds', () => {
+  const session = new GameSession({ catalog: tinyCatalog() });
+
+  const standard = session.startStandard(33n);
+  const standardRestart = session.restart();
+  assert.equal(standardRestart.mode, 'winnable');
+  assert.equal(standardRestart.seed, standard.seed);
+
+  const daily = session.startDaily(102n);
+  const dailyRestart = session.restart();
+  assert.equal(dailyRestart.mode, 'daily');
+  assert.equal(dailyRestart.seed, daily.seed);
+});
+
+test('restart preserves original mode seed tableau and stock order', () => {
+  const session = new GameSession({ nextSeed: () => 42n, catalog: tinyCatalog() });
+  const first = session.startOriginal();
   const restarted = session.restart();
 
   assert.equal(restarted.mode, first.mode);
@@ -100,38 +161,8 @@ test('restart preserves mode, seed, tableau, and stock order', () => {
 });
 
 test('restart before a game reports a clear development error', () => {
-  const session = new GameSession({ nextSeed: () => 1n, winnableSeeds: [1n] });
-
+  const session = new GameSession({ catalog: tinyCatalog() });
   assert.throws(() => session.restart(), /before starting a game/iu);
-});
-
-test('an empty winnable pool never falls back to an unverified seed', () => {
-  const session = new GameSession({ nextSeed: () => 1n, winnableSeeds: [] });
-
-  assert.throws(() => session.startNew('winnable'), /winnable seed pool is empty/iu);
-});
-
-test('Daily starts only from a seed in the frozen solver-proven pool', () => {
-  const session = new GameSession({ nextSeed: () => 1n, winnableSeeds: [11n, 22n] });
-
-  assert.equal(session.startDaily(22n).mode, 'daily');
-  assert.equal(session.currentSeed, 22n);
-  assert.throws(() => session.startDaily(99n), /solver-proven/i);
-});
-
-test('Daily restart preserves its fixed seed', () => {
-  const session = new GameSession({ nextSeed: () => 1n, winnableSeeds: [11n] });
-  const first = session.startDaily(11n);
-  const restarted = session.restart();
-
-  assert.equal(restarted.mode, 'daily');
-  assert.equal(restarted.seed, first.seed);
-});
-
-test('Daily cannot accidentally use the ordinary entropy-based new-game path', () => {
-  const session = new GameSession({ nextSeed: () => 11n, winnableSeeds: [11n] });
-
-  assert.throws(() => session.startNew('daily'), /startDaily/i);
 });
 
 test('solitaire model stays independent from platform and Yandex SDK code', () => {

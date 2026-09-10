@@ -8,7 +8,7 @@
 - pnpm
 - Node built-in test runner
 - Yandex Games SDK adapter + official `@yandex-games/sdk-dev-proxy` development path
-- offline C++20 solver for generating/verifying the winnable seed pool
+- offline C++20 proof-producing solver plus TypeScript proof replay for generating a verified deal catalog
 
 ## Implemented gameplay
 
@@ -16,7 +16,7 @@
 - Seven tableau piles with descending alternating-colour stacking and run moves.
 - Four suit foundations and safe automatic foundation moves.
 - Free cell appears when the stock is exhausted.
-- Original and solver-proven Winnable deal modes.
+- Classic remains random; Standard and Daily start only from the loaded verified deal catalog. Standard selection is hidden/adaptive, while Daily uses the generated date schedule.
 - Restart preserves mode and seed.
 - Transactional undo (`Z` / `ОТМЕНА`) including subsequent auto-foundation moves.
 - Undo correctly restores the visible stock after undoing from a fully exhausted stock.
@@ -34,8 +34,8 @@
 - Active-game checkpoints are browser-local and frequent. They are updated at settled gameplay boundaries plus menu/visibility/pagehide boundaries; the board snapshot is not uploaded to Yandex after every move.
 - The ordinary attempt timer starts when the opening/automatic chain has settled and input becomes available. Menu time, hidden-tab time, and time while the page is closed are excluded.
 - Reloading a started Standard/Classic attempt does not increment `played` again. Restart creates a new attempt and increments `played` after the new board reaches the playable boundary; New Game does the same with a fresh seed.
-- `MetaSave` is version 3. Standard (`winnable`) and Classic (`original`) persist separate `played`, `wins`, and `bestTimeMs` values; win rate is derived from wins/played rather than stored.
-- V1/V2 saves migrate to V3 without losing existing progress. A valid previously equipped theme is retained and granted; old wins do not mint retroactive XP or coins.
+- `MetaSave` is version 4. Standard (`winnable`) and Classic (`original`) persist separate `played`, `wins`, and `bestTimeMs` values; V4 also persists the hidden Standard difficulty state (`failureStreak`, `lastServedTier`, recent 256 served seeds).
+- V1/V2/V3 saves migrate to V4 without losing existing progress. Existing Standard wins immediately feed the hidden difficulty curve; migrated difficulty state starts neutral. A valid previously equipped theme is retained and granted; old wins do not mint retroactive XP or coins.
 - Meta mutations made before Yandex Player data finishes loading are replayed over the loaded cloud state so a fast local start/win cannot be overwritten by stale remote statistics.
 - Ordinary wins finalize statistics exactly once, flush the newest meta state, clear the unfinished active checkpoint, and show a native DOM result overlay.
 - The ordinary result overlay shows mode, elapsed time, best time, new-record state, wins/played, derived win rate, `ЕЩЁ ПАРТИЯ`, and `В МЕНЮ`.
@@ -56,7 +56,7 @@
 
 ## Daily / weekly retention foundation
 
-- Daily is a technical third deal mode backed by a deterministic seed from the frozen solver-proven pool. The UTC Daily ID and `dailyAlgorithmVersion` choose the same deal for every attempt that day.
+- Daily is a technical third deal mode backed by the generated verified date schedule. The UTC Daily ID maps to one unique catalog seed for the current `dailyAlgorithmVersion`; there is no runtime hash/fallback into the Standard pool.
 - Yandex Player structured data and Yandex server time are isolated behind platform-neutral persistence/time interfaces; Standard and Classic remain playable while platform initialization is unavailable or still loading.
 - Daily attempts are unlimited. Restart replays the same Daily seed and starts another attempt after the board becomes playable. `НОВАЯ ИГРА` / `N` are intentionally unavailable in Daily.
 - A completed Daily stores a personal best completion time; slower replays keep the previous best and faster replays replace it.
@@ -140,8 +140,18 @@ Yandex SDK smoke test:
 pnpm yandex:dev
 ```
 
-The solver can be regenerated separately with `pnpm generate:winnable-pool` when the C++20 toolchain configured in `package.json` is available.
+Verified-deal factory/release commands:
+
+```bash
+pnpm deals:build-solver
+pnpm deals:generate -- --standard-total 50000 --daily-days 36525 --jobs 4
+pnpm deals:verify-sample
+pnpm deals:report
+pnpm deals:verify-all
+```
+
+`deals:generate` is resumable through ignored `artifacts/deals/` checkpoints. It publishes the binary catalog, manifest, and committed proof sample only after quotas, uniqueness, cross-pool separation, hashes, and Daily weekday bands validate. `deals:verify-all` freshly solves and TypeScript-replays every production seed; it is a long release gate, not part of the normal edit/test loop.
 
 ## Current next focus
 
-Local collections, theme purchases with earned coins, XP/levels, RU/EN settings, statistics/leaderboards and the unified gameplay lifecycle are implemented. The remaining leaderboard release gate is external: create `standardbesttime` and `classicbesttime` in the Yandex Games Console as documented in `docs/YANDEX_LEADERBOARDS_SETUP.md`, then run the real draft E2E checklist, including profile persistence and economy recovery. `docs/YANDEX_UI_ACCEPTANCE.md` records the language, audio and mobile checks still needed on the actual platform. Future work includes advertising at logical pauses, audio content, achievements and release verification. Real-money purchases and multi-device conflict merging are outside this implementation.
+Local collections, theme purchases with earned coins, XP/levels, RU/EN settings, statistics/leaderboards, the unified gameplay lifecycle, and the verified-deal runtime/tooling are implemented. The currently committed catalog is still the small development smoke catalog; release-size generation/verification remains the next data-production gate. The remaining leaderboard release gate is external: create `standardbesttime` and `classicbesttime` in the Yandex Games Console as documented in `docs/YANDEX_LEADERBOARDS_SETUP.md`, then run the real draft E2E checklist, including profile persistence and economy recovery. `docs/YANDEX_UI_ACCEPTANCE.md` records the language, audio and mobile checks still needed on the actual platform. Future work includes advertising at logical pauses, audio content, achievements and release verification. Real-money purchases and multi-device conflict merging are outside this implementation.

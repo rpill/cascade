@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 import { GameFlow } from '../src/game/model/GameFlow.ts';
 import { GameSession } from '../src/game/model/GameSession.ts';
+import { VerifiedDealCatalog, type StandardTier, type VerifiedDealManifest } from '../src/game/model/VerifiedDealCatalog.ts';
 import { createDealForMode } from '../src/game/model/deal.ts';
 
 const sceneSource = readFileSync(
@@ -15,13 +16,60 @@ const controlsSource = readFileSync(
   'utf8',
 );
 
+const TIERS: readonly StandardTier[] = ['onboarding', 'easy', 'medium', 'hard'];
+
+function tinyCatalog(): VerifiedDealCatalog {
+  const standard: Record<StandardTier, number[]> = {
+    onboarding: [1, 2],
+    easy: [],
+    medium: [],
+    hard: [],
+  };
+  const daily = [101, 102];
+  const values = [...TIERS.flatMap((tier) => standard[tier]), ...daily];
+  const buffer = new ArrayBuffer(values.length * 4);
+  const view = new DataView(buffer);
+  values.forEach((seed, index) => view.setUint32(index * 4, seed, true));
+
+  const standardCounts = {} as Record<StandardTier, number>;
+  const offsets = {} as Record<StandardTier | 'daily', { byteOffset: number; count: number }>;
+  let byteOffset = 0;
+  for (const tier of TIERS) {
+    standardCounts[tier] = standard[tier].length;
+    offsets[tier] = { byteOffset, count: standard[tier].length };
+    byteOffset += standard[tier].length * 4;
+  }
+  offsets.daily = { byteOffset, count: daily.length };
+
+  const manifest: VerifiedDealManifest = {
+    catalogVersion: 1,
+    difficultyModelVersion: 1,
+    dailyAlgorithmVersion: 2,
+    solverSourceHash: 'solver-hash',
+    gameRulesSourceHash: 'rules-hash',
+    standardCounts,
+    dailyScheduleStart: '2026-01-01',
+    dailyScheduleLength: daily.length,
+    fastNodeBudget: 250000,
+    slowNodeBudget: 2000000,
+    sourceScanRanges: [],
+    verifiedCount: values.length,
+    rejectedVerificationCount: 0,
+    crossPoolDuplicateCount: 0,
+    productionAssetHash: '0'.repeat(64),
+    offsets,
+  };
+
+  return VerifiedDealCatalog.decode(buffer, manifest);
+}
+
 function createFlow(): GameFlow {
   return new GameFlow(new GameSession({
     nextSeed: (() => {
       let seed = 40n;
       return () => ++seed;
     })(),
-    winnableSeeds: [1n, 2n],
+    catalog: tinyCatalog(),
   }));
 }
 
@@ -126,7 +174,7 @@ test('changing mode in the menu takes effect only after Play', () => {
   flow.selectMenuMode('winnable');
   assert.equal(flow.currentDeal, first);
 
-  const second = flow.playSelectedMode();
+  const second = flow.playSelectedMode(1n);
   assert.equal(second.mode, 'winnable');
   assert.notEqual(second.seed, first.seed);
   assert.equal(flow.state, 'playing');
@@ -148,7 +196,7 @@ test('Daily requires its deterministic seed and New Game replays the same deal',
   flow.selectMenuMode('daily');
 
   assert.throws(() => flow.playSelectedMode(), /Daily seed/i);
-  const first = flow.playSelectedMode(1n);
+  const first = flow.playSelectedMode(101n);
   const second = flow.startNewInCurrentMode();
 
   assert.equal(first.mode, 'daily');

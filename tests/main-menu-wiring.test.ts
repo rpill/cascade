@@ -42,7 +42,7 @@ test('Daily hides duplicate New Deal and ignores the N shortcut', () => {
   assert.match(sceneSource, /gameControls\.setMode\(gameState\.mode\)/);
   assert.match(
     sceneSource,
-    /startNewDeal\(\): void \{[\s\S]*currentDeal\?\.mode === 'daily'/,
+    /startNewDeal\(\): void \{[\s\S]*currentDeal\.mode === 'daily'/,
   );
 });
 

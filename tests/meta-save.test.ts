@@ -6,10 +6,10 @@ import {
   normalizeMetaSave,
 } from '../src/meta/MetaSave.ts';
 
-test('missing or malformed saves normalize to version 3 defaults', () => {
+test('missing or malformed saves normalize to version 4 defaults', () => {
   const defaults = createDefaultMetaSave();
 
-  assert.equal(defaults.version, 3);
+  assert.equal(defaults.version, 4);
   assert.deepEqual(defaults.stats, {
     original: { played: 0, wins: 0 },
     winnable: { played: 0, wins: 0 },
@@ -18,7 +18,7 @@ test('missing or malformed saves normalize to version 3 defaults', () => {
   assert.deepEqual(normalizeMetaSave({ version: 99 }), defaults);
 });
 
-test('version 1 save migrates to version 3 without losing persistent meta progress', () => {
+test('version 1 save migrates to version 4 without losing persistent meta progress', () => {
   const save = normalizeMetaSave({
     version: 1,
     collection: {
@@ -47,7 +47,7 @@ test('version 1 save migrates to version 3 without losing persistent meta progre
     },
   });
 
-  assert.equal(save.version, 3);
+  assert.equal(save.version, 4);
   assert.deepEqual(save.collection, {
     ownedCardBacks: ['paper', 'obsidian'],
     ownedTables: ['wood'],
@@ -138,4 +138,53 @@ test('mode stats remove invalid best times and best times without a win', () => 
 
   assert.deepEqual(nonFinite.stats.original, { played: 2, wins: 1 });
   assert.deepEqual(nonFinite.stats.winnable, { played: 2, wins: 1 });
+});
+
+
+test('version 3 save migrates to version 4 with default hidden Standard difficulty state', () => {
+  const raw: Record<string, unknown> = structuredClone(createDefaultMetaSave()) as unknown as Record<string, unknown>;
+  raw.version = 3;
+  delete raw.standardDifficulty;
+  raw.progression = {
+    totalXp: 345,
+    coins: 678,
+    lastWinDay: '2026-09-09',
+    startedAttempts: ['keep-started'],
+    completedAttempts: ['keep-completed'],
+    receipts: { stream: 9 },
+  };
+  raw.stats = {
+    original: { played: 7, wins: 4, bestTimeMs: 7_000 },
+    winnable: { played: 12, wins: 8, bestTimeMs: 5_000 },
+  };
+
+  const save = normalizeMetaSave(raw);
+
+  assert.equal(save.version, 4);
+  assert.deepEqual(save.standardDifficulty, {
+    failureStreak: 0,
+    lastServedTier: '',
+    recentSeeds: [],
+  });
+  assert.equal(save.progression.totalXp, 345);
+  assert.equal(save.progression.coins, 678);
+  assert.deepEqual(save.stats.winnable, { played: 12, wins: 8, bestTimeMs: 5_000 });
+});
+
+test('version 4 normalization sanitizes hidden Standard difficulty state', () => {
+  const raw: Record<string, unknown> = structuredClone(createDefaultMetaSave()) as unknown as Record<string, unknown>;
+  raw.version = 4;
+  raw.standardDifficulty = {
+    failureStreak: 99,
+    lastServedTier: 'nightmare',
+    recentSeeds: ['1', '2', '1', '0', '-4', '4294967295', '4294967296', 'abc', 12],
+  };
+
+  const save = normalizeMetaSave(raw);
+
+  assert.deepEqual(save.standardDifficulty, {
+    failureStreak: 3,
+    lastServedTier: '',
+    recentSeeds: ['2', '1', '4294967295'],
+  });
 });
