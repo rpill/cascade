@@ -333,7 +333,7 @@ export class BoardView {
       }
 
       image
-        .setVisible(true)
+        .setVisible(false)
         .setPosition(this.layout.stock.x, stockOriginY)
         .setDepth(1200 + index);
 
@@ -342,6 +342,7 @@ export class BoardView {
         target,
         'stock',
         index * STOCK_DRAW_STAGGER,
+        true,
       );
     });
 
@@ -597,6 +598,7 @@ export class BoardView {
     placement: Placement,
     motion: CardMotionKind,
     delay = 0,
+    revealOnStart = false,
   ): void {
     this.stopCardFlight(image);
 
@@ -610,6 +612,11 @@ export class BoardView {
       duration: getCardMotionDuration(motion),
       delay,
       ease: 'Cubic.easeOut',
+      onStart: () => {
+        if (revealOnStart) {
+          image.setVisible(true);
+        }
+      },
       onUpdate: (tween: Phaser.Tweens.Tween) => {
         const progress = tween.getValue();
 
