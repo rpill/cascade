@@ -31,6 +31,8 @@
     min-height: 0;
     padding: 10px 10px 18px;
   }
+  .main-shell-mode-card::before { inset: 5px; border-radius: 7px; }
+  .main-shell-mode-card::after { inset: 6px; border-radius: 7px; background-size: 18px 18px; }
   .main-shell-mode-emblem { width: 40px; height: 40px; margin-bottom: 3px; flex-shrink: 0; }
   .main-shell-mode-title { min-height: 24px; font-size: 13px; margin-bottom: 3px; }
   .main-shell-mode-copy { min-height: 21px; font-size: 10px; }
@@ -38,8 +40,9 @@
   .main-shell-daily-dots { gap: 5px; }
   .main-shell-daily-dot { width: 11px; height: 11px; }
   .main-shell-mode-play { min-width: 118px; min-height: 44px; flex-shrink: 0; }
-  .main-shell-play-footer { margin-top: 0; min-height: 45px; }
+  .main-shell-play-footer { margin-top: 0; min-height: 45px; align-items: stretch; }
   .main-shell-player-progress { padding: 6px 9px; gap: 5px 8px; min-height: 45px; }
+  .main-shell-secondary-action { align-self: stretch; }
   .main-shell-player-level, .main-shell-player-xp { font-size: 10px; }
   .main-shell-level-reward { font-size: 10px; }
   .theme-catalog-title { font-size: 17px; }
@@ -109,10 +112,10 @@
   .main-shell-daily-dots { gap: 4px; }
   .main-shell-daily-dot { width: 11px; height: 11px; }
   .main-shell-daily-count { font-size: 10px; }
-  .main-shell-play-footer { grid-template-columns: 1fr; gap: 8px; margin-top: 0; }
+  .main-shell-play-footer { grid-template-columns: 1fr; gap: 8px; margin-top: 0; align-items: stretch; }
   .main-shell-player-progress { padding: 8px 10px; min-height: 54px; gap: 6px 8px; }
   .main-shell-player-level, .main-shell-player-xp, .main-shell-level-reward { font-size: 11px; }
-  .main-shell-secondary-action { min-height: 40px; width: 100%; font-size: 12px; }
+  .main-shell-secondary-action { min-height: 54px; width: 100%; font-size: 12px; }
   .main-shell-leaderboard-icon { width: 21px; height: 21px; }
   .theme-catalog-header { flex-wrap: wrap; gap: 9px; }
   .theme-catalog-title { font-size: 19px; }
