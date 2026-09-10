@@ -53,7 +53,7 @@ export const SFX_ASSETS: Readonly<Record<SfxCue, SfxAssetGroup>> = {
   victory: {
     keys: ['sfx-victory'],
     urls: ['./assets/audio/sfx/victory.ogg'],
-    volume: 0.13,
+    volume: 0.07,
   },
   'level-up': {
     keys: ['sfx-level-up'],

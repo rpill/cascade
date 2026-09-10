@@ -14,13 +14,15 @@ test('statistics page combines mode stats and leaderboard inside the shell', () 
   assert.ok(source.length > 0, 'StatisticsPageView.ts must exist');
   assert.match(source, /export class StatisticsPageView/);
   assert.match(source, /constructor\(host: HTMLElement, actions: StatisticsPageActions\)/);
-  assert.match(source, /СТАНДАРТ/);
-  assert.match(source, /КЛАССИКА/);
+  assert.match(source, /ИГРА/);
+  assert.match(source, /ЕЖЕДНЕВНЫЕ/);
+  assert.doesNotMatch(source, /createModeTab\('СТАНДАРТ'|createModeTab\('КЛАССИКА'/);
   assert.match(source, /Сыграно/);
   assert.match(source, /Побед/);
   assert.match(source, /Процент побед/);
   assert.match(source, /Лучшее время/);
-  assert.match(source, /ТАБЛИЦА ЛИДЕРОВ/);
+  assert.match(source, /ЛУЧШИЕ СЕРИИ/);
+  assert.match(source, /СЕГОДНЯШНИЙ РЕЙТИНГ/);
   assert.doesNotMatch(source, /meta-modal|backdrop/);
 });
 

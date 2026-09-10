@@ -24,22 +24,21 @@ test('Home is visually separated from destructive deal actions', () => {
 });
 
 
-test('gameplay removes the decorative perimeter frame and shows the active mode without changing board geometry', () => {
+test('gameplay removes the decorative perimeter frame and only labels Daily without changing board geometry', () => {
   assert.match(
     controlsPolishStylesSource,
     /#game:has\(\.game-hud\)::after\s*\{[^}]*display:\s*none/s,
   );
   assert.match(controlsSource, /game-mode-label/);
-  assert.match(controlsSource, /winnable:\s*['"]СТАНДАРТ['"]/);
-  assert.match(controlsSource, /original:\s*['"]КЛАССИКА['"]/);
-  assert.match(controlsSource, /daily:\s*['"]ИСПЫТАНИЕ ДНЯ['"]/);
-  assert.match(controlsSource, /t\(MODE_LABELS\[mode\]\)/);
+  assert.match(controlsSource, /modeLabel\.hidden\s*=\s*mode\s*!==\s*['"]daily['"]/);
+  assert.match(controlsSource, /mode === ['"]daily['"] \? t\(['"]ИСПЫТАНИЕ ДНЯ['"]\) : ['"]['"]/);
+  assert.doesNotMatch(controlsSource, /СТАНДАРТ|КЛАССИКА/);
   assert.match(gameSceneSource, /gameControls\.setMode\(gameState\.mode\)/);
 });
 
 test('hybrid shell uses one quiet parchment surface instead of the legacy framed modal stack', () => {
   assert.match(stylesSource, /\.app-shell-surface\s*\{[\s\S]*--ui-parchment/);
-  assert.match(stylesSource, /\.main-shell-mode-grid\s*\{[\s\S]*repeat\(3/);
+  assert.match(stylesSource, /\.main-shell-mode-grid\s*\{[\s\S]*repeat\(2/);
   assert.match(stylesSource, /\.main-shell-mode-card\s*\{[\s\S]*--ui-parchment-light/);
   assert.doesNotMatch(stylesSource, /\.main-menu-panel|\.main-menu-divider|\.main-menu-weekly-milestones/);
 });

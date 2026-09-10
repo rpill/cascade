@@ -15,11 +15,10 @@ const polishStyles = readFileSync(
   'utf8',
 );
 
-test('gameplay mode label maps the three real GameMode ids to product labels', () => {
-  assert.match(controlsSource, /winnable:\s*['"]СТАНДАРТ['"]/);
-  assert.match(controlsSource, /original:\s*['"]КЛАССИКА['"]/);
-  assert.match(controlsSource, /daily:\s*['"]ИСПЫТАНИЕ ДНЯ['"]/);
-  assert.match(controlsSource, /t\(MODE_LABELS\[mode\]\)/);
+test('gameplay mode label is reserved for Daily while ordinary games stay unlabeled', () => {
+  assert.match(controlsSource, /modeLabel\.hidden\s*=\s*mode\s*!==\s*['"]daily['"]/);
+  assert.match(controlsSource, /ИСПЫТАНИЕ ДНЯ/);
+  assert.doesNotMatch(controlsSource, /СТАНДАРТ|КЛАССИКА/);
   assert.match(controlsSource, /setMode\(mode:\s*GameMode\)/);
 });
 

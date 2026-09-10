@@ -1,9 +1,6 @@
 /*
- * Gameplay chrome. Material colors come from the active theme.
- *
- * This stylesheet deliberately scopes the gameplay treatment to .game-hud.
- * Gameplay controls share a paper material with the menu; the theme supplies
- * their palette while geometry and hit areas stay consistent.
+ * Gameplay HUD: two compact functional capsules plus a separated Home button.
+ * Colors/materials still come from the active theme; geometry is shared.
  */
 
 .game-hud {
@@ -15,7 +12,6 @@
   text-rendering: optimizeLegibility;
 }
 
-/* The active playing surface is full bleed, with no perimeter frame. */
 #game:has(.game-hud)::after {
   display: none;
 }
@@ -27,8 +23,12 @@
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: var(--ui-control-gap, 8px);
+  gap: 18px;
   pointer-events: auto;
+}
+
+.game-mode-label[hidden] {
+  display: none;
 }
 
 .game-mode-label {
@@ -57,11 +57,28 @@
   pointer-events: none;
 }
 
+.game-control-assist-group,
+.game-control-deal-group {
+  display: inline-flex;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--game-control-edge);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 249, 222, 0.34), rgba(91, 59, 29, 0.05)),
+    var(--game-hud-paper) center / cover no-repeat;
+  background-color: var(--game-control-surface);
+  background-blend-mode: multiply, multiply;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 239, 194, 0.58),
+    0 5px 12px rgba(13, 8, 4, 0.42);
+}
+
 .game-hud .ui-icon-control {
-  width: var(--ui-hit-size, 44px);
-  height: var(--ui-hit-size, 44px);
   box-sizing: border-box;
-  padding: 9px;
+  width: var(--ui-hit-size, 50px);
+  height: var(--ui-hit-size, 50px);
+  padding: 10px;
   border: 1px solid var(--game-control-edge);
   border-radius: 50%;
   background:
@@ -75,6 +92,21 @@
   color: var(--game-control-ink);
 }
 
+/* Buttons inside a capsule borrow the group's outer surface and only draw separators. */
+.game-control-assist-group .ui-icon-control,
+.game-control-deal-group .ui-icon-control {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.game-control-assist-group .ui-icon-control + .ui-icon-control,
+.game-control-deal-group .ui-icon-control + .ui-icon-control {
+  border-left: 1px solid color-mix(in srgb, var(--game-control-edge) 48%, transparent);
+}
+
 .game-hud .ui-icon-control:hover {
   border-color: var(--game-control-edge);
   background:
@@ -85,6 +117,11 @@
   color: var(--game-control-ink);
 }
 
+.game-control-assist-group .ui-icon-control:hover,
+.game-control-deal-group .ui-icon-control:hover {
+  background: color-mix(in srgb, var(--game-control-hover) 58%, transparent);
+}
+
 .game-hud .ui-icon-control:active {
   transform: translateY(1px);
   box-shadow:
@@ -92,34 +129,221 @@
     0 2px 7px rgba(20, 13, 8, 0.24);
 }
 
+.game-control-assist-group .ui-icon-control:active,
+.game-control-deal-group .ui-icon-control:active {
+  box-shadow: inset 0 2px 5px rgba(91, 59, 29, 0.14);
+}
+
+.game-hud .ui-icon-control:disabled,
+.game-hud .ui-icon-control:disabled:hover,
+.game-hud .ui-icon-control:disabled:active {
+  opacity: 0.34;
+  cursor: default;
+  transform: none;
+  filter: saturate(0.4);
+  background: transparent;
+  box-shadow: none;
+}
+
 .game-hud .ui-icon-control:focus-visible {
+  position: relative;
+  z-index: 2;
   outline: 2px solid var(--game-focus);
-  outline-offset: 2px;
+  outline-offset: -3px;
 }
 
 .game-hud .ui-icon-control svg {
   width: 100%;
   height: 100%;
   display: block;
+  flex: 0 0 auto;
   stroke-width: 2.05;
 }
 
+.game-hud .game-control-restart {
+  width: var(--ui-hit-size, 50px);
+  min-width: var(--ui-hit-size, 50px);
+}
+
+.game-hud .game-control-new-deal[hidden] {
+  display: none;
+}
+
+.game-hud .game-control-new-deal {
+  width: auto;
+  min-width: 168px;
+  padding: 0 20px 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.game-hud .game-control-new-deal svg {
+  width: 24px;
+  height: 24px;
+}
+
+.game-control-new-deal-label {
+  display: inline-block;
+  color: inherit;
+  font: 700 15px/1 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.015em;
+}
+
 .game-hud .game-control-home {
-  margin-left: calc(var(--ui-home-gap, 24px) - var(--ui-control-gap, 8px));
+  margin-left: 4px;
 }
 
 @media (max-height: 620px) and (orientation: landscape) {
   .game-hud .game-controls {
-    top: max(8px, env(safe-area-inset-top));
-    right: max(10px, env(safe-area-inset-right));
+    position: absolute;
+    inset: 0;
+    display: block;
+    pointer-events: none;
   }
 
   .game-mode-label {
-    top: max(9px, env(safe-area-inset-top));
+    top: max(8px, env(safe-area-inset-top));
     left: max(10px, env(safe-area-inset-left));
-    min-height: 24px;
-    padding: 4px 9px 3px;
+    min-height: 22px;
+    padding: 4px 8px 3px;
     font-size: 10px;
-    letter-spacing: 0.09em;
+    letter-spacing: 0.08em;
   }
+
+  .game-control-assist-group,
+  .game-control-deal-group {
+    position: absolute;
+    inset: 0;
+    display: block;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    pointer-events: none;
+  }
+
+  .game-hud .game-control-home,
+  .game-hud .game-control-new-deal,
+  .game-hud .game-control-restart,
+  .game-hud .game-control-undo,
+  .game-hud .game-control-hint {
+    position: absolute;
+    pointer-events: auto;
+    margin-left: 0;
+  }
+
+  .game-control-assist-group .ui-icon-control,
+  .game-control-deal-group .ui-icon-control {
+    margin: 0;
+    border: 1px solid var(--game-control-edge);
+    border-radius: 50%;
+    background:
+      linear-gradient(180deg, rgba(255, 249, 222, 0.34), rgba(91, 59, 29, 0.05)),
+      var(--game-hud-paper) center / cover no-repeat;
+    background-color: var(--game-control-surface);
+    background-blend-mode: multiply, multiply;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 239, 194, 0.58),
+      0 5px 12px rgba(13, 8, 4, 0.42);
+    color: var(--game-control-ink);
+  }
+
+  .game-hud .game-control-home {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+  }
+
+  .game-hud .game-control-new-deal {
+    top: max(8px, env(safe-area-inset-top));
+    right: calc(max(8px, env(safe-area-inset-right)) + var(--ui-hit-size, 50px) + 8px);
+    min-width: 144px;
+    padding-left: 13px;
+    padding-right: 15px;
+    gap: 8px;
+    border-radius: 999px;
+  }
+
+  .game-control-new-deal-label {
+    font-size: 13px;
+  }
+
+  .game-hud .game-control-undo {
+    top: calc(max(8px, env(safe-area-inset-top)) + var(--ui-hit-size, 50px) + 10px);
+    right: max(8px, env(safe-area-inset-right));
+  }
+
+  .game-hud .game-control-hint {
+    top: calc(max(8px, env(safe-area-inset-top)) + (var(--ui-hit-size, 50px) * 2) + 20px);
+    right: max(8px, env(safe-area-inset-right));
+  }
+
+  .game-hud .game-control-restart {
+    top: calc(max(8px, env(safe-area-inset-top)) + (var(--ui-hit-size, 50px) * 3) + 30px);
+    right: max(8px, env(safe-area-inset-right));
+    width: var(--ui-hit-size, 50px);
+    min-width: var(--ui-hit-size, 50px);
+  }
+
+  .game-hud .game-control-undo:disabled,
+  .game-hud .game-control-undo:disabled:hover,
+  .game-hud .game-control-undo:disabled:active,
+  .game-hud .game-control-hint:disabled,
+  .game-hud .game-control-hint:disabled:hover,
+  .game-hud .game-control-hint:disabled:active,
+  .game-hud .game-control-restart:disabled,
+  .game-hud .game-control-restart:disabled:hover,
+  .game-hud .game-control-restart:disabled:active {
+    opacity: 0.4;
+    cursor: default;
+    transform: none;
+    filter: saturate(0.25);
+    background:
+      linear-gradient(180deg, rgba(255, 249, 222, 0.26), rgba(91, 59, 29, 0.07)),
+      var(--game-hud-paper) center / cover no-repeat;
+    background-color: var(--game-control-surface);
+    background-blend-mode: multiply, multiply;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 239, 194, 0.42),
+      0 4px 10px rgba(13, 8, 4, 0.26);
+    color: color-mix(in srgb, var(--game-control-ink) 58%, transparent);
+  }
+}
+
+@media (max-width: 760px) and (orientation: landscape) {
+  .game-hud .game-control-home,
+  .game-hud .game-control-undo,
+  .game-hud .game-control-hint,
+  .game-hud .game-control-restart {
+    right: max(6px, env(safe-area-inset-right));
+  }
+
+  .game-hud .game-control-new-deal {
+    right: calc(max(6px, env(safe-area-inset-right)) + var(--ui-hit-size, 50px) + 6px);
+    min-width: 132px;
+    padding-left: 11px;
+    padding-right: 12px;
+  }
+
+  .game-control-new-deal-label {
+    font-size: 12px;
+  }
+}
+
+.game-hud .ui-icon-control.is-hint-attention {
+  animation: game-hint-attention 520ms ease-out;
+}
+
+@keyframes game-hint-attention {
+  0%, 100% { transform: translateX(0); }
+  24% { transform: translateX(-3px); }
+  48% { transform: translateX(3px); }
+  72% { transform: translateX(-2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-hud .ui-icon-control.is-hint-attention { animation: none; }
 }

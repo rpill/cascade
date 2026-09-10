@@ -28,7 +28,7 @@ test('leaderboard overlay renders statuses, formatted rows, and no avatars', () 
   assert.match(source, /leaderboard-name/);
   assert.match(source, /entry\.rank/);
   assert.match(source, /entry\.publicName/);
-  assert.match(source, /entry\.scoreMs/);
+  assert.match(source, /entry\.value/);
   assert.doesNotMatch(source, /avatar/i);
 });
 

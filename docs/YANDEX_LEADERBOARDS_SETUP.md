@@ -1,74 +1,83 @@
 # Yandex Games leaderboard setup — Cascade Solitaire
 
-This project uses two built-in Yandex Games leaderboards for ordinary modes only.
-Daily intentionally has no built-in global leaderboard.
+Cascade uses two built-in Yandex Games leaderboards:
+
+- Standard ranks the player's **best consecutive win streak**.
+- Daily ranks the **fastest completion of the current Daily deal**.
+- Classic has no global leaderboard; it keeps personal statistics only.
 
 ## Required Console configuration
 
 Open Yandex Games Developer Console -> select Cascade Solitaire -> Leaderboards.
 Create both entries exactly as below.
 
-### 1. Standard best time
+### 1. Standard win streak
 
-- Technical name: `standardbesttime`
-- Russian display name: `Стандарт — лучшее время`
-- English display name: `Standard — Best Time`
+- Technical name: `standardwinstreak`
+- Russian display name: `Стандарт — лучшая серия`
+- English display name: `Standard — Best Streak`
 - Main leaderboard: **Yes**
-- Type: `time`
-- Sort direction: **ascending**
+- Type: `numeric`
+- Sort direction: **descending**
 - Decimal part size: `0`
 
-### 2. Classic best time
+### 2. Daily fastest today
 
-- Technical name: `classicbesttime`
-- Russian display name: `Классика — лучшее время`
-- English display name: `Classic — Best Time`
+- Technical name: `dailyfastest`
+- Russian display name: `Дейли — быстрее всех`
+- English display name: `Daily — Fastest`
 - Main leaderboard: **No**
-- Type: `time`
-- Sort direction: **ascending**
+- Type: `numeric` (**not `time`**)
+- Sort direction: **descending**
 - Decimal part size: `0`
 
 The technical names must match `src/leaderboards/LeaderboardConfig.ts` exactly.
-Yandex Console accepts only Latin letters and digits for these technical names (`^[a-zA-Z0-9]+$`); underscores, hyphens, and spaces are not allowed.
-Scores are sent in milliseconds.
+The game does not use `standardbesttime` or `classicbesttime` anymore.
 
-## Why these settings
+## Why Daily is numeric instead of time
 
-- `time` matches the value sent by the game (`bestTimeMs`).
-- `ascending` puts the fastest completion first.
-- Only one leaderboard can be main; Standard is the product default.
-- Daily is excluded because a persistent built-in leaderboard would compare different daily seeds across dates.
+Yandex leaderboards are persistent; one board cannot automatically reset itself every UTC day. Cascade therefore uses one `dailyfastest` board and encodes both the UTC Daily date and inverse completion time into one safe integer score.
+
+The encoded score has these ordering guarantees:
+
+1. any score from a newer Daily date ranks above every score from an older Daily date;
+2. within the same Daily date, a faster completion ranks above a slower completion;
+3. the game decodes the numeric score back to normal `m:ss` before rendering it and filters the visible top rows to the current trusted Daily date.
+
+Do not configure `dailyfastest` as a Yandex `time` leaderboard and do not make it the main leaderboard: its raw Console score is an internal encoded integer, not a human-readable duration.
+
+## Standard streak semantics
+
+A completed Standard win increments the current streak and updates the saved best streak. A deliberate replacement of an unfinished Standard deal resets the current streak. Restarting/restoring the same deal, opening menus, refreshing/restoring a checkpoint, and playing Classic or Daily do not manufacture a failure. Only the saved **best** streak is submitted globally.
+
+Existing pre-v5 saves migrate with `current=0` and `best=0` because a historical consecutive streak cannot be reconstructed reliably from aggregate win/loss statistics.
 
 ## End-to-end acceptance in Yandex environment
 
-Run a real draft / production-like Yandex environment after the two leaderboards exist.
-
-1. Open the main menu and verify `ТАБЛИЦА ЛИДЕРОВ` is enabled.
-2. Open it as a guest. Top-10 must be readable without signing in.
-3. With no unfinished game, press `ВОЙТИ`. Authorization must appear only after this explicit button press.
-4. Complete account/progress selection if Yandex shows it. The game is allowed to reload after `ACCOUNT_SELECTION_DIALOG_CLOSED`.
-5. Reopen the leaderboard. The authorized player row (`Ваш результат`) should appear when the account has a score.
-6. Win Standard with a new personal best. Verify `standardbesttime` receives the time in milliseconds and the in-game row formats it as time.
-7. Win Standard more slowly. Verify the faster server score is preserved.
-8. Improve Standard again. Verify the server score updates to the faster value.
-9. Repeat the same checks for Classic and `classicbesttime`.
-10. Switch Standard/Classic rapidly while loading. Stale responses must not overwrite the selected tab.
-11. Start an unfinished ordinary game, open the menu and leaderboard. Top-10 remains readable, but `ВОЙТИ` is disabled until the unfinished game is no longer active.
-12. Confirm Daily never writes to either ordinary leaderboard.
-13. Confirm a leaderboard/network error does not block local victory, statistics, restart, or menu navigation.
+1. Open Statistics as a guest and verify Standard and Daily public top results can load without automatic authorization.
+2. Verify Classic says that it has no global leaderboard and does not call a Yandex leaderboard.
+3. Sign in explicitly with Yandex ID only when no unfinished game blocks authorization.
+4. Win Standard once; verify `standardwinstreak` receives `1`. Continue winning Standard and verify only a new larger best streak is submitted.
+5. Deliberately replace an unfinished Standard deal; verify the current streak resets while the saved best remains.
+6. Complete today's Daily; verify `dailyfastest` receives an encoded positive numeric score and the in-game table renders the result as normal elapsed time.
+7. Complete the same Daily faster; verify the server score improves. A slower retry must not replace the faster same-day result.
+8. On the next UTC Daily date, complete Daily and verify the newer-day encoded score outranks old-day entries; the in-game table must show only the current date's rows.
+9. Confirm Classic completion never writes to either leaderboard.
+10. Confirm leaderboard/network/auth failures never block local victory, rewards, statistics, restart, or menu navigation.
+11. Switch Statistics tabs rapidly while loading and verify stale async responses never replace the currently selected tab.
 
 ## Expected SDK behavior / limits used by the implementation
 
-- Public `getEntries()` is allowed without authorization.
-- `getPlayerEntry()` and `setScore()` require authorization.
-- The game calls `isAvailableMethod()` before protected leaderboard methods.
+- Public `getEntries()` is used for guest-visible top results.
+- `getPlayerEntry()` and `setScore()` are used only for an authorized player.
+- Protected methods remain behind the platform adapter and availability checks.
 - `setScore()` writes are serialized with at least 1100 ms between actual submissions.
-- Multiple pending scores for one leaderboard coalesce to the best (lowest) time.
-- Missing leaderboard configuration may surface as a 404/unavailable state until the Console entry is created.
+- Pending writes to the same active board coalesce to the largest score because both production leaderboards sort descending.
+- Missing/misnamed Console configuration may surface as an unavailable/404 state until the exact technical names exist.
 
 ## Local development
 
-Plain `pnpm dev` intentionally uses the unavailable-platform fallback, so the leaderboard button may remain disabled.
+Plain `pnpm dev` intentionally uses the unavailable-platform fallback, so remote leaderboard data may be unavailable.
 
 Use:
 
@@ -76,4 +85,4 @@ Use:
 pnpm yandex:dev
 ```
 
-for SDK smoke tests. Final leaderboard acceptance must still be done against a Yandex draft/app where the two Console leaderboards actually exist.
+for SDK smoke tests. Final leaderboard acceptance must still be done against a Yandex draft/app where `standardwinstreak` and `dailyfastest` exist.

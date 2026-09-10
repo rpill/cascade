@@ -105,7 +105,7 @@ async function ensureYandexSdkLoaded(): Promise<void> {
 
 function toPlatformEntry(entry: YandexLeaderboardEntry): PlatformLeaderboardEntry {
   return {
-    rank: entry.rank,
+    rank: entry.rank + 1,
     score: entry.score,
     playerId: entry.player.uniqueID,
     publicName: entry.player.publicName,
@@ -163,8 +163,8 @@ function createYandexLeaderboards(
       }
     },
     async setScore(technicalName, score) {
-      if (!Number.isFinite(score) || score < 0) {
-        throw new Error('Leaderboard score must be a finite non-negative number.');
+      if (!Number.isFinite(score) || score <= 0) {
+        throw new Error('Leaderboard score must be a finite positive number.');
       }
 
       await requireMethod(ysdk, 'leaderboards.setScore');

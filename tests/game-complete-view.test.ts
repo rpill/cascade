@@ -9,8 +9,7 @@ const source = readFileSync(
 
 test('ordinary completion view celebrates the win without loading the player with statistics', () => {
   assert.match(source, /ПОБЕДА/);
-  assert.match(source, /winnable[^]*СТАНДАРТ/);
-  assert.match(source, /original[^]*КЛАССИКА/);
+  assert.doesNotMatch(source, /game-complete-mode|getModeLabel|СТАНДАРТ|КЛАССИКА/);
   assert.match(source, /elapsedMs/);
   assert.match(source, /Новый рекорд/);
   assert.doesNotMatch(source, /Победы:/);
@@ -18,6 +17,10 @@ test('ordinary completion view celebrates the win without loading the player wit
   assert.doesNotMatch(source, /Лучшее:/);
   assert.match(source, /game-complete-xp-track/);
   assert.match(source, /game-complete-level-reward/);
+  assert.match(source, /game-complete-confetti/);
+  assert.match(source, /game-complete-coin-icon/);
+  assert.match(source, /game-complete-coin-amount/);
+  assert.match(source, /is-celebrating/);
   assert.match(source, /createVictoryProgressSequence/);
   assert.match(source, /ЕЩЁ ПАРТИЯ/);
   assert.match(source, /В МЕНЮ/);

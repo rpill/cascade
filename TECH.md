@@ -40,9 +40,9 @@
 - `src/meta/AttemptTimer.ts` — generic pause-aware attempt timer with restored elapsed-duration support.
 - `src/meta/GameStats.ts` — pure Standard/Classic `played` / `wins` / `bestTimeMs` mutations; Daily is intentionally excluded.
 - `src/meta/MetaMutationQueue.ts` — retained legacy pre-load helper; runtime typed operations use `MetaJournal` and `MetaSession`.
-- `src/leaderboards/LeaderboardConfig.ts` — fixed ordinary-mode to Yandex technical leaderboard name mapping (`standardbesttime`, `classicbesttime`).
-- `src/leaderboards/LeaderboardSubmissionQueue.ts` — global serialized leaderboard write queue; coalesces pending best times and enforces a 1100 ms submission interval.
-- `src/leaderboards/LeaderboardService.ts` — gameplay-safe top/personal-entry loading, authorization delegation, and best-time synchronization that never overwrites a faster server result.
+- `src/leaderboards/LeaderboardConfig.ts` — competitive-mode policy plus fixed Yandex names (`standardwinstreak`, `dailyfastest`) and reversible Daily date/time score encoding.
+- `src/leaderboards/LeaderboardSubmissionQueue.ts` — global serialized leaderboard write queue; coalesces pending descending scores to the maximum and enforces a 1100 ms submission interval.
+- `src/leaderboards/LeaderboardService.ts` — gameplay-safe Standard streak / current-Daily loading, authorization delegation, score decoding/filtering, and best-result synchronization.
 - `src/platform/services.ts` — platform-neutral PlayerStorage/trusted-clock/auth/leaderboard interfaces plus persistent browser fallback (`cascadePlayerData`) and memory last resort.
 - `src/platform/yandex.ts` — cached Yandex adapter: loads `/sdk.js` in the HTTPS Yandex/proxy environment, initializes/reacquires Player data/server time, exposes explicit auth + direct `ysdk.leaderboards` APIs, account-selection events, and LoadingAPI readiness.
 - `scripts/chatgpt-context-lib.mjs` — testable tree/Git/context-bundle core.
@@ -95,17 +95,19 @@ Do not merge the active board checkpoint into `cascadeMeta` or upload a full boa
 
 ## Statistics / leaderboard constraints
 
-- Statistics and leaderboards live in separate fixed native DOM modals; do not expand their full contents inline in the main menu.
-- Keep the shell inside the viewport. The user approved internal vertical scrolling for growing catalogs; narrow-phone statistics also stacks and scrolls. Preserve touch scrolling, focus and reachability of actions. Do not stretch a single catalog card to fill the panel.
-- Built-in Yandex leaderboards are ordinary-mode only: `winnable -> standardbesttime`, `original -> classicbesttime`. Daily must never map to either board.
-- Both Console leaderboards are `time` values in milliseconds and sort ascending. Standard is the single main leaderboard. See `docs/YANDEX_LEADERBOARDS_SETUP.md`.
+- Player-facing mode UI exposes only Game (`winnable`) and Daily. Classic/original is retained only as internal legacy compatibility and must not be exposed from Home or Statistics. Statistics live in the shell page with Game / Daily tabs.
+- There is no separate Shop shell destination. Collection is the sole cosmetic catalog and must keep both `Все` and `Мои` filters while allowing earned-coin purchase/equip actions in place. Real-money purchases are entered from the `+` button beside the coin balance and live in a modal purchase surface; until Yandex Payments is integrated, those checkout buttons remain disabled rather than simulating purchases.
+- Standard global ranking is `standardwinstreak`: Yandex `numeric`, descending, integer best consecutive-win streak.
+- Daily global ranking is `dailyfastest`: Yandex `numeric`, descending. Runtime encodes trusted UTC Daily day + inverse elapsed milliseconds so one persistent board behaves like a per-day fastest-time board. The UI must decode and filter entries to the current Daily ID before display.
+- Classic has no global leaderboard and must never call `getEntries`, `getPlayerEntry`, or `setScore` for a Classic score.
 - Public top-10 (`getEntries`) may load without authorization. Personal rank and `setScore` require authorization. Never trigger `openAuthDialog()` automatically.
-- Authorization remains unavailable while an unfinished board, profile load, save error or pending journal exists. This prevents a guest board or reward from being finalized against a different account's cloud meta.
-- On `ACCOUNT_SELECTION_DIALOG_CLOSED`, invalidate current leaderboard requests and reload the page so Yandex Player/meta is reacquired from the user's selected progress.
+- Authorization remains unavailable while an unfinished board, profile load, save error or pending journal exists.
+- On `ACCOUNT_SELECTION_DIALOG_CLOSED`, invalidate current leaderboard requests and reload the page so Yandex Player/meta is reacquired from the selected progress.
 - Leaderboard view loads are request-token guarded; an older async response must not replace a newer tab selection or a closed view.
-- Score writes go only through `LeaderboardSubmissionQueue`. Keep at least 1100 ms between actual `setScore` calls and coalesce multiple pending values for one board to the lowest time.
-- Before writing a local best, compare against the current server entry. Never replace a faster server time with a slower local time.
-- Ordinary completion leaderboard sync is fire-and-forget and occurs after local stats/meta finalization. Leaderboard read/write/auth failures must never block or roll back local gameplay progress.
+- Score writes go only through `LeaderboardSubmissionQueue`. Keep at least 1100 ms between actual `setScore` calls and coalesce multiple pending values for one board to the largest descending score.
+- Before Standard submission, preserve an equal/larger server streak. Before Daily submission, preserve a faster same-day server result and never overwrite a future-day entry with an older date.
+- Completion leaderboard sync is fire-and-forget after local meta finalization. Read/write/auth failures must never block or roll back local gameplay progress.
+- Console setup and real-draft acceptance are documented in `docs/YANDEX_LEADERBOARDS_SETUP.md`.
 
 ## Gameplay / rendering constraints
 

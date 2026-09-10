@@ -297,11 +297,11 @@ test('Yandex adapter uses direct leaderboard APIs and normalizes entries', async
   assert.equal(platform.leaderboards.available, true);
   assert.deepEqual(
     await platform.leaderboards.getEntries('standardbesttime', { quantityTop: 10 }),
-    [{ rank: 0, score: 3210, playerId: 'player-1', publicName: 'Ada' }],
+    [{ rank: 1, score: 3210, playerId: 'player-1', publicName: 'Ada' }],
   );
   assert.deepEqual(
     await platform.leaderboards.getPlayerEntry('standardbesttime'),
-    { rank: 4, score: 6000, playerId: 'me', publicName: 'Me' },
+    { rank: 5, score: 6000, playerId: 'me', publicName: 'Me' },
   );
   await platform.leaderboards.setScore('standardbesttime', 2500);
   assert.deepEqual(calls, [
@@ -379,11 +379,15 @@ test('Yandex leaderboard score rejects invalid values before SDK call', async ()
 
   await assert.rejects(
     platform.leaderboards.setScore('standardbesttime', Number.NaN),
-    /finite non-negative/,
+    /finite positive/,
+  );
+  await assert.rejects(
+    platform.leaderboards.setScore('standardbesttime', 0),
+    /finite positive/,
   );
   await assert.rejects(
     platform.leaderboards.setScore('standardbesttime', -1),
-    /finite non-negative/,
+    /finite positive/,
   );
   assert.equal(setScoreCalls, 0);
 });

@@ -64,9 +64,9 @@ try {
     const end=await page.locator('[data-theme-id="fixture-11"] button').boundingBox();
     assert.ok(end.y>=0&&end.y+end.height<=height,'Final theme action is reachable');
     await screenshot(page,`scroll-${width}`);
-    await page.locator('[data-destination="shop"].app-shell-nav-button').click();
+    await page.locator('[data-destination="collection"].app-shell-nav-button').click();
     assert.equal(await grid.evaluate(el=>el.scrollTop),0,'Changing catalog destination starts at the top');
-    await screenshot(page,`shop-${width}`);
+    await screenshot(page,`collection-${width}`);
     await page.close();
   }
   assert.deepEqual(errors,[]);

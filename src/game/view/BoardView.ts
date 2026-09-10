@@ -6,6 +6,7 @@ import {
   SUITS,
   type Card,
   type CardSource,
+  type LegalMove,
   type MoveTarget,
   type Suit,
 } from '../model/types.ts';
@@ -63,6 +64,10 @@ interface DragState {
 
 const STOCK_DEAL_STAGGER = 52;
 const STOCK_DRAW_STAGGER = 80;
+const HINT_FLIGHT_DURATION = 280;
+const HINT_HOLD_DURATION = 520;
+
+export type HintPlaybackResult = 'played' | 'none' | 'busy';
 
 export class BoardView {
   private readonly scene: Phaser.Scene;
@@ -78,6 +83,9 @@ export class BoardView {
     Phaser.Tweens.Tween
   >();
   private readonly autoFoundationFlightsBySuit = new Map<Suit, string>();
+  private hintTween: Phaser.Tweens.Tween | null = null;
+  private hintIndex = 0;
+  private hintStateKey = '';
   private readonly stockVisual: StockVisualState;
   private layout: ViewportLayout;
   private readonly appearance: TableAppearanceView;
@@ -184,6 +192,7 @@ export class BoardView {
   relayout(layout: ViewportLayout): void {
     this.activeFlights.forEach((flight) => flight.stop());
     this.activeFlights.clear();
+    this.stopHintPlayback();
     this.dragState = null;
     this.layout = layout;
 
@@ -203,6 +212,7 @@ export class BoardView {
     this.timers.forEach((timer) => timer.remove(false));
     this.activeFlights.forEach((flight) => flight.stop());
     this.activeFlights.clear();
+    this.stopHintPlayback();
     this.appearance.destroy();
     this.ownedObjects.forEach((object) => object.destroy());
     this.cardImages.clear();
@@ -278,6 +288,86 @@ export class BoardView {
         back.disableInteractive();
       }
     });
+  }
+
+  hasMoveHints(): boolean {
+    return !this.game.isWon && this.findMoveHints().length > 0;
+  }
+
+  playHint(): HintPlaybackResult {
+    if (this.inputLocked || this.uiPaused || this.dragState !== null || this.hintTween !== null) {
+      return 'busy';
+    }
+
+    const hints = this.findMoveHints();
+    if (hints.length === 0) {
+      return 'none';
+    }
+
+    const stateKey = this.getHintStateKey();
+    if (stateKey !== this.hintStateKey) {
+      this.hintStateKey = stateKey;
+      this.hintIndex = 0;
+    }
+
+    const hint = hints[this.hintIndex % hints.length];
+    this.hintIndex = (this.hintIndex + 1) % hints.length;
+    const movingCards = this.game.cardsFromSource(hint.source);
+    const rootCard = movingCards[0];
+    const rootImage = rootCard === undefined ? undefined : this.cardImages.get(rootCard.id);
+    const target = this.getHintTargetPoint(hint, movingCards.length);
+
+    if (rootImage === undefined || target === null || movingCards.length === 0) {
+      return 'none';
+    }
+
+    const moving = movingCards.flatMap((card, index) => {
+      const image = this.cardImages.get(card.id);
+      if (image === undefined) return [];
+      return [{
+        image,
+        x: image.x,
+        y: image.y,
+        depth: image.depth,
+        hintDepth: 3400 + index,
+      }];
+    });
+
+    if (moving.length === 0) {
+      return 'none';
+    }
+
+    const deltaX = target.x - rootImage.x;
+    const deltaY = target.y - rootImage.y;
+    this.inputLocked = true;
+    this.sync(null);
+    moving.forEach(({ image, hintDepth }) => image.setDepth(hintDepth));
+
+    let tween!: Phaser.Tweens.Tween;
+    tween = this.scene.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: HINT_FLIGHT_DURATION,
+      hold: HINT_HOLD_DURATION,
+      yoyo: true,
+      ease: 'Sine.easeInOut',
+      onUpdate: (activeTween: Phaser.Tweens.Tween) => {
+        const progress = activeTween.getValue() ?? 0;
+        moving.forEach(({ image, x, y }) => {
+          image.setPosition(x + deltaX * progress, y + deltaY * progress);
+        });
+      },
+      onComplete: () => {
+        if (this.hintTween === tween) {
+          this.hintTween = null;
+        }
+        moving.forEach(({ image, x, y, depth }) => image.setPosition(x, y).setDepth(depth));
+        this.inputLocked = false;
+        this.sync(null);
+      },
+    });
+    this.hintTween = tween;
+    return 'played';
   }
 
   requestUndo(): void {
@@ -520,6 +610,72 @@ export class BoardView {
     });
 
     this.timers.push(timer);
+  }
+
+  private findMoveHints(): LegalMove[] {
+    return this.game.findLegalMoves()
+      .filter((move) => {
+        if (move.source.zone !== 'tableau' || move.target.zone !== 'tableau') {
+          return true;
+        }
+        const movingWholePile = move.source.index === 0;
+        const destinationEmpty = this.game.tableau[move.target.pile]?.length === 0;
+        return !(movingWholePile && destinationEmpty);
+      })
+      .sort((left, right) => this.hintPriority(left) - this.hintPriority(right));
+  }
+
+  private hintPriority(move: LegalMove): number {
+    if (move.target.zone === 'foundation') return 0;
+
+    if (move.source.zone === 'tableau' && move.target.zone === 'tableau') {
+      const sourcePile = this.game.tableau[move.source.pile];
+      const clearsSource = move.source.index === 0 && sourcePile.length > 0;
+      const destinationEmpty = this.game.tableau[move.target.pile]?.length === 0;
+      if (clearsSource && !destinationEmpty) return 1;
+      if (!destinationEmpty) return 2;
+      return 3;
+    }
+
+    if (move.target.zone === 'tableau') return 2;
+    return 4;
+  }
+
+  private getHintTargetPoint(move: LegalMove, movingCount: number): Point | null {
+    if (move.target.zone === 'tableau') {
+      const destination = this.game.tableau[move.target.pile];
+      const x = this.layout.tableauX[move.target.pile];
+      if (destination === undefined || x === undefined) return null;
+      return {
+        x,
+        y: tableauCardY(this.layout, destination.length + movingCount, destination.length),
+      };
+    }
+
+    if (move.target.zone === 'foundation') {
+      const index = SUITS.indexOf(move.target.suit);
+      return this.layout.foundations[index] ?? null;
+    }
+
+    return { x: this.layout.stock.x, y: this.layout.stock.y };
+  }
+
+  private getHintStateKey(): string {
+    return [
+      `stock:${this.game.stock.length}`,
+      `waste:${this.game.waste.map((card) => card.id).join(',')}`,
+      `free:${this.game.freeCell?.id ?? '-'}`,
+      ...this.game.tableau.map((pile, index) => `t${index}:${pile.map((card) => card.id).join(',')}`),
+      ...SUITS.map((suit) => `f${suit}:${this.game.foundations[suit].length}`),
+    ].join('|');
+  }
+
+  private stopHintPlayback(): void {
+    if (this.hintTween !== null) {
+      this.hintTween.stop();
+      this.hintTween = null;
+      this.inputLocked = false;
+    }
   }
 
   private findDropTarget(

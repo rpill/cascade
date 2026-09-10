@@ -21,7 +21,7 @@ test('GameScene mounts one StatisticsPageView in AppShell contentHost and no lon
 
 test('statistics destination shows the page and mode changes refresh both stats and leaderboard', () => {
   assert.match(sceneSource, /destination === 'statistics'[\s\S]*statisticsPage\.show/);
-  assert.match(sceneSource, /selectStatisticsMode\(mode: OrdinaryGameMode\)/);
+  assert.match(sceneSource, /selectStatisticsMode\(mode: StatisticsMode\)/);
   assert.match(sceneSource, /this\.leaderboardMode = mode/);
   assert.match(sceneSource, /this\.statisticsPage\.update/);
   assert.match(sceneSource, /this\.loadLeaderboard\(mode\)/);

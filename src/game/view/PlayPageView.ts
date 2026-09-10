@@ -1,6 +1,7 @@
 import { t, getLanguage } from '../../localization/Localization.ts';
 import type { GameMode } from '../model/types.ts';
 import { createHomeArtIcon, type HomeArtIconName } from './ui/HomeArtIcons.ts';
+import { createCoinInline } from './ui/CoinInline.ts';
 
 export interface DailyMenuState {
   readonly available: boolean;
@@ -86,9 +87,8 @@ export class PlayPageView {
     const grid = document.createElement('div');
     grid.className = 'main-shell-mode-grid';
     grid.append(
-      this.createModeCard('winnable', 'spade', 'СТАНДАРТ', 'Проверенные раздачи'),
+      this.createModeCard('winnable', 'spade', 'ИГРА', 'Соберите пасьянс в своём темпе'),
       this.createModeCard('daily', 'crown', 'ИСПЫТАНИЕ ДНЯ', 'Серверное время недоступно'),
-      this.createModeCard('original', 'heart', 'КЛАССИКА', 'Случайные раздачи'),
     );
 
     const footer = document.createElement('div');
@@ -109,7 +109,7 @@ export class PlayPageView {
     this.playerXp.className = 'main-shell-player-xp';
     this.levelReward = document.createElement('span');
     this.levelReward.className = 'main-shell-level-reward';
-    this.levelReward.textContent = t('Следующий уровень: +50 монет');
+    this.renderLevelReward();
     this.playerProgress.append(this.playerLevel, this.xpTrack, this.playerXp, this.levelReward);
 
     this.leaderboardButton = document.createElement('button');
@@ -153,7 +153,9 @@ export class PlayPageView {
         : t('Серверное время недоступно');
       daily.dailyProgress?.removeAttribute('hidden');
       daily.dailyProgress?.setAttribute('aria-label', t(hasWeek ? 'Прогресс недели' : 'Прогресс недели пока недоступен'));
-      daily.dailyCount?.replaceChildren(document.createTextNode(hasWeek ? `${completedCount}/7` : '—/7'));
+      daily.dailyCount?.replaceChildren(document.createTextNode(hasWeek
+        ? t('{current} из 7', { current: completedCount })
+        : t('— из 7')));
       daily.dailyDots?.replaceChildren(...this.createProgressDots(
         state,
         'main-shell-daily-dot',
@@ -172,9 +174,9 @@ export class PlayPageView {
 
     this.playerLevel.textContent = state.ready ? t('Уровень {level}', {level}) : t('Уровень —');
     this.playerXp.textContent = state.ready
-      ? `${current} / ${required} XP`
+      ? t('{current} из {required} XP', { current, required })
       : t('Прогресс загружается');
-    this.levelReward.textContent = t('Следующий уровень: +50 монет');
+    this.renderLevelReward();
     this.xpFill.style.width = `${Math.round(progress * 1000) / 10}%`;
     this.xpTrack.setAttribute('aria-valuemin', '0');
     this.xpTrack.setAttribute('aria-valuemax', String(required));
@@ -194,17 +196,29 @@ export class PlayPageView {
     this.updateModeVisuals();
   }
 
+
+  private renderLevelReward(): void {
+    this.levelReward.replaceChildren(
+      document.createTextNode(t('Следующий уровень: ')),
+      createCoinInline('+50', {
+        className: 'main-shell-level-reward-coin',
+        label: t('монет'),
+      }),
+    );
+  }
+
   refreshLocalization(): void {
-    const labels: Record<GameMode, [string, string]> = {
-      winnable: ['СТАНДАРТ', 'Проверенные раздачи'],
+    const labels: Partial<Record<GameMode, [string, string]>> = {
+      winnable: ['ИГРА', 'Соберите пасьянс в своём темпе'],
       daily: ['ИСПЫТАНИЕ ДНЯ', 'Серверное время недоступно'],
-      original: ['КЛАССИКА', 'Случайные раздачи'],
     };
     this.root.setAttribute('aria-label', t('Играть'));
     this.playerProgress.setAttribute('aria-label', t('Прогресс игрока'));
     for (const [mode, parts] of this.modeCards) {
-      parts.root.querySelector('h2')!.textContent = t(labels[mode][0]);
-      parts.copy.textContent = t(labels[mode][1]);
+      const label = labels[mode];
+      if (label === undefined) continue;
+      parts.root.querySelector('h2')!.textContent = t(label[0]);
+      parts.copy.textContent = t(label[1]);
       parts.button.textContent = t('ИГРАТЬ');
     }
     this.leaderboardButton.lastElementChild!.textContent = t('Таблица лидеров');

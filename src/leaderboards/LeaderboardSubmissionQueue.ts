@@ -54,16 +54,16 @@ export class LeaderboardSubmissionQueue {
   }
 
   enqueue(technicalName: string, score: number): Promise<void> {
-    if (!Number.isFinite(score) || score < 0) {
+    if (!Number.isFinite(score) || score <= 0) {
       return Promise.reject(
-        new Error('Leaderboard score must be finite and non-negative.'),
+        new Error('Leaderboard score must be finite and positive.'),
       );
     }
 
     const promise = new Promise<void>((resolve, reject) => {
       const existing = this.pending.get(technicalName);
       if (existing !== undefined) {
-        existing.score = Math.min(existing.score, score);
+        existing.score = Math.max(existing.score, score);
         existing.waiters.push({ resolve, reject });
       } else {
         this.pending.set(technicalName, {

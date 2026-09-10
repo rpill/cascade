@@ -6,12 +6,13 @@ import { createUiIcon } from './ui/UiIcons.ts';
 import { createHomeArtIcon } from './ui/HomeArtIcons.ts';
 import { deferClickThroughAction } from './UiClickBarrier.ts';
 
-export type ShellDestination = 'play' | 'statistics' | 'collection' | 'shop' | 'rules';
+export type ShellDestination = 'play' | 'statistics' | 'collection' | 'rules';
 
 export interface AppShellActions {
   readonly navigate: (destination: ShellDestination) => void;
   readonly cancel: () => void;
   readonly settings: () => void;
+  readonly purchases: () => void;
 }
 
 export interface AppShellShowOptions {
@@ -52,6 +53,7 @@ export class AppShellView {
 
   private readonly root: HTMLDivElement;
   private readonly returnButton: HTMLButtonElement;
+  private readonly walletButton: HTMLButtonElement;
   private readonly wallet: HTMLSpanElement;
   private readonly navButtons = new Map<ShellDestination, HTMLButtonElement>();
 
@@ -111,9 +113,19 @@ export class AppShellView {
 
     const utilities = document.createElement('div');
     utilities.className = 'app-shell-utilities';
+    const walletGroup = document.createElement('button');
+    walletGroup.type = 'button';
+    walletGroup.className = 'app-shell-wallet-group';
+    walletGroup.addEventListener('click', () => actions.purchases());
+    this.walletButton = walletGroup;
     this.wallet = document.createElement('span');
     this.wallet.className = 'app-shell-wallet';
-    this.localization.attribute(this.wallet, 'aria-label', () => t('Баланс монет загружается'));
+    this.wallet.setAttribute('aria-hidden', 'true');
+    const walletAddButton = document.createElement('span');
+    walletAddButton.className = 'app-shell-wallet-add';
+    walletAddButton.textContent = '+';
+    walletAddButton.setAttribute('aria-hidden', 'true');
+    walletGroup.append(this.wallet, walletAddButton);
     const rulesButton = createIconControl({
       icon: 'rules',
       label: 'Правила',
@@ -131,7 +143,7 @@ export class AppShellView {
       onClick: () => actions.settings(),
     });
     settingsButton.replaceChildren(createHomeArtIcon('settings'));
-    utilities.append(this.wallet, rulesButton, settingsButton);
+    utilities.append(walletGroup, rulesButton, settingsButton);
 
     topbar.append(this.returnButton, brand, utilities);
 
@@ -146,7 +158,6 @@ export class AppShellView {
       this.createNavButton('play', 'ИГРАТЬ', actions),
       this.createNavButton('statistics', 'СТАТИСТИКА', actions),
       this.createNavButton('collection', 'КОЛЛЕКЦИЯ', actions),
-      this.createNavButton('shop', 'МАГАЗИН', actions),
     );
 
     this.contentHost = document.createElement('div');
@@ -168,7 +179,10 @@ export class AppShellView {
     const value = coins === null ? '—' : String(Math.max(0, Math.floor(coins)));
     this.localization.text(this.wallet, () => value);
     this.wallet.dataset.ready = String(coins !== null);
-    this.localization.attribute(this.wallet, 'aria-label', () => coins === null ? t('Баланс монет загружается') : t("Монеты: {value0}", {value0: value}));
+    this.localization.attribute(this.walletButton, 'aria-label', () => coins === null
+      ? t('Купить монеты. Баланс монет загружается')
+      : t('Купить монеты. Монеты: {value0}', {value0: value}));
+    this.localization.attribute(this.walletButton, 'title', () => t('Купить монеты'));
   }
 
   show({ canCancel, destination }: AppShellShowOptions): void {

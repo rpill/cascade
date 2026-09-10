@@ -8,6 +8,7 @@ import './GameControlsView.css';
 
 export interface GameControlsActions {
   readonly undo: () => void;
+  readonly hint: () => void;
   readonly restart: () => void;
   readonly newDeal: () => void;
   readonly home: () => void;
@@ -23,12 +24,6 @@ function toCssUrl(path: string): string {
   return `url("${resolveAssetUrl(path)}")`;
 }
 
-const MODE_LABELS: Readonly<Record<GameMode, string>> = {
-  winnable: 'СТАНДАРТ',
-  original: 'КЛАССИКА',
-  daily: 'ИСПЫТАНИЕ ДНЯ',
-};
-
 export class GameControlsView {
   private readonly localization = new LocalizationBindings();
 
@@ -39,6 +34,8 @@ export class GameControlsView {
 
   private readonly root: HTMLDivElement;
   private readonly modeLabel: HTMLDivElement;
+  private readonly undoButton: HTMLButtonElement;
+  private readonly hintButton: HTMLButtonElement;
   private readonly newDealButton: HTMLButtonElement;
 
   constructor(scene: Phaser.Scene, actions: GameControlsActions, theme: ThemeDefinition) {
@@ -54,24 +51,54 @@ export class GameControlsView {
     const controls = document.createElement('div');
     controls.className = 'game-controls';
 
+    const assistGroup = document.createElement('div');
+    assistGroup.className = 'game-control-assist-group';
+
     const undo = createIconControl({
       icon: 'undo',
       label: 'Отменить ход',
       tooltip: 'Отменить ход · Z',
+      className: 'game-control-assist game-control-undo',
       onClick: actions.undo,
     });
+    this.undoButton = undo;
+    this.undoButton.disabled = true;
+
+    const hint = createIconControl({
+      icon: 'hint',
+      label: 'Подсказка',
+      tooltip: 'Подсказка',
+      className: 'game-control-assist game-control-hint',
+      onClick: actions.hint,
+    });
+    this.hintButton = hint;
+    this.setHintEnabled(false);
+    assistGroup.append(undo, hint);
+
+    const dealGroup = document.createElement('div');
+    dealGroup.className = 'game-control-deal-group';
+
     const restart = createIconControl({
       icon: 'restart',
       label: 'Начать раздачу заново',
       tooltip: 'Начать заново · R',
+      className: 'game-control-restart',
       onClick: actions.restart,
     });
+
     this.newDealButton = createIconControl({
       icon: 'new-deal',
       label: 'Новая раздача',
       tooltip: 'Новая раздача · N',
+      className: 'game-control-new-deal',
       onClick: actions.newDeal,
     });
+    const newDealLabel = document.createElement('span');
+    newDealLabel.className = 'game-control-new-deal-label';
+    this.localization.text(newDealLabel, () => t('Новая раздача'));
+    this.newDealButton.append(newDealLabel);
+    dealGroup.append(restart, this.newDealButton);
+
     const home = createIconControl({
       icon: 'home',
       label: 'На главную',
@@ -80,13 +107,29 @@ export class GameControlsView {
       onClick: actions.home,
     });
 
-    controls.append(undo, restart, this.newDealButton, home);
+    controls.append(assistGroup, dealGroup, home);
     this.root.append(this.modeLabel, controls);
     scene.game.canvas.parentElement?.append(this.root);
   }
 
+  setUndoEnabled(enabled: boolean): void {
+    this.undoButton.disabled = !enabled;
+  }
+
+  setHintEnabled(enabled: boolean): void {
+    this.hintButton.disabled = !enabled;
+  }
+
+  emphasizeUndo(): void {
+    this.undoButton.classList.remove('is-hint-attention');
+    void this.undoButton.offsetWidth;
+    this.undoButton.classList.add('is-hint-attention');
+    window.setTimeout(() => this.undoButton.classList.remove('is-hint-attention'), 650);
+  }
+
   setMode(mode: GameMode): void {
-    this.localization.text(this.modeLabel, () => t(MODE_LABELS[mode]));
+    this.modeLabel.hidden = mode !== 'daily';
+    this.localization.text(this.modeLabel, () => mode === 'daily' ? t('ИСПЫТАНИЕ ДНЯ') : '');
     this.setDaily(mode === 'daily');
   }
 

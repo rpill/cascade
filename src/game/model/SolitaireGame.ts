@@ -5,6 +5,7 @@ import {
   type Deal,
   type Foundations,
   type GameMode,
+  type LegalMove,
   type MoveTarget,
   type SolitaireSnapshot,
   type Suit,
@@ -137,6 +138,36 @@ export class SolitaireGame {
     }
 
     return this.freeCell === null ? [] : [this.freeCell];
+  }
+
+  findLegalMoves(): LegalMove[] {
+    const sources: CardSource[] = [];
+
+    this.tableau.forEach((pile, pileIndex) => {
+      pile.forEach((_card, index) => {
+        const source = { zone: 'tableau', pile: pileIndex, index } as const;
+        if (this.cardsFromSource(source).length > 0) {
+          sources.push(source);
+        }
+      });
+    });
+
+    if (this.waste.length > 0) {
+      sources.push({ zone: 'waste' });
+    }
+    if (this.freeCell !== null) {
+      sources.push({ zone: 'free' });
+    }
+
+    const targets: MoveTarget[] = [
+      ...this.tableau.map((_pile, pile) => ({ zone: 'tableau', pile } as const)),
+      ...SUITS.map((suit) => ({ zone: 'foundation', suit } as const)),
+      { zone: 'free' },
+    ];
+
+    return sources.flatMap((source) => targets
+      .filter((target) => this.canMove(source, target))
+      .map((target) => ({ source, target })));
   }
 
   canMove(source: CardSource, target: MoveTarget): boolean {

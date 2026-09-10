@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { encodeDailyLeaderboardScore } from '../src/leaderboards/LeaderboardConfig.ts';
 import { LeaderboardService } from '../src/leaderboards/LeaderboardService.ts';
 import type { PlatformServices } from '../src/platform/services.ts';
 
@@ -12,10 +13,7 @@ function fakePlatform(options: {
   setScore?: PlatformServices['leaderboards']['setScore'];
 } = {}): PlatformServices {
   return {
-    playerStorage: {
-      load: async () => ({}),
-      save: async () => undefined,
-    },
+    playerStorage: { load: async () => ({}), save: async () => undefined },
     trustedClock: { nowMs: () => null },
     auth: {
       isAuthorized: () => options.authorized ?? false,
@@ -28,260 +26,200 @@ function fakePlatform(options: {
       getPlayerEntry: options.getPlayerEntry ?? (async () => null),
       setScore: options.setScore ?? (async () => undefined),
     },
-    platformPause: {
-      isPaused: () => false,
-      subscribe: () => () => undefined,
-    },
-    gameplay: {
-      start: () => undefined,
-      stop: () => undefined,
-    },
+    platformPause: { isPaused: () => false, subscribe: () => () => undefined },
+    gameplay: { start: () => undefined, stop: () => undefined },
     ready: () => undefined,
   };
 }
 
-test('load requests top 10 and preserves one-based SDK entry ranks', async () => {
+test('Standard load requests top 10 from win-streak board and normalizes positive streaks', async () => {
   const calls: unknown[] = [];
-  const platform = fakePlatform({
-    authorized: false,
+  const service = new LeaderboardService(fakePlatform({
     getEntries: async (name, options) => {
       calls.push({ name, options });
       return [
-        { rank: 1, score: 2500, playerId: 'a', publicName: 'Ada' },
-        { rank: 2, score: 3000, playerId: 'b', publicName: '' },
+        { rank: 1, score: 12, playerId: 'a', publicName: ' Ada ' },
+        { rank: 2, score: 7, playerId: 'b', publicName: '' },
+        { rank: 3, score: 0, playerId: 'bad', publicName: 'Bad' },
       ];
     },
-  });
-  const service = new LeaderboardService(platform);
+  }));
 
   assert.deepEqual(await service.load('winnable'), {
-    status: 'ready',
-    authorized: false,
+    status: 'ready', authorized: false,
     entries: [
-      { rank: 1, scoreMs: 2500, publicName: 'Ada' },
-      { rank: 2, scoreMs: 3000, publicName: '' },
+      { rank: 1, value: 12, publicName: 'Ada' },
+      { rank: 2, value: 7, publicName: '' },
     ],
     playerEntry: null,
   });
-  assert.deepEqual(calls, [{
-    name: 'standardbesttime',
-    options: { quantityTop: 10 },
-  }]);
+  assert.deepEqual(calls, [{ name: 'standardwinstreak', options: { quantityTop: 10 } }]);
+});
+
+test('Daily load decodes only entries for the requested day', async () => {
+  const today = '2026-09-10';
+  const service = new LeaderboardService(fakePlatform({
+    getEntries: async (name) => {
+      assert.equal(name, 'dailyfastest');
+      return [
+        { rank: 1, score: encodeDailyLeaderboardScore(today, 90_000), playerId: 'a', publicName: 'Fast' },
+        { rank: 2, score: encodeDailyLeaderboardScore(today, 125_000), playerId: 'b', publicName: 'Slow' },
+        { rank: 3, score: encodeDailyLeaderboardScore('2026-09-09', 30_000), playerId: 'old', publicName: 'Old' },
+      ];
+    },
+  }));
+
+  assert.deepEqual(await service.load('daily', today), {
+    status: 'ready', authorized: false,
+    entries: [
+      { rank: 1, value: 90_000, publicName: 'Fast' },
+      { rank: 2, value: 125_000, publicName: 'Slow' },
+    ],
+    playerEntry: null,
+  });
+});
+
+test('Daily load requires a current daily id', async () => {
+  const service = new LeaderboardService(fakePlatform());
+  assert.deepEqual(await service.load('daily'), {
+    status: 'error', authorized: false, entries: [], playerEntry: null,
+  });
 });
 
 test('unavailable leaderboard returns unavailable without reading entries', async () => {
   let reads = 0;
   const service = new LeaderboardService(fakePlatform({
     available: false,
-    getEntries: async () => {
-      reads += 1;
-      return [];
-    },
-    getPlayerEntry: async () => {
-      reads += 1;
-      return null;
-    },
+    getEntries: async () => { reads += 1; return []; },
+    getPlayerEntry: async () => { reads += 1; return null; },
   }));
-
-  assert.deepEqual(await service.load('original'), {
-    status: 'unavailable',
-    authorized: false,
-    entries: [],
-    playerEntry: null,
+  assert.deepEqual(await service.load('winnable'), {
+    status: 'unavailable', authorized: false, entries: [], playerEntry: null,
   });
   assert.equal(reads, 0);
 });
 
-test('authorized load also requests and normalizes the player entry', async () => {
-  const calls: string[] = [];
+test('authorized Standard load also normalizes personal streak', async () => {
   const service = new LeaderboardService(fakePlatform({
     authorized: true,
-    getEntries: async (name) => {
-      calls.push(`top:${name}`);
-      return [{ rank: 1, score: 2000, playerId: 'a', publicName: 'Ada' }];
-    },
-    getPlayerEntry: async (name) => {
-      calls.push(`player:${name}`);
-      return { rank: 10, score: 5500, playerId: 'me', publicName: '  Me  ' };
-    },
+    getEntries: async () => [{ rank: 1, score: 15, playerId: 'a', publicName: 'Ada' }],
+    getPlayerEntry: async () => ({ rank: 8, score: 5, playerId: 'me', publicName: ' Me ' }),
   }));
-
-  assert.deepEqual(await service.load('original'), {
-    status: 'ready',
-    authorized: true,
-    entries: [{ rank: 1, scoreMs: 2000, publicName: 'Ada' }],
-    playerEntry: { rank: 10, scoreMs: 5500, publicName: 'Me' },
-  });
-  assert.deepEqual(calls, [
-    'top:classicbesttime',
-    'player:classicbesttime',
-  ]);
-});
-
-test('load turns public network failure into an error result', async () => {
-  const service = new LeaderboardService(fakePlatform({
-    authorized: true,
-    getEntries: async () => {
-      throw new Error('network');
-    },
-  }));
-
   assert.deepEqual(await service.load('winnable'), {
-    status: 'error',
-    authorized: true,
-    entries: [],
-    playerEntry: null,
+    status: 'ready', authorized: true,
+    entries: [{ rank: 1, value: 15, publicName: 'Ada' }],
+    playerEntry: { rank: 8, value: 5, publicName: 'Me' },
   });
 });
 
-test('load preserves public top when personal entry lookup fails', async () => {
+test('authorized Daily load drops a personal entry from another day', async () => {
   const service = new LeaderboardService(fakePlatform({
     authorized: true,
-    getEntries: async () => [
-      { rank: 1, score: 2500, playerId: 'a', publicName: 'Ada' },
-    ],
-    getPlayerEntry: async () => {
-      throw new Error('personal lookup failed');
-    },
+    getEntries: async () => [],
+    getPlayerEntry: async () => ({
+      rank: 1,
+      score: encodeDailyLeaderboardScore('2026-09-09', 60_000),
+      playerId: 'me', publicName: 'Me',
+    }),
   }));
-
-  assert.deepEqual(await service.load('winnable'), {
-    status: 'ready',
-    authorized: true,
-    entries: [{ rank: 1, scoreMs: 2500, publicName: 'Ada' }],
-    playerEntry: null,
-  });
+  const result = await service.load('daily', '2026-09-10');
+  assert.equal(result.status, 'ready');
+  if (result.status === 'ready') assert.equal(result.playerEntry, null);
 });
 
-test('load filters malformed rows and falls back blank public names', async () => {
-  const service = new LeaderboardService(fakePlatform({
-    getEntries: async () => [
-      { rank: 1, score: 2500, playerId: 'a', publicName: '  Ada  ' },
-      { rank: 2, score: 3000, playerId: 'b', publicName: '   ' },
-      { rank: 0, score: 4000, playerId: 'c', publicName: 'Bad rank' },
-      { rank: 1.5, score: 4000, playerId: 'd', publicName: 'Bad rank' },
-      { rank: 2, score: -1, playerId: 'e', publicName: 'Bad score' },
-      { rank: 3, score: Number.NaN, playerId: 'f', publicName: 'Bad score' },
-    ],
+test('load turns public network failure into error and preserves public rows when personal lookup fails', async () => {
+  const failure = new LeaderboardService(fakePlatform({
+    authorized: true,
+    getEntries: async () => { throw new Error('network'); },
   }));
+  assert.equal((await failure.load('winnable')).status, 'error');
 
-  const result = await service.load('winnable');
-  assert.deepEqual(result, {
-    status: 'ready',
-    authorized: false,
-    entries: [
-      { rank: 1, scoreMs: 2500, publicName: 'Ada' },
-      { rank: 2, scoreMs: 3000, publicName: '' },
-    ],
+  const partial = new LeaderboardService(fakePlatform({
+    authorized: true,
+    getEntries: async () => [{ rank: 1, score: 4, playerId: 'a', publicName: 'Ada' }],
+    getPlayerEntry: async () => { throw new Error('personal'); },
+  }));
+  assert.deepEqual(await partial.load('winnable'), {
+    status: 'ready', authorized: true,
+    entries: [{ rank: 1, value: 4, publicName: 'Ada' }],
     playerEntry: null,
   });
 });
 
 test('requestAuthorization delegates to platform auth', async () => {
   let calls = 0;
-  const service = new LeaderboardService(fakePlatform({
-    authorize: async () => {
-      calls += 1;
-      return true;
-    },
-  }));
-
-  assert.equal(service.available, true);
-  assert.equal(service.authorized, false);
+  const service = new LeaderboardService(fakePlatform({ authorize: async () => { calls += 1; return true; } }));
   assert.equal(await service.requestAuthorization(), true);
   assert.equal(calls, 1);
 });
 
-test('syncBest submits when local time is faster than server', async () => {
+test('syncStandardStreak submits only a larger valid local best', async () => {
   const writes: Array<[string, number]> = [];
   const service = new LeaderboardService(fakePlatform({
     authorized: true,
-    getPlayerEntry: async () => ({
-      rank: 10,
-      score: 8000,
-      playerId: 'me',
-      publicName: 'Me',
-    }),
-    setScore: async (name, score) => {
-      writes.push([name, score]);
-    },
+    getPlayerEntry: async () => ({ rank: 3, score: 7, playerId: 'me', publicName: 'Me' }),
+    setScore: async (name, score) => { writes.push([name, score]); },
   }));
-
-  assert.equal(await service.syncBest('winnable', 5000), 'submitted');
-  assert.deepEqual(writes, [['standardbesttime', 5000]]);
+  assert.equal(await service.syncStandardStreak(9), 'submitted');
+  assert.deepEqual(writes, [['standardwinstreak', 9]]);
 });
 
-test('syncBest keeps a faster server score unchanged', async () => {
-  const writes: Array<[string, number]> = [];
-  const service = new LeaderboardService(fakePlatform({
-    authorized: true,
-    getPlayerEntry: async () => ({
-      rank: 4,
-      score: 4000,
-      playerId: 'me',
-      publicName: 'Me',
-    }),
-    setScore: async (name, score) => {
-      writes.push([name, score]);
-    },
-  }));
-
-  assert.equal(await service.syncBest('winnable', 5000), 'unchanged');
-  assert.deepEqual(writes, []);
-});
-
-test('syncBest submits when the authorized player has no server entry', async () => {
-  const writes: Array<[string, number]> = [];
-  const service = new LeaderboardService(fakePlatform({
-    authorized: true,
-    getPlayerEntry: async () => null,
-    setScore: async (name, score) => {
-      writes.push([name, score]);
-    },
-  }));
-
-  assert.equal(await service.syncBest('original', 5000), 'submitted');
-  assert.deepEqual(writes, [['classicbesttime', 5000]]);
-});
-
-test('syncBest skips unauthorized and invalid local best values without reads or writes', async () => {
-  let reads = 0;
+test('syncStandardStreak keeps equal or better server streak unchanged', async () => {
   let writes = 0;
   const service = new LeaderboardService(fakePlatform({
-    authorized: false,
-    getPlayerEntry: async () => {
-      reads += 1;
-      return null;
-    },
-    setScore: async () => {
-      writes += 1;
-    },
+    authorized: true,
+    getPlayerEntry: async () => ({ rank: 1, score: 9, playerId: 'me', publicName: 'Me' }),
+    setScore: async () => { writes += 1; },
   }));
-
-  assert.equal(await service.syncBest('winnable', 5000), 'skipped');
-  assert.equal(await service.syncBest('winnable', undefined), 'skipped');
-  assert.equal(await service.syncBest('winnable', 0), 'skipped');
-  assert.equal(await service.syncBest('winnable', -1), 'skipped');
-  assert.equal(await service.syncBest('winnable', Number.POSITIVE_INFINITY), 'skipped');
-  assert.equal(reads, 0);
+  assert.equal(await service.syncStandardStreak(9), 'unchanged');
+  assert.equal(await service.syncStandardStreak(8), 'unchanged');
   assert.equal(writes, 0);
 });
 
-test('syncBest converts comparison or submission errors into skipped', async () => {
-  const compareFailure = new LeaderboardService(fakePlatform({
+test('syncStandardStreak skips unavailable unauthorized invalid and transport failures', async () => {
+  const unauthorized = new LeaderboardService(fakePlatform({ authorized: false }));
+  assert.equal(await unauthorized.syncStandardStreak(5), 'skipped');
+  const authorized = new LeaderboardService(fakePlatform({ authorized: true }));
+  assert.equal(await authorized.syncStandardStreak(0), 'skipped');
+  assert.equal(await authorized.syncStandardStreak(Number.NaN), 'skipped');
+  const broken = new LeaderboardService(fakePlatform({
     authorized: true,
-    getPlayerEntry: async () => {
-      throw new Error('read failed');
-    },
+    getPlayerEntry: async () => { throw new Error('network'); },
   }));
-  assert.equal(await compareFailure.syncBest('winnable', 5000), 'skipped');
+  assert.equal(await broken.syncStandardStreak(5), 'skipped');
+});
 
-  const writeFailure = new LeaderboardService(fakePlatform({
+test('syncDailyBest submits encoded today score when server has no entry or an older day', async () => {
+  const writes: Array<[string, number]> = [];
+  let entry: Awaited<ReturnType<PlatformServices['leaderboards']['getPlayerEntry']>> = null;
+  const service = new LeaderboardService(fakePlatform({
     authorized: true,
-    getPlayerEntry: async () => null,
-    setScore: async () => {
-      throw new Error('write failed');
-    },
+    getPlayerEntry: async () => entry,
+    setScore: async (name, score) => { writes.push([name, score]); },
   }));
-  assert.equal(await writeFailure.syncBest('winnable', 5000), 'skipped');
+  assert.equal(await service.syncDailyBest('2026-09-10', 123_456), 'submitted');
+  entry = { rank: 1, score: encodeDailyLeaderboardScore('2026-09-09', 30_000), playerId: 'me', publicName: 'Me' };
+  assert.equal(await service.syncDailyBest('2026-09-10', 120_000), 'submitted');
+  assert.deepEqual(writes, [
+    ['dailyfastest', encodeDailyLeaderboardScore('2026-09-10', 123_456)],
+    ['dailyfastest', encodeDailyLeaderboardScore('2026-09-10', 120_000)],
+  ]);
+});
+
+test('syncDailyBest preserves a faster same-day score and rejects future-day overwrite', async () => {
+  let serverScore = encodeDailyLeaderboardScore('2026-09-10', 60_000);
+  const service = new LeaderboardService(fakePlatform({
+    authorized: true,
+    getPlayerEntry: async () => ({ rank: 1, score: serverScore, playerId: 'me', publicName: 'Me' }),
+  }));
+  assert.equal(await service.syncDailyBest('2026-09-10', 90_000), 'unchanged');
+  serverScore = encodeDailyLeaderboardScore('2026-09-11', 500_000);
+  assert.equal(await service.syncDailyBest('2026-09-10', 50_000), 'skipped');
+});
+
+test('syncDailyBest skips invalid, unauthorized and unavailable submissions', async () => {
+  assert.equal(await new LeaderboardService(fakePlatform({ authorized: false })).syncDailyBest('2026-09-10', 60_000), 'skipped');
+  assert.equal(await new LeaderboardService(fakePlatform({ authorized: true })).syncDailyBest('bad-day', 60_000), 'skipped');
+  assert.equal(await new LeaderboardService(fakePlatform({ authorized: true })).syncDailyBest('2026-09-10', 0), 'skipped');
+  assert.equal(await new LeaderboardService(fakePlatform({ available: false, authorized: true })).syncDailyBest('2026-09-10', 60_000), 'skipped');
 });

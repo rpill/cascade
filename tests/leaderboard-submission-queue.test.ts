@@ -6,21 +6,15 @@ test('submission queue serializes writes at least 1100 ms apart', async () => {
   let now = 0;
   const calls: Array<{ name: string; score: number; at: number }> = [];
   const waits: number[] = [];
-
   const queue = new LeaderboardSubmissionQueue(
-    async (name, score) => {
-      calls.push({ name, score, at: now });
-    },
-    async (ms) => {
-      waits.push(ms);
-      now += ms;
-    },
+    async (name, score) => { calls.push({ name, score, at: now }); },
+    async (ms) => { waits.push(ms); now += ms; },
     () => now,
   );
 
   await Promise.all([
-    queue.enqueue('standardbesttime', 5000),
-    queue.enqueue('classicbesttime', 6000),
+    queue.enqueue('standardwinstreak', 5),
+    queue.enqueue('dailyfastest', 20_000_000_000),
   ]);
 
   assert.equal(calls.length, 2);
@@ -29,64 +23,47 @@ test('submission queue serializes writes at least 1100 ms apart', async () => {
   assert.equal(queue.pendingCount, 0);
 });
 
-test('pending writes for one board coalesce to the smallest score', async () => {
+test('pending writes for one descending board coalesce to the largest score', async () => {
   const calls: Array<{ name: string; score: number }> = [];
   const queue = new LeaderboardSubmissionQueue(
-    async (name, score) => {
-      calls.push({ name, score });
-    },
+    async (name, score) => { calls.push({ name, score }); },
     async () => undefined,
     () => 0,
   );
 
-  const first = queue.enqueue('standardbesttime', 7000);
-  const second = queue.enqueue('standardbesttime', 5000);
-  const third = queue.enqueue('standardbesttime', 6000);
-
+  const first = queue.enqueue('standardwinstreak', 7);
+  const second = queue.enqueue('standardwinstreak', 9);
+  const third = queue.enqueue('standardwinstreak', 8);
   await Promise.all([first, second, third]);
 
-  assert.deepEqual(calls, [
-    { name: 'standardbesttime', score: 5000 },
-  ]);
+  assert.deepEqual(calls, [{ name: 'standardwinstreak', score: 9 }]);
   assert.equal(queue.pendingCount, 0);
 });
 
-test('failed board rejects all coalesced waiters and later boards still drain', async () => {
+test('failed board rejects coalesced waiters and later boards still drain', async () => {
   let now = 0;
   const calls: Array<{ name: string; score: number; at: number }> = [];
   const failure = new Error('temporary Yandex failure');
-
   const queue = new LeaderboardSubmissionQueue(
     async (name, score) => {
       calls.push({ name, score, at: now });
-      if (name === 'standardbesttime') {
-        throw failure;
-      }
+      if (name === 'standardwinstreak') throw failure;
     },
-    async (ms) => {
-      now += ms;
-    },
+    async (ms) => { now += ms; },
     () => now,
   );
 
-  const first = queue.enqueue('standardbesttime', 7000);
-  const second = queue.enqueue('standardbesttime', 5000);
-  const later = queue.enqueue('classicbesttime', 6000);
+  const first = queue.enqueue('standardwinstreak', 7);
+  const second = queue.enqueue('standardwinstreak', 9);
+  const later = queue.enqueue('dailyfastest', 20_000_000_000);
+  const [a, b, c] = await Promise.allSettled([first, second, later]);
 
-  const [firstResult, secondResult, laterResult] = await Promise.allSettled([
-    first,
-    second,
-    later,
-  ]);
-
-  assert.equal(firstResult.status, 'rejected');
-  assert.equal(secondResult.status, 'rejected');
-  assert.equal(laterResult.status, 'fulfilled');
-  if (firstResult.status === 'rejected') assert.equal(firstResult.reason, failure);
-  if (secondResult.status === 'rejected') assert.equal(secondResult.reason, failure);
+  assert.equal(a.status, 'rejected');
+  assert.equal(b.status, 'rejected');
+  assert.equal(c.status, 'fulfilled');
   assert.deepEqual(calls.map(({ name, score }) => ({ name, score })), [
-    { name: 'standardbesttime', score: 5000 },
-    { name: 'classicbesttime', score: 6000 },
+    { name: 'standardwinstreak', score: 9 },
+    { name: 'dailyfastest', score: 20_000_000_000 },
   ]);
   assert.ok(calls[1].at - calls[0].at >= 1100);
   assert.equal(queue.pendingCount, 0);
@@ -94,12 +71,10 @@ test('failed board rejects all coalesced waiters and later boards still drain', 
 
 test('queue rejects invalid scores without scheduling a submit', async () => {
   let calls = 0;
-  const queue = new LeaderboardSubmissionQueue(async () => {
-    calls += 1;
-  });
-
-  await assert.rejects(queue.enqueue('standardbesttime', Number.NaN), /finite and non-negative/);
-  await assert.rejects(queue.enqueue('standardbesttime', -1), /finite and non-negative/);
+  const queue = new LeaderboardSubmissionQueue(async () => { calls += 1; });
+  await assert.rejects(queue.enqueue('standardwinstreak', Number.NaN), /finite and positive/);
+  await assert.rejects(queue.enqueue('standardwinstreak', 0), /finite and positive/);
+  await assert.rejects(queue.enqueue('standardwinstreak', -1), /finite and positive/);
   assert.equal(calls, 0);
   assert.equal(queue.pendingCount, 0);
 });

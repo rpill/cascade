@@ -8,6 +8,7 @@ const REFERENCE_HEIGHT = 768;
 const COMPACT_MAX_HEIGHT = 620;
 const STANDARD_HUD_HEIGHT = 56;
 const COMPACT_HUD_HEIGHT = 48;
+const COMPACT_TOP_HUD_HEIGHT = 8;
 
 export type LayoutProfile = 'standard' | 'compact-landscape';
 
@@ -91,16 +92,18 @@ export function calculateViewportLayout(
     ? 'compact-landscape'
     : 'standard';
   const compact = profile === 'compact-landscape';
-  const hudHeight = compact ? COMPACT_HUD_HEIGHT : STANDARD_HUD_HEIGHT;
+  const hudHeight = compact ? COMPACT_TOP_HUD_HEIGHT : STANDARD_HUD_HEIGHT;
   const edgeMargin = clamp(
     compact ? 6 : 14,
     safeWidth * (compact ? 0.012 : 0.018),
     compact ? 12 : 32,
   );
   const boardGap = compact ? 4 : 8;
-  const boardX = insets.left + edgeMargin;
+  const compactLeftRail = 0;
+  const compactRightRail = compact ? clamp(140, safeWidth * 0.17, 176) : 0;
+  const boardX = insets.left + edgeMargin + compactLeftRail;
   const boardY = insets.top + hudHeight + boardGap;
-  const boardRight = width - insets.right - edgeMargin;
+  const boardRight = width - insets.right - edgeMargin - compactRightRail;
   const boardBottom = height - insets.bottom - edgeMargin;
   const boardWidth = Math.max(1, boardRight - boardX);
   const boardHeight = Math.max(1, boardBottom - boardY);
@@ -108,9 +111,12 @@ export function calculateViewportLayout(
   const minimumFoundationGap = compact ? 4 : 12;
   const minimumZoneGap = compact ? 8 : 28;
   const minimumColumnGap = compact ? 6 : 18;
+  const preferredScaleHeight = compact
+    ? safeHeight + (COMPACT_HUD_HEIGHT - COMPACT_TOP_HUD_HEIGHT) + 24
+    : safeHeight;
   const preferredCardWidth = Math.min(
     MAX_CARD_WIDTH,
-    BASE_CARD_WIDTH * (safeHeight / REFERENCE_HEIGHT),
+    BASE_CARD_WIDTH * (preferredScaleHeight / REFERENCE_HEIGHT),
   );
   const widthFitCardWidth = Math.max(
     1,

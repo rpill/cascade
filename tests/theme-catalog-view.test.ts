@@ -28,15 +28,15 @@ const items: ThemeCatalogItemView[] = Array.from({ length: 12 }, (_, index) => (
 }));
 
 test('scrolling collection exposes all 12 items and filters ownership without losing the last item', () => {
-  assert.equal(filterThemeCatalogItems(items, 'collection', 'all').length, 12);
-  assert.deepEqual(filterThemeCatalogItems(items, 'collection', 'mine').map(item=>item.id), ['theme-0', 'theme-4', 'theme-11']);
+  assert.equal(filterThemeCatalogItems(items, 'all').length, 12);
+  assert.deepEqual(filterThemeCatalogItems(items, 'mine').map(item=>item.id), ['theme-0', 'theme-4', 'theme-11']);
 });
 
-test('shop excludes the free base theme while keeping all purchasable themes reachable', () => {
-  const shop=filterThemeCatalogItems(items, 'shop', 'all');
-  assert.equal(shop.length, 11);
-  assert.equal(shop.at(-1)?.id, 'theme-11');
-  assert.equal(filterThemeCatalogItems([], 'shop', 'all').length, 0);
+test('collection keeps purchasable and base themes together', () => {
+  const all = filterThemeCatalogItems(items, 'all');
+  assert.equal(all.length, 12);
+  assert.equal(all[0]?.price, 0);
+  assert.equal(all.at(-1)?.id, 'theme-11');
 });
 
 test('catalog keeps typed buy/equip/retry actions and uses an internal scroll region', () => {

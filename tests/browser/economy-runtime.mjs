@@ -52,8 +52,8 @@ try {
   const page=await pageFor({funded:true});
   assert.match(await page.locator('.main-shell-player-progress').innerText(),/Уровень 4/);
   await page.screenshot({path:'artifacts/economy-home.png',animations:'disabled'});
-  await page.locator('.app-shell-nav-button[data-destination="shop"]').click();
-  await page.screenshot({path:'artifacts/economy-shop.png',animations:'disabled'});
+  await page.locator('.app-shell-nav-button[data-destination="collection"]').click();
+  await page.screenshot({path:'artifacts/economy-collection.png',animations:'disabled'});
   const navy=page.locator('[data-theme-id="navy_study"] .theme-catalog-card-action');
   await navy.click();
   assert.equal((await inspect(page)).state.progression.coins,300);
@@ -63,7 +63,7 @@ try {
   await page.reload();
   await page.waitForFunction(()=>globalThis.__economyGame?.scene.getScene('GameScene')?.activeTheme?.id==='navy_study');
   assert.equal((await inspect(page)).state.progression.coins,300);
-  await page.locator('.app-shell-nav-button[data-destination="shop"]').click();
+  await page.locator('.app-shell-nav-button[data-destination="collection"]').click();
   const burgundy=page.locator('[data-theme-id="burgundy_club"] .theme-catalog-card-action');
   await burgundy.click();
   await burgundy.click();
@@ -115,8 +115,8 @@ try {
     await screen.locator('.app-shell-nav-button[data-destination="collection"]').click();
     await screen.screenshot({path:`artifacts/economy-collection-${width}.png`,animations:'disabled'});
     await assertCatalogActionsReachable(screen);
-    await screen.locator('.app-shell-nav-button[data-destination="shop"]').click();
-    await screen.screenshot({path:`artifacts/economy-shop-${width}.png`,animations:'disabled'});
+    await screen.locator('.app-shell-nav-button[data-destination="collection"]').click();
+    await screen.screenshot({path:`artifacts/economy-collection-${width}.png`,animations:'disabled'});
     await assertCatalogActionsReachable(screen);
     for(const button of await screen.locator('.theme-catalog-card-action').all()) assert.ok(await button.isDisabled());
     await screen.close();

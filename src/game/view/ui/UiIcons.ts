@@ -3,11 +3,12 @@ export type UiIconName =
   | 'restart'
   | 'new-deal'
   | 'home'
+  | 'hint'
   | 'rules'
   | 'settings'
   | 'back';
 
-type GameplayIconName = Extract<UiIconName, 'undo' | 'restart' | 'new-deal' | 'home'>;
+type GameplayIconName = Extract<UiIconName, 'undo' | 'restart' | 'new-deal' | 'home' | 'hint'>;
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -26,6 +27,11 @@ const TABLER_GAMEPLAY_ICONS: Readonly<Record<GameplayIconName, readonly string[]
     'M3.604 7.197l7.138 -3.109a.96 .96 0 0 1 1.27 .527l4.924 11.902a1 1 0 0 1 -.514 1.304l-7.137 3.109a.96 .96 0 0 1 -1.271 -.527l-4.924 -11.903a1 1 0 0 1 .514 -1.304l0 .001',
     'M15 4h1a1 1 0 0 1 1 1v3.5',
     'M20 6c.264 .112 .52 .217 .768 .315a1 1 0 0 1 .53 1.311l-2.298 5.374',
+  ],
+  hint: [
+    'M9 18h6',
+    'M10 22h4',
+    'M8.4 12.5a5 5 0 1 1 7.2 0c-.9 .9-1.4 1.8-1.5 3.5h-4.2c-.1-1.7-.6-2.6-1.5-3.5',
   ],
   home: [
     'M5 12l-2 0l9 -9l9 9l-2 0',
@@ -46,7 +52,7 @@ function path(d: string, strokeWidth = '1.8'): SVGPathElement {
 }
 
 function isGameplayIconName(name: UiIconName): name is GameplayIconName {
-  return name === 'undo' || name === 'restart' || name === 'new-deal' || name === 'home';
+  return name === 'undo' || name === 'restart' || name === 'new-deal' || name === 'home' || name === 'hint';
 }
 
 export function createUiIcon(name: UiIconName): SVGSVGElement {

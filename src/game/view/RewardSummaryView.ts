@@ -1,4 +1,5 @@
 import { t, LocalizationBindings } from '../../localization/Localization.ts';
+import { createCoinInline } from './ui/CoinInline.ts';
 export interface RewardSummaryLine {
   readonly label: string;
   readonly xp: number;
@@ -21,15 +22,26 @@ export function translateRewardLabel(label: string): string {
   return t(label);
 }
 
-function formatRewardValue(xp: number, coins: number): string {
-  const parts: string[] = [];
+function createRewardValueContent(xp: number, coins: number): DocumentFragment {
+  const content = document.createDocumentFragment();
+  let hasPart = false;
+
   if (xp !== 0) {
-    parts.push(`${xp > 0 ? '+' : ''}${xp} XP`);
+    content.append(document.createTextNode(`${xp > 0 ? '+' : ''}${xp} XP`));
+    hasPart = true;
   }
+
   if (coins !== 0) {
-    parts.push(t("{value0}{value1} монет", {value0: coins > 0 ? '+' : '', value1: coins}));
+    if (hasPart) {
+      content.append(document.createTextNode(' · '));
+    }
+    content.append(createCoinInline(`${coins > 0 ? '+' : ''}${coins}`, {
+      className: 'reward-summary-coin-inline',
+      label: t('монет'),
+    }));
   }
-  return parts.join(' · ');
+
+  return content;
 }
 
 export class RewardSummaryView {
@@ -37,12 +49,14 @@ export class RewardSummaryView {
 
   refreshLocalization(): void {
     this.localization.refresh();
+    this.update(this.state);
   }
 
   private readonly root: HTMLElement;
   private readonly total: HTMLParagraphElement;
   private readonly level: HTMLParagraphElement;
   private readonly lines: HTMLDivElement;
+  private state: RewardSummaryState | undefined;
 
   constructor(host: HTMLElement) {
     this.root = document.createElement('section');
@@ -61,6 +75,7 @@ export class RewardSummaryView {
   }
 
   update(reward: RewardSummaryState | undefined): void {
+    this.state = reward;
     this.root.hidden = reward === undefined;
     if (reward === undefined) {
       return;
@@ -74,16 +89,24 @@ export class RewardSummaryView {
       return;
     }
 
-    this.localization.text(this.total, () => formatRewardValue(reward.xp, reward.coins) || t('Без повторной награды'));
-    this.localization.text(this.level, () => t("Уровень {value0}", {value0: Math.max(1, Math.floor(reward.level))}));
+    if (reward.xp === 0 && reward.coins === 0) {
+      this.total.textContent = t('Без повторной награды');
+    } else {
+      this.total.replaceChildren(createRewardValueContent(reward.xp, reward.coins));
+    }
+    this.level.textContent = t("Уровень {value0}", {value0: Math.max(1, Math.floor(reward.level))});
     this.lines.replaceChildren(...reward.lines.map((line) => {
       const row = document.createElement('div');
       row.className = 'reward-summary-line';
       const label = document.createElement('span');
-      this.localization.text(label, () => translateRewardLabel(line.label));
+      label.textContent = translateRewardLabel(line.label);
       const value = document.createElement('span');
       value.className = 'reward-summary-line-value';
-      this.localization.text(value, () => formatRewardValue(line.xp, line.coins) || '—');
+      if (line.xp === 0 && line.coins === 0) {
+        value.textContent = '—';
+      } else {
+        value.replaceChildren(createRewardValueContent(line.xp, line.coins));
+      }
       row.append(label, value);
       return row;
     }));

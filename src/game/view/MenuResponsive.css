@@ -24,18 +24,20 @@
   .app-shell-topbar, .app-shell-surface { width: min(820px, 100%); }
   .app-shell-topbar { min-height: 44px; padding: 0 4px 4px; }
   .app-shell-surface { padding: 0 20px 12px; }
-  .main-shell-play { padding-top: 10px; gap: 10px; }
+  .main-shell-play { --play-content-width: 580px; padding-top: 10px; gap: 10px; }
   .main-shell-mode-grid { height: 100%; max-height: 250px; gap: 14px; }
   .main-shell-mode-card {
     height: 100%;
     min-height: 0;
     padding: 10px 10px 18px;
   }
-  .main-shell-mode-emblem { width: 25px; height: 25px; margin-bottom: 3px; flex-shrink: 0; }
+  .main-shell-mode-emblem { width: 40px; height: 40px; margin-bottom: 3px; flex-shrink: 0; }
   .main-shell-mode-title { min-height: 24px; font-size: 13px; margin-bottom: 3px; }
   .main-shell-mode-copy { min-height: 21px; font-size: 10px; }
-  .main-shell-daily-progress { min-height: 25px; margin: 2px 0 4px; gap: 3px; }
-  .main-shell-mode-play { min-height: 36px; flex-shrink: 0; }
+  .main-shell-daily-progress { min-height: 30px; margin: 2px 0 4px; gap: 4px; }
+  .main-shell-daily-dots { gap: 5px; }
+  .main-shell-daily-dot { width: 11px; height: 11px; }
+  .main-shell-mode-play { min-width: 118px; min-height: 44px; flex-shrink: 0; }
   .main-shell-play-footer { margin-top: 0; min-height: 45px; }
   .main-shell-player-progress { padding: 6px 9px; gap: 5px 8px; min-height: 45px; }
   .main-shell-player-level, .main-shell-player-xp { font-size: 10px; }
@@ -77,16 +79,17 @@
   .app-shell-utilities { grid-column: 2; grid-row: 2; gap: 7px; }
   .app-shell-utility { width: 40px; height: 40px; padding: 9px; }
   .app-shell-wallet { min-height: 36px; padding: 0 9px; font-size: 11px; }
+  .app-shell-wallet-add { width: 36px; min-width: 36px; min-height: 36px; font-size: 20px; }
   .app-shell-surface { height: auto; padding: 0 12px 14px; border-radius: 13px; }
   .app-shell-surface::before { inset: 4px; background-size: 26px 26px; }
   .app-shell-surface::after { inset: 4px; border-radius: 9px; }
   .app-shell-nav { gap: 0; justify-content: space-between; min-height: 44px; }
   .app-shell-nav-button { font-size: 10px; height: 44px; min-height: 44px; letter-spacing: 0; padding: 0 2px; }
   .main-shell-play { padding-top: 12px; gap: 12px; }
-  .main-shell-mode-grid { grid-template-columns: 1fr; grid-template-rows: repeat(3, minmax(0, 1fr)); height: 100%; gap: 10px; }
+  .main-shell-mode-grid { grid-template-columns: 1fr; grid-template-rows: repeat(2, minmax(0, 1fr)); height: 100%; gap: 10px; }
   .main-shell-mode-card {
     display: grid;
-    grid-template-columns: 27px minmax(0, 1fr) 68px;
+    grid-template-columns: 40px minmax(0, 1fr) 88px;
     grid-template-rows: auto auto;
     column-gap: 7px;
     row-gap: 4px;
@@ -97,14 +100,14 @@
     border-radius: 10px;
   }
   .main-shell-mode-card::after { inset: 4px; background-size: 22px 22px; }
-  .main-shell-mode-emblem { grid-column: 1; grid-row: 1 / -1; width: 24px; height: 28px; margin: 0; }
+  .main-shell-mode-emblem { grid-column: 1; grid-row: 1 / -1; width: 36px; height: 36px; margin: 0; }
   .main-shell-mode-title { grid-column: 2; grid-row: 1; min-height: 0; margin: 0; font-size: 13px; line-height: 1.12; }
   .main-shell-mode-copy { grid-column: 2; grid-row: 2; min-height: 0; margin: 0; font-size: 11px; }
-  .main-shell-mode-play { grid-column: 3; grid-row: 1 / -1; min-width: 0; width: 68px; min-height: 40px; padding: 0 3px; margin: 0; font-size: 11px; letter-spacing: 0; }
+  .main-shell-mode-play { grid-column: 3; grid-row: 1 / -1; min-width: 0; width: 88px; min-height: 44px; padding: 0 6px; margin: 0; font-size: 11px; letter-spacing: 0; }
   .main-shell-mode-card[data-mode='daily'] { grid-template-rows: auto auto auto; }
   .main-shell-daily-progress { grid-column: 2; grid-row: 3; min-height: 0; margin: 3px 0 0; gap: 4px; }
   .main-shell-daily-dots { gap: 4px; }
-  .main-shell-daily-dot { width: 9px; height: 9px; }
+  .main-shell-daily-dot { width: 11px; height: 11px; }
   .main-shell-daily-count { font-size: 10px; }
   .main-shell-play-footer { grid-template-columns: 1fr; gap: 8px; margin-top: 0; }
   .main-shell-player-progress { padding: 8px 10px; min-height: 54px; gap: 6px 8px; }

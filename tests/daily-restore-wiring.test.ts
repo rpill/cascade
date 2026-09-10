@@ -92,7 +92,7 @@ test('Daily checkpoint lifecycle covers menu visibility pagehide and completion 
   assert.match(scene, /handlePageHide[^]*attemptTimer\.pause[^]*checkpointActiveGame/);
   const finish = extractMethod(scene, 'finishDailyAttempt');
   assert.match(finish, /const recorded\s*=\s*this\.dispatchMeta\(event\)/);
-  assert.match(finish, /if \(recorded\) this\.activeGameRepository\.clear\(\)/);
+  assert.match(finish, /if \(recorded\) \{[^]*this\.activeGameRepository\.clear\(\)/);
   assertOrdered(finish, 'this.dispatchMeta(event)', 'this.activeGameRepository.clear()');
   assert.doesNotMatch(scene, /dailyTimer|dailyAttemptStarted/);
 });

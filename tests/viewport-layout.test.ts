@@ -115,3 +115,22 @@ test('wide screens keep tableau gaps bounded instead of stretching edge-to-edge'
     assert.ok(layout.tableauColumnGap <= layout.cardWidth * 0.4 + 1e-9);
   }
 });
+
+
+test('compact landscape reserves side rails for controls and increases card size after removing the top HUD bar', () => {
+  const phone = calculateViewportLayout(844, 390);
+  assert.equal(phone.profile, 'compact-landscape');
+  assert.ok(phone.boardBounds.x <= 16);
+  assert.ok(right(phone.boardBounds) <= 692);
+  assert.ok(phone.hudBounds.height <= 12);
+  assert.ok(phone.cardWidth >= 63);
+});
+
+
+test('compact landscape nearly fills the board height with the foundation rail while preserving slim outer margins', () => {
+  const phone = calculateViewportLayout(844, 390);
+  assert.ok(phone.foundationRailBounds.y - phone.boardBounds.y <= 1e-9);
+  assert.ok(bottom(phone.boardBounds) - bottom(phone.foundationRailBounds) <= 1e-9);
+  assert.ok(phone.boardBounds.y >= 10);
+  assert.ok(phone.viewportHeight - bottom(phone.boardBounds) >= 8);
+});

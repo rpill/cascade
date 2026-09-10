@@ -51,9 +51,11 @@ export function completeRewardedAttempt(state: MetaSave, event: CompletionEvent)
     if (next.stats[event.mode].played <= next.stats[event.mode].wins) next = beginModeAttempt(next,event.mode);
     next = completeModeAttempt(next,event.mode,event.elapsedMs).state;
     if (event.mode === 'winnable') {
+      const current = next.standardWinStreak.current + 1;
       next = {
         ...next,
         standardDifficulty: { ...next.standardDifficulty, failureStreak: 0 },
+        standardWinStreak: { current, best: Math.max(next.standardWinStreak.best, current) },
       };
     }
   }
@@ -102,6 +104,7 @@ export function applyMetaOperation(state: MetaSave, event: MetaOperation): MetaS
           ...state.standardDifficulty,
           failureStreak: Math.min(3, state.standardDifficulty.failureStreak + 1) as 0 | 1 | 2 | 3,
         },
+        standardWinStreak: { ...state.standardWinStreak, current: 0 },
       };
     }
     case 'complete': return completeRewardedAttempt(state,event).state;

@@ -56,7 +56,7 @@ async function settled(page) {
 }
 try {
   const failed=await createPage({failRead:true});
-  await failed.locator('.app-shell-nav-button[data-destination="shop"]').click();
+  await failed.locator('.app-shell-nav-button[data-destination="collection"]').click();
   assert.match(await failed.locator('.theme-catalog-status').innerText(),/Не удалось загрузить/);
   assert.equal(await failed.evaluate(()=>window.__writes),0);
   await failed.evaluate(()=>window.__readFails=false);
@@ -82,7 +82,7 @@ try {
     window.__writeFails=true;
     sessionStorage.setItem('test-write-fails','true');
   });
-  await offline.locator('.app-shell-nav-button[data-destination="shop"]').click();
+  await offline.locator('.app-shell-nav-button[data-destination="collection"]').click();
   const offlineNavy=offline.locator('[data-theme-id="navy_study"] .theme-catalog-card-action');
   await offlineNavy.click();
   await offline.waitForFunction(()=>globalThis.__economyGame.scene.getScene('GameScene').metaSession.saveError);
@@ -96,7 +96,7 @@ try {
     return s?.metaSession?.saveError&&s.activeTheme.id==='navy_study';
   });
   assert.equal(await offline.evaluate(()=>globalThis.__economyGame.scene.getScene('GameScene').metaState.progression.coins),300);
-  await offline.locator('.app-shell-nav-button[data-destination="shop"]').click();
+  await offline.locator('.app-shell-nav-button[data-destination="collection"]').click();
   await offline.evaluate(()=>{
     window.__writeFails=false;
     sessionStorage.removeItem('test-write-fails');
@@ -147,7 +147,7 @@ try {
   assert.match(await daily.locator('.daily-complete-dom:not([hidden]) .reward-summary-total').innerText(),/начисляются/);
   await daily.evaluate(()=>Storage.prototype.setItem=window.__originalSetItem);
   await daily.locator('.daily-complete-menu').click();
-  await daily.locator('.app-shell-nav-button[data-destination="shop"]').click();
+  await daily.locator('.app-shell-nav-button[data-destination="collection"]').click();
   await daily.locator('.theme-catalog-retry').click();
   assert.equal(await daily.evaluate(()=>globalThis.__economyGame.scene.getScene('GameScene').metaState.progression.coins),910);
   await daily.close();

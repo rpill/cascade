@@ -33,6 +33,10 @@ function formatDuration(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+function formatLeaderboardValue(mode: OrdinaryGameMode, value: number): string {
+  return mode === 'winnable' ? t('Серия: {count}', { count: value }) : formatDuration(value);
+}
+
 export class LeaderboardView {
   private readonly localization = new LocalizationBindings();
 
@@ -181,7 +185,7 @@ export class LeaderboardView {
 
     this.setStatus('');
     for (const entry of state.entries.slice(0, 10)) {
-      this.list.append(this.createLeaderboardRow(entry));
+      this.list.append(this.createLeaderboardRow(entry, state.mode));
     }
   }
 
@@ -191,7 +195,7 @@ export class LeaderboardView {
       this.playerResult.hidden = false;
       this.localization.text(this.playerResult, () => state.playerEntry === null
         ? t('Ваш результат: пока нет результата')
-        : t("Ваш результат: {value0} место · {value1}", {value0: state.playerEntry.rank, value1: formatDuration(state.playerEntry.scoreMs)}));
+        : t("Ваш результат: {value0} место · {value1}", {value0: state.playerEntry.rank, value1: formatLeaderboardValue(state.mode, state.playerEntry.value)}));
       return;
     }
 
@@ -210,7 +214,7 @@ export class LeaderboardView {
     this.localization.text(this.authButton, () => state.authPending ? t('Вход…') : t('ВОЙТИ'));
   }
 
-  private createLeaderboardRow(entry: LeaderboardRow): HTMLDivElement {
+  private createLeaderboardRow(entry: LeaderboardRow, mode: OrdinaryGameMode): HTMLDivElement {
     const row = document.createElement('div');
     row.className = 'leaderboard-row';
 
@@ -224,7 +228,7 @@ export class LeaderboardView {
 
     const time = document.createElement('span');
     time.className = 'leaderboard-time';
-    this.localization.text(time, () => formatDuration(entry.scoreMs));
+    this.localization.text(time, () => formatLeaderboardValue(mode, entry.value));
 
     row.append(rank, name, time);
     return row;

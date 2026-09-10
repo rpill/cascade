@@ -1,7 +1,7 @@
 import type { StandardTier } from '../game/model/VerifiedDealCatalog.ts';
 import { DEFAULT_THEME_ID, isThemeId } from '../theme/ThemeRegistry.ts';
 
-export const META_SAVE_VERSION = 4 as const;
+export const META_SAVE_VERSION = 5 as const;
 export const DAILY_ALGORITHM_VERSION = 2 as const;
 export const WEEKLY_MILESTONES = [3, 5, 7] as const;
 
@@ -87,7 +87,17 @@ export interface MetaSaveV4 extends Omit<MetaSaveV3, 'version'> {
   standardDifficulty: StandardDifficultyState;
 }
 
-export type MetaSave = MetaSaveV4;
+export interface StandardWinStreakState {
+  current: number;
+  best: number;
+}
+
+export interface MetaSaveV5 extends Omit<MetaSaveV4, 'version'> {
+  version: 5;
+  standardWinStreak: StandardWinStreakState;
+}
+
+export type MetaSave = MetaSaveV5;
 export const MAX_ECONOMY_VALUE = 1_000_000_000;
 
 export function normalizeProgression(raw: unknown): ProgressionState {
@@ -146,6 +156,17 @@ function createDefaultModeStats(): ModeStats {
   return { played: 0, wins: 0 };
 }
 
+export function normalizeStandardWinStreak(raw: unknown): StandardWinStreakState {
+  const value = isObject(raw) ? raw : {};
+  const current = Number.isSafeInteger(value.current) && (value.current as number) >= 0
+    ? value.current as number
+    : 0;
+  const rawBest = Number.isSafeInteger(value.best) && (value.best as number) >= 0
+    ? value.best as number
+    : 0;
+  return { current, best: Math.max(current, rawBest) };
+}
+
 export function createDefaultMetaSave(): MetaSave {
   return {
     version: META_SAVE_VERSION,
@@ -157,6 +178,7 @@ export function createDefaultMetaSave(): MetaSave {
     equipped: { cardBack: '', table: '', theme: DEFAULT_THEME_ID },
     progression: normalizeProgression(null),
     standardDifficulty: normalizeStandardDifficulty(null),
+    standardWinStreak: normalizeStandardWinStreak(null),
     achievements: [],
     stats: {
       original: createDefaultModeStats(),
@@ -314,7 +336,7 @@ export function normalizeMetaSave(raw: unknown): MetaSave {
     });
   }
 
-  if (raw.version !== 2 && raw.version !== 3 && raw.version !== META_SAVE_VERSION) return fallback;
+  if (raw.version !== 2 && raw.version !== 3 && raw.version !== 4 && raw.version !== META_SAVE_VERSION) return fallback;
 
   const stats = isObject(raw.stats) ? raw.stats : {};
   const collection = normalizeCollection(raw.collection);
@@ -328,7 +350,8 @@ export function normalizeMetaSave(raw: unknown): MetaSave {
     collection,
     equipped,
     progression: normalizeProgression(raw.version === 2 ? null : raw.progression),
-    standardDifficulty: normalizeStandardDifficulty(raw.version === 4 ? raw.standardDifficulty : null),
+    standardDifficulty: normalizeStandardDifficulty(raw.version === 4 || raw.version === 5 ? raw.standardDifficulty : null),
+    standardWinStreak: normalizeStandardWinStreak(raw.version === 5 ? raw.standardWinStreak : null),
     achievements: uniqueStrings(raw.achievements),
     stats: {
       original: normalizeModeStats(stats.original),

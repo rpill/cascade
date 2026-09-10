@@ -47,7 +47,7 @@ try {
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('switch',{name:'Sound',exact:true}).click();
   await expectMute(page,true);
-  await page.locator('.settings-language').selectOption('ru');
+  await page.locator('.settings-language-option[data-language="ru"]').click();
   assert.match(await page.locator('.settings-title').innerText(),/Настройки/);
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('.settings-dialog').isVisible(),false);
@@ -65,7 +65,7 @@ try {
   await page.locator('.app-shell-nav-button[data-destination="collection"]').click();
   const before=await snapshot(page);
   await page.getByRole('button',{name:'Настройки',exact:true}).click();
-  await page.locator('.settings-language').selectOption('en');
+  await page.locator('.settings-language-option[data-language="en"]').click();
   await page.getByRole('switch',{name:'Sound',exact:true}).click();
   await expectMute(page,false);
   await page.evaluate(()=>window.__platformEvents.game_api_pause.forEach(callback=>callback()));

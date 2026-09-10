@@ -1,15 +1,18 @@
 import { t, LocalizationBindings } from '../../localization/Localization.ts';
+import { hasGlobalLeaderboard, type StatisticsMode } from '../../leaderboards/LeaderboardConfig.ts';
 import type { LeaderboardRow } from '../../leaderboards/LeaderboardService.ts';
-import type { OrdinaryGameMode } from '../../meta/GameStats.ts';
 
 export interface StatisticsPageModeState {
   readonly played: number;
   readonly wins: number;
   readonly bestTimeMs: number | null;
+  readonly bestWinStreak?: number;
+  readonly dailyId?: string | null;
+  readonly completed?: boolean;
 }
 
 export interface StatisticsPageLeaderboardState {
-  readonly status: 'loading' | 'ready' | 'unavailable' | 'error';
+  readonly status: 'loading' | 'ready' | 'unavailable' | 'error' | 'disabled';
   readonly entries: readonly LeaderboardRow[];
   readonly authorized: boolean;
   readonly playerEntry: LeaderboardRow | null;
@@ -19,24 +22,30 @@ export interface StatisticsPageLeaderboardState {
 }
 
 export interface StatisticsPageState {
-  readonly mode: OrdinaryGameMode;
+  readonly mode: StatisticsMode;
   readonly statistics: {
     readonly winnable: StatisticsPageModeState;
     readonly original: StatisticsPageModeState;
+    readonly daily: StatisticsPageModeState;
   };
   readonly leaderboard: StatisticsPageLeaderboardState;
 }
 
 export interface StatisticsPageActions {
-  readonly selectMode: (mode: OrdinaryGameMode) => void;
+  readonly selectMode: (mode: StatisticsMode) => void;
   readonly authorize: () => void;
 }
 
-interface StatisticValueElements {
-  readonly played: HTMLSpanElement;
-  readonly wins: HTMLSpanElement;
-  readonly winRate: HTMLSpanElement;
-  readonly best: HTMLSpanElement;
+interface StatisticElement {
+  readonly label: HTMLSpanElement;
+  readonly value: HTMLSpanElement;
+}
+
+interface StatisticElements {
+  readonly first: StatisticElement;
+  readonly second: StatisticElement;
+  readonly third: StatisticElement;
+  readonly fourth: StatisticElement;
 }
 
 function formatDuration(ms: number): string {
@@ -54,19 +63,18 @@ function getWinRate(state: StatisticsPageModeState): number {
   return state.played === 0 ? 0 : Math.round((state.wins / state.played) * 100);
 }
 
+function formatStreak(value: number): string {
+  return t('Серия: {count}', { count: value });
+}
+
 export class StatisticsPageView {
   private readonly localization = new LocalizationBindings();
-
-  refreshLocalization(): void {
-    this.localization.refresh();
-  }
-
   private readonly actions: StatisticsPageActions;
   private readonly root: HTMLElement;
-  private readonly standardTab: HTMLButtonElement;
-  private readonly classicTab: HTMLButtonElement;
+  private readonly gameTab: HTMLButtonElement;
+  private readonly dailyTab: HTMLButtonElement;
   private readonly statsTitle: HTMLHeadingElement;
-  private readonly statsValues: StatisticValueElements;
+  private readonly statsValues: StatisticElements;
   private readonly leaderboardPane: HTMLElement;
   private readonly leaderboardTitle: HTMLHeadingElement;
   private readonly leaderboardStatus: HTMLDivElement;
@@ -84,9 +92,9 @@ export class StatisticsPageView {
 
     const modeTabs = document.createElement('div');
     modeTabs.className = 'main-shell-statistics-tabs';
-    this.standardTab = this.createModeTab('СТАНДАРТ', 'winnable');
-    this.classicTab = this.createModeTab('КЛАССИКА', 'original');
-    modeTabs.append(this.standardTab, this.classicTab);
+    this.gameTab = this.createModeTab('ИГРА', 'winnable');
+    this.dailyTab = this.createModeTab('ЕЖЕДНЕВНЫЕ', 'daily');
+    modeTabs.append(this.gameTab, this.dailyTab);
 
     const summary = document.createElement('section');
     summary.className = 'main-shell-statistics-summary';
@@ -96,16 +104,16 @@ export class StatisticsPageView {
 
     const statRows = document.createElement('div');
     statRows.className = 'main-shell-statistics-values';
-    const played = this.createStatRow('Сыграно');
-    const wins = this.createStatRow('Побед');
-    const winRate = this.createStatRow('Процент побед');
-    const best = this.createStatRow('Лучшее время');
-    statRows.append(played.row, wins.row, winRate.row, best.row);
+    const first = this.createStatRow();
+    const second = this.createStatRow();
+    const third = this.createStatRow();
+    const fourth = this.createStatRow();
+    statRows.append(first.row, second.row, third.row, fourth.row);
     this.statsValues = {
-      played: played.value,
-      wins: wins.value,
-      winRate: winRate.value,
-      best: best.value,
+      first: first.element,
+      second: second.element,
+      third: third.element,
+      fourth: fourth.element,
     };
     summary.append(this.statsTitle, statRows);
 
@@ -113,7 +121,6 @@ export class StatisticsPageView {
     this.leaderboardPane.className = 'main-shell-statistics-leaderboard';
     this.leaderboardTitle = document.createElement('h2');
     this.leaderboardTitle.className = 'main-shell-statistics-title main-shell-statistics-leaderboard-title';
-    this.localization.text(this.leaderboardTitle, () => t('ТАБЛИЦА ЛИДЕРОВ'));
     this.leaderboardTitle.tabIndex = -1;
 
     this.leaderboardStatus = document.createElement('div');
@@ -153,6 +160,10 @@ export class StatisticsPageView {
     this.hide();
   }
 
+  refreshLocalization(): void {
+    this.localization.refresh();
+  }
+
   show(state: StatisticsPageState, focusLeaderboard = false): void {
     this.root.hidden = false;
     this.update(state);
@@ -161,8 +172,8 @@ export class StatisticsPageView {
 
   update(state: StatisticsPageState): void {
     this.updateTabs(state.mode);
-    this.updateStats(state.statistics[state.mode]);
-    this.renderLeaderboard(state.leaderboard);
+    this.updateStats(state.mode, state.statistics[state.mode]);
+    this.renderLeaderboard(state.mode, state.leaderboard);
   }
 
   focusLeaderboard(): void {
@@ -178,7 +189,7 @@ export class StatisticsPageView {
     this.root.remove();
   }
 
-  private createModeTab(label: string, mode: OrdinaryGameMode): HTMLButtonElement {
+  private createModeTab(label: string, mode: StatisticsMode): HTMLButtonElement {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'main-shell-statistics-tab';
@@ -187,38 +198,73 @@ export class StatisticsPageView {
     return button;
   }
 
-  private createStatRow(labelText: string): {
-    row: HTMLDivElement;
-    value: HTMLSpanElement;
-  } {
+  private createStatRow(): { row: HTMLDivElement; element: StatisticElement } {
     const row = document.createElement('div');
     row.className = 'main-shell-statistics-row';
     const label = document.createElement('span');
-    this.localization.text(label, () => t(labelText));
     const value = document.createElement('span');
     value.className = 'main-shell-statistics-value';
     row.append(label, value);
-    return { row, value };
+    return { row, element: { label, value } };
   }
 
-  private updateTabs(mode: OrdinaryGameMode): void {
-    const standard = mode === 'winnable';
-    this.standardTab.classList.toggle('is-active', standard);
-    this.classicTab.classList.toggle('is-active', !standard);
-    this.standardTab.setAttribute('aria-pressed', String(standard));
-    this.classicTab.setAttribute('aria-pressed', String(!standard));
+  private setStat(element: StatisticElement, label: string, value: string): void {
+    this.localization.text(element.label, () => t(label));
+    this.localization.text(element.value, () => t(value));
   }
 
-  private updateStats(state: StatisticsPageModeState): void {
-    this.localization.text(this.statsValues.played, () => String(state.played));
-    this.localization.text(this.statsValues.wins, () => String(state.wins));
-    this.localization.text(this.statsValues.winRate, () => `${getWinRate(state)}%`);
-    this.localization.text(this.statsValues.best, () => formatBest(state.bestTimeMs));
+  private updateTabs(mode: StatisticsMode): void {
+    const tabs: ReadonlyArray<[HTMLButtonElement, StatisticsMode]> = [
+      [this.gameTab, 'winnable'],
+      [this.dailyTab, 'daily'],
+    ];
+    for (const [tab, tabMode] of tabs) {
+      const selected = mode === tabMode;
+      tab.classList.toggle('is-active', selected);
+      tab.setAttribute('aria-pressed', String(selected));
+    }
   }
 
-  private renderLeaderboard(state: StatisticsPageLeaderboardState): void {
+  private updateStats(mode: StatisticsMode, state: StatisticsPageModeState): void {
+    if (mode === 'daily') {
+      this.setStat(this.statsValues.first, 'Попыток сегодня', String(state.played));
+      this.setStat(this.statsValues.second, 'Статус', state.completed ? 'пройдено' : 'не пройдено');
+      this.setStat(this.statsValues.third, 'Лучшее время', formatBest(state.bestTimeMs));
+      this.setStat(this.statsValues.fourth, 'Дата', state.dailyId ?? '—');
+      return;
+    }
+
+    this.setStat(this.statsValues.first, 'Сыграно', String(state.played));
+    this.setStat(this.statsValues.second, 'Побед', String(state.wins));
+    this.setStat(this.statsValues.third, 'Процент побед', `${getWinRate(state)}%`);
+    if (mode === 'winnable') {
+      this.setStat(this.statsValues.fourth, 'Лучшая серия', String(state.bestWinStreak ?? 0));
+    } else {
+      this.setStat(this.statsValues.fourth, 'Лучшее время', formatBest(state.bestTimeMs));
+    }
+  }
+
+  private renderLeaderboard(mode: StatisticsMode, state: StatisticsPageLeaderboardState): void {
     this.leaderboardList.replaceChildren();
+    if (!hasGlobalLeaderboard(mode)) {
+      this.leaderboardList.hidden = true;
+      this.playerResult.hidden = true;
+      this.authBlock.hidden = true;
+      return;
+    }
 
+    this.localization.text(this.leaderboardTitle, () => t(
+      mode === 'daily' ? 'СЕГОДНЯШНИЙ РЕЙТИНГ' : 'ЛУЧШИЕ СЕРИИ',
+    ));
+
+    if (state.status === 'disabled') {
+      this.leaderboardList.hidden = true;
+      this.playerResult.hidden = true;
+      this.authBlock.hidden = true;
+      return;
+    }
+
+    this.leaderboardList.hidden = false;
     if (state.status === 'loading') {
       this.setStatus('Загрузка…');
     } else if (state.status === 'unavailable') {
@@ -230,7 +276,7 @@ export class StatisticsPageView {
     } else {
       this.setStatus('');
       for (const entry of state.entries.slice(0, 10)) {
-        this.leaderboardList.append(this.createLeaderboardRow(entry));
+        this.leaderboardList.append(this.createLeaderboardRow(entry, mode));
       }
     }
 
@@ -239,24 +285,27 @@ export class StatisticsPageView {
       this.playerResult.hidden = false;
       this.localization.text(this.playerResult, () => state.playerEntry === null
         ? t('Ваш результат: пока нет результата')
-        : t("Ваш результат: {value0} место · {value1}", {value0: state.playerEntry.rank, value1: formatDuration(state.playerEntry.scoreMs)}));
+        : t('Ваш результат: {value0} место · {value1}', {
+            value0: state.playerEntry.rank,
+            value1: mode === 'daily' ? formatDuration(state.playerEntry.value) : formatStreak(state.playerEntry.value),
+          }));
       return;
     }
 
     this.playerResult.hidden = true;
     this.authBlock.hidden = false;
     if (!state.authorizationAllowed) {
-      this.localization.text(this.authCopy, () => t('Завершите текущую партию, чтобы войти и сохранить рекорд.'));
+      this.localization.text(this.authCopy, () => t('Завершите текущую партию, чтобы войти и сохранить результат.'));
     } else if (state.message !== undefined) {
       this.localization.text(this.authCopy, () => t(state.message ?? ''));
     } else {
-      this.localization.text(this.authCopy, () => t('Войдите с Яндекс ID, чтобы сохранить рекорд и увидеть своё место в таблице.'));
+      this.localization.text(this.authCopy, () => t('Войдите с Яндекс ID, чтобы сохранить результат и увидеть своё место в таблице.'));
     }
     this.authButton.disabled = state.authPending || !state.authorizationAllowed;
     this.localization.text(this.authButton, () => state.authPending ? t('Вход…') : t('ВОЙТИ'));
   }
 
-  private createLeaderboardRow(entry: LeaderboardRow): HTMLDivElement {
+  private createLeaderboardRow(entry: LeaderboardRow, mode: 'winnable' | 'daily'): HTMLDivElement {
     const row = document.createElement('div');
     row.className = 'main-shell-statistics-leaderboard-row';
 
@@ -268,11 +317,13 @@ export class StatisticsPageView {
     name.className = 'main-shell-statistics-name';
     this.localization.text(name, () => entry.publicName || t('Игрок'));
 
-    const time = document.createElement('span');
-    time.className = 'main-shell-statistics-time';
-    this.localization.text(time, () => formatDuration(entry.scoreMs));
+    const value = document.createElement('span');
+    value.className = 'main-shell-statistics-time';
+    this.localization.text(value, () => mode === 'daily'
+      ? formatDuration(entry.value)
+      : formatStreak(entry.value));
 
-    row.append(rank, name, time);
+    row.append(rank, name, value);
     return row;
   }
 
@@ -283,8 +334,6 @@ export class StatisticsPageView {
 
   private setLeaderboardFocus(focused: boolean): void {
     this.leaderboardPane.classList.toggle('is-focused', focused);
-    if (focused) {
-      this.leaderboardTitle.focus({ preventScroll: true });
-    }
+    if (focused) this.leaderboardTitle.focus({ preventScroll: true });
   }
 }

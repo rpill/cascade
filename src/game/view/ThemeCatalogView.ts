@@ -1,4 +1,5 @@
 import { t } from '../../localization/Localization.ts';
+import { createCoinInline } from './ui/CoinInline.ts';
 export interface ThemeCatalogItemView {
   readonly id: string;
   readonly name: string;
@@ -26,7 +27,6 @@ export interface ThemeCatalogActions {
   readonly retry: () => void;
 }
 
-export type ThemeCatalogDestination = 'collection' | 'shop';
 export type ThemeCatalogFilter = 'all' | 'mine';
 
 const EMPTY_STATE: ThemeCatalogState = {
@@ -38,10 +38,9 @@ const EMPTY_STATE: ThemeCatalogState = {
 
 export function filterThemeCatalogItems(
   items: readonly ThemeCatalogItemView[],
-  destination: ThemeCatalogDestination,
   filter: ThemeCatalogFilter,
 ): readonly ThemeCatalogItemView[] {
-  return items.filter(item => (destination !== 'shop' || item.price > 0) && (filter !== 'mine' || item.owned));
+  return items.filter(item => filter !== 'mine' || item.owned);
 }
 
 export class ThemeCatalogView {
@@ -59,7 +58,6 @@ export class ThemeCatalogView {
   private readonly retryButton: HTMLButtonElement;
   private readonly grid: HTMLDivElement;
   private state: ThemeCatalogState = EMPTY_STATE;
-  private destination: ThemeCatalogDestination = 'collection';
   private filter: ThemeCatalogFilter = 'all';
 
   constructor(host: HTMLElement, actions: ThemeCatalogActions) {
@@ -117,16 +115,10 @@ export class ThemeCatalogView {
 
   }
 
-  show(destination: ThemeCatalogDestination, state: ThemeCatalogState): void {
-    const destinationChanged = destination !== this.destination;
-    this.destination = destination;
+  show(state: ThemeCatalogState): void {
     this.state = state;
-    if (destination === 'shop') {
-      this.filter = 'all';
-    }
     this.root.hidden = false;
     this.render();
-    if (destinationChanged) this.grid.scrollTop = 0;
   }
 
   update(state: ThemeCatalogState): void {
@@ -163,26 +155,21 @@ export class ThemeCatalogView {
     const focusedCard = document.activeElement?.closest<HTMLElement>('.theme-catalog-card');
     const focusedTheme = focusedCard && this.root.contains(focusedCard) ? focusedCard.dataset.themeId : undefined;
     const ownedCount = this.state.items.filter((item) => item.owned).length;
-    const items = filterThemeCatalogItems(this.state.items, this.destination, this.filter);
+    const items = filterThemeCatalogItems(this.state.items, this.filter);
     const scrollTop = this.grid.scrollTop;
 
-    const collection = this.destination === 'collection';
     this.root.setAttribute('aria-label', t('Каталог тем'));
     this.grid.setAttribute('aria-label', t('Темы игрового стола'));
     this.filters.setAttribute('aria-label', t('Фильтр коллекции'));
     this.allFilter.textContent = t('Все');
     this.mineFilter.textContent = t('Мои');
     this.retryButton.textContent = t('ПОВТОРИТЬ');
-    this.root.dataset.destination = this.destination;
-    this.title.textContent = t(collection ? 'КОЛЛЕКЦИЯ' : 'МАГАЗИН');
-    this.subtitle.textContent = collection
-      ? t('Выберите оформление игрового стола')
-      : t('Новые темы доступны за монеты, заработанные в партиях');
-    this.count.textContent = collection
-      ? t('Собрано {owned} из {total}', {owned:ownedCount, total:this.state.items.length})
-      : t('Тем: {count}', {count:items.length});
+    this.root.dataset.destination = 'collection';
+    this.title.textContent = t('КОЛЛЕКЦИЯ');
+    this.subtitle.textContent = t('Выберите оформление игрового стола');
+    this.count.textContent = t('Собрано {owned} из {total}', {owned:ownedCount, total:this.state.items.length});
     this.wallet.textContent = t('{count} монет', {count:Math.max(0, this.state.coins)});
-    this.filters.hidden = !collection;
+    this.filters.hidden = false;
     this.allFilter.classList.toggle('is-active', this.filter === 'all');
     this.mineFilter.classList.toggle('is-active', this.filter === 'mine');
     this.allFilter.setAttribute('aria-pressed', String(this.filter === 'all'));
@@ -262,7 +249,16 @@ export class ThemeCatalogView {
     description.textContent = t(item.description);
     const price = document.createElement('p');
     price.className = 'theme-catalog-card-price';
-    price.textContent = item.price === 0 ? t('Базовая тема') : item.owned ? t('В коллекции') : t('{count} монет', {count:item.price});
+    if (item.price === 0) {
+      price.textContent = t('Базовая тема');
+    } else if (item.owned) {
+      price.textContent = t('В коллекции');
+    } else {
+      price.replaceChildren(createCoinInline(String(item.price), {
+        className: 'theme-catalog-price-coin',
+        label: t('монет'),
+      }));
+    }
     copy.append(name, description, price);
 
     const action = document.createElement('button');
@@ -287,9 +283,17 @@ export class ThemeCatalogView {
       }, { once: true });
     } else {
       const missing = Math.max(0, item.price - this.state.coins);
-      action.textContent = missing > 0
-        ? t('Не хватает {count}', {count:missing})
-        : t('КУПИТЬ · {count}', {count:item.price});
+      if (missing > 0) {
+        action.replaceChildren(
+          document.createTextNode(t('Не хватает ')),
+          createCoinInline(String(missing), { className: 'theme-catalog-action-coin' }),
+        );
+      } else {
+        action.replaceChildren(
+          document.createTextNode(t('КУПИТЬ · ')),
+          createCoinInline(String(item.price), { className: 'theme-catalog-action-coin' }),
+        );
+      }
       action.disabled = controlsDisabled || missing > 0;
       action.addEventListener('click', () => {
         action.disabled = true;

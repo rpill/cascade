@@ -30,7 +30,7 @@ test('economy supports persistent completion, purchases and level progression', 
 
 test('V2 selected theme is grandfathered, balances start at zero and invalid V3 balances normalize', () => {
   const state = normalizeMetaSave({version:2, equipped:{theme:'navy_study'}});
-  assert.equal(state.version, 4);
+  assert.equal(state.version, 5);
   assert.ok(state.collection.ownedThemes.includes('navy_study'));
   assert.ok(state.collection.ownedThemes.includes('walnut_study'));
   assert.equal(state.progression.coins, 0);

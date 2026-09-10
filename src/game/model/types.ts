@@ -28,6 +28,11 @@ export type MoveTarget =
 
 export type Foundations = Record<Suit, Card[]>;
 
+export interface LegalMove {
+  readonly source: CardSource;
+  readonly target: MoveTarget;
+}
+
 export interface SolitaireSnapshot {
   readonly tableau: readonly (readonly Card[])[];
   readonly stock: readonly Card[];

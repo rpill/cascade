@@ -55,10 +55,10 @@ test('old MainMenuView is removed and mode cards start their selected mode immed
   assert.doesNotMatch(shellSource, /ЗАКРЫТЬ/);
 });
 
-test('Play destination exposes balanced Standard Daily Classic cards and player progress', () => {
-  assert.match(playSource, /СТАНДАРТ/);
+test('Play destination exposes Game and Daily cards plus player progress', () => {
+  assert.match(playSource, /ИГРА/);
   assert.match(playSource, /ИСПЫТАНИЕ ДНЯ/);
-  assert.match(playSource, /КЛАССИКА/);
+  assert.doesNotMatch(playSource, /СТАНДАРТ|КЛАССИКА/);
   assert.match(playSource, /main-shell-mode-grid/);
   assert.match(playSource, /main-shell-player-progress/);
   assert.match(playSource, /updateProgression/);

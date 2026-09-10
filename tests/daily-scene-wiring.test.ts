@@ -32,12 +32,13 @@ test('the shared attempt timer only resumes when gameplay is active visible and 
 });
 
 
-test('Daily completion never writes ordinary leaderboards', () => {
+test('Daily completion writes only the Daily leaderboard', () => {
   const start = scene.indexOf('private finishDailyAttempt');
   assert.notEqual(start, -1);
   const next = scene.indexOf('\n  private ', start + 1);
   const dailyFinish = scene.slice(start, next === -1 ? scene.length : next);
-  assert.doesNotMatch(dailyFinish, /leaderboardService|syncBest/);
+  assert.match(dailyFinish, /leaderboardService\?\.syncDailyBest\(/);
+  assert.doesNotMatch(dailyFinish, /syncStandardStreak|syncBest|classicbesttime|standardbesttime/);
 });
 
 test('Daily uses the same platform-aware activity reconciliation as ordinary play', () => {

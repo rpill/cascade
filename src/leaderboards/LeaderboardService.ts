@@ -1,14 +1,18 @@
-import type { OrdinaryGameMode } from '../meta/GameStats.ts';
 import type {
   PlatformLeaderboardEntry,
   PlatformServices,
 } from '../platform/services.ts';
-import { getLeaderboardName } from './LeaderboardConfig.ts';
+import {
+  decodeDailyLeaderboardScore,
+  encodeDailyLeaderboardScore,
+  getLeaderboardName,
+  type GlobalLeaderboardMode,
+} from './LeaderboardConfig.ts';
 import { LeaderboardSubmissionQueue } from './LeaderboardSubmissionQueue.ts';
 
 export interface LeaderboardRow {
   readonly rank: number;
-  readonly scoreMs: number;
+  readonly value: number;
   readonly publicName: string;
 }
 
@@ -32,26 +36,34 @@ export type LeaderboardLoadResult =
       readonly authorized: boolean;
     };
 
-export type LeaderboardSyncResult =
-  | 'submitted'
-  | 'unchanged'
-  | 'skipped';
+export type LeaderboardSyncResult = 'submitted' | 'unchanged' | 'skipped';
 
-function normalizeRow(entry: PlatformLeaderboardEntry): LeaderboardRow | null {
+function validRank(entry: PlatformLeaderboardEntry): boolean {
+  return Number.isInteger(entry.rank) && entry.rank >= 1;
+}
+
+function publicName(entry: PlatformLeaderboardEntry): string {
+  return entry.publicName.trim();
+}
+
+function normalizeStandardRow(entry: PlatformLeaderboardEntry): LeaderboardRow | null {
   if (
-    !Number.isInteger(entry.rank)
-    || entry.rank < 1
-    || !Number.isFinite(entry.score)
-    || entry.score < 0
-  ) {
-    return null;
-  }
+    !validRank(entry)
+    || !Number.isSafeInteger(entry.score)
+    || entry.score <= 0
+  ) return null;
 
-  return {
-    rank: entry.rank,
-    scoreMs: entry.score,
-    publicName: entry.publicName.trim(),
-  };
+  return { rank: entry.rank, value: entry.score, publicName: publicName(entry) };
+}
+
+function normalizeDailyRow(
+  entry: PlatformLeaderboardEntry,
+  dailyId: string,
+): LeaderboardRow | null {
+  if (!validRank(entry)) return null;
+  const decoded = decodeDailyLeaderboardScore(entry.score);
+  if (decoded === null || decoded.dailyId !== dailyId) return null;
+  return { rank: entry.rank, value: decoded.elapsedMs, publicName: publicName(entry) };
 }
 
 export class LeaderboardService {
@@ -77,18 +89,22 @@ export class LeaderboardService {
     return this.platform.auth.requestAuthorization();
   }
 
-  async load(mode: OrdinaryGameMode): Promise<LeaderboardLoadResult> {
+  async load(
+    mode: GlobalLeaderboardMode,
+    dailyId?: string,
+  ): Promise<LeaderboardLoadResult> {
     const authorized = this.authorized;
     if (!this.available) {
-      return {
-        status: 'unavailable',
-        authorized,
-        entries: [],
-        playerEntry: null,
-      };
+      return { status: 'unavailable', authorized, entries: [], playerEntry: null };
+    }
+    if (mode === 'daily' && dailyId === undefined) {
+      return { status: 'error', authorized, entries: [], playerEntry: null };
     }
 
     const technicalName = getLeaderboardName(mode);
+    const normalize = mode === 'winnable'
+      ? normalizeStandardRow
+      : (entry: PlatformLeaderboardEntry) => normalizeDailyRow(entry, dailyId!);
     let entries: LeaderboardRow[];
 
     try {
@@ -97,65 +113,78 @@ export class LeaderboardService {
         { quantityTop: 10 },
       );
       entries = rawEntries
-        .map(normalizeRow)
+        .map(normalize)
         .filter((entry): entry is LeaderboardRow => entry !== null);
     } catch {
-      return {
-        status: 'error',
-        authorized,
-        entries: [],
-        playerEntry: null,
-      };
+      return { status: 'error', authorized, entries: [], playerEntry: null };
     }
 
     if (!authorized) {
-      return {
-        status: 'ready',
-        authorized: false,
-        entries,
-        playerEntry: null,
-      };
+      return { status: 'ready', authorized: false, entries, playerEntry: null };
     }
 
     let playerEntry: LeaderboardRow | null = null;
     try {
       const rawPlayerEntry = await this.platform.leaderboards.getPlayerEntry(technicalName);
-      playerEntry = rawPlayerEntry === null ? null : normalizeRow(rawPlayerEntry);
+      playerEntry = rawPlayerEntry === null ? null : normalize(rawPlayerEntry);
     } catch {
       playerEntry = null;
     }
 
-    return {
-      status: 'ready',
-      authorized: true,
-      entries,
-      playerEntry,
-    };
+    return { status: 'ready', authorized: true, entries, playerEntry };
   }
 
-  async syncBest(
-    mode: OrdinaryGameMode,
-    localBestMs: number | undefined,
-  ): Promise<LeaderboardSyncResult> {
+  async syncStandardStreak(localBestStreak: number): Promise<LeaderboardSyncResult> {
     if (
       !this.available
       || !this.authorized
-      || localBestMs === undefined
-      || !Number.isFinite(localBestMs)
-      || localBestMs <= 0
-    ) {
+      || !Number.isSafeInteger(localBestStreak)
+      || localBestStreak <= 0
+    ) return 'skipped';
+
+    const technicalName = getLeaderboardName('winnable');
+    try {
+      const server = await this.platform.leaderboards.getPlayerEntry(technicalName);
+      if (
+        server !== null
+        && Number.isSafeInteger(server.score)
+        && server.score >= localBestStreak
+      ) return 'unchanged';
+
+      await this.submissions.enqueue(technicalName, localBestStreak);
+      return 'submitted';
+    } catch {
+      return 'skipped';
+    }
+  }
+
+  async syncDailyBest(
+    dailyId: string,
+    localBestMs: number | undefined,
+  ): Promise<LeaderboardSyncResult> {
+    if (!this.available || !this.authorized || localBestMs === undefined) return 'skipped';
+
+    let localScore: number;
+    try {
+      localScore = encodeDailyLeaderboardScore(dailyId, localBestMs);
+    } catch {
       return 'skipped';
     }
 
-    const technicalName = getLeaderboardName(mode);
-
+    const technicalName = getLeaderboardName('daily');
     try {
       const server = await this.platform.leaderboards.getPlayerEntry(technicalName);
-      if (server !== null && server.score <= localBestMs) {
-        return 'unchanged';
+      if (server !== null) {
+        const decoded = decodeDailyLeaderboardScore(server.score);
+        if (
+          decoded !== null
+          && decoded.dailyId === dailyId
+          && decoded.elapsedMs <= Math.round(localBestMs)
+        ) return 'unchanged';
+        if (decoded !== null && decoded.dailyId > dailyId) return 'skipped';
       }
 
-      await this.submissions.enqueue(technicalName, localBestMs);
+      await this.submissions.enqueue(technicalName, localScore);
       return 'submitted';
     } catch {
       return 'skipped';

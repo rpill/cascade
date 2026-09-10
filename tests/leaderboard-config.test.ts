@@ -1,27 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import {
-  getLeaderboardName,
+  DAILY_LEADERBOARD_NAME,
   LEADERBOARD_NAMES,
+  STANDARD_LEADERBOARD_NAME,
+  getLeaderboardName,
+  hasGlobalLeaderboard,
 } from '../src/leaderboards/LeaderboardConfig.ts';
 
-test('ordinary modes map to exact Yandex technical names', () => {
-  assert.equal(LEADERBOARD_NAMES.winnable, 'standardbesttime');
-  assert.equal(LEADERBOARD_NAMES.original, 'classicbesttime');
-  assert.equal(getLeaderboardName('winnable'), 'standardbesttime');
-  assert.equal(getLeaderboardName('original'), 'classicbesttime');
-  assert.match(LEADERBOARD_NAMES.winnable, /^[a-zA-Z0-9]+$/);
-  assert.match(LEADERBOARD_NAMES.original, /^[a-zA-Z0-9]+$/);
-});
-
-test('leaderboard mapping is ordinary-only and has no Daily entry', async () => {
-  assert.equal('daily' in LEADERBOARD_NAMES, false);
-
-  const source = await readFile(
-    new URL('../src/leaderboards/LeaderboardConfig.ts', import.meta.url),
-    'utf8',
-  );
-  assert.match(source, /OrdinaryGameMode/);
-  assert.doesNotMatch(source, /\bdaily\b/i);
+test('Standard and Daily map to exact Yandex technical names while Classic has no board', () => {
+  assert.equal(STANDARD_LEADERBOARD_NAME, 'standardwinstreak');
+  assert.equal(DAILY_LEADERBOARD_NAME, 'dailyfastest');
+  assert.equal(LEADERBOARD_NAMES.winnable, 'standardwinstreak');
+  assert.equal(LEADERBOARD_NAMES.daily, 'dailyfastest');
+  assert.equal(getLeaderboardName('winnable'), 'standardwinstreak');
+  assert.equal(getLeaderboardName('daily'), 'dailyfastest');
+  assert.equal(hasGlobalLeaderboard('winnable'), true);
+  assert.equal(hasGlobalLeaderboard('daily'), true);
+  assert.equal(hasGlobalLeaderboard('original'), false);
+  assert.match(STANDARD_LEADERBOARD_NAME, /^[a-zA-Z0-9]+$/);
+  assert.match(DAILY_LEADERBOARD_NAME, /^[a-zA-Z0-9]+$/);
 });

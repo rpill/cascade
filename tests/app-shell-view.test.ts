@@ -16,13 +16,14 @@ test('hybrid shell exposes one brand, destination nav, utilities, and content ho
   assert.doesNotMatch(shellSource, /ГЛАВНОЕ МЕНЮ/);
 });
 
-test('collection and shop are navigable and the shell exposes a wallet state', () => {
+test('collection is the only cosmetic destination and the wallet exposes purchases', () => {
   assert.match(shellSource, /'collection'/);
-  assert.match(shellSource, /'shop'/);
+  assert.doesNotMatch(shellSource, /'shop'/);
   assert.match(shellSource, /setCoins\(coins: number \| null\)/);
   assert.match(shellSource, /app-shell-wallet/);
+  assert.match(shellSource, /app-shell-wallet-add/);
+  assert.match(shellSource, /actions\.purchases\(\)/);
   assert.doesNotMatch(shellSource, /createNavButton\('collection',[^]*true\)/);
-  assert.doesNotMatch(shellSource, /createNavButton\('shop',[^]*true\)/);
 });
 
 test('shell back-to-game action is compact and contextual', () => {
@@ -44,4 +45,13 @@ test('brand and utilities live on the wood header rather than inside the parchme
   const surfaceAppend = shellSource.match(/surface\.append\(([\s\S]*?)\);/)?.[1] ?? '';
   assert.doesNotMatch(surfaceAppend, /header|brand|utilities/);
   assert.match(shellSource, /topbar\.append\(this\.returnButton, brand, utilities\)/);
+});
+
+
+test('wallet purchase entry point is a single clickable capsule', () => {
+  assert.match(shellSource, /const walletGroup = document\.createElement\('button'\)/);
+  assert.match(shellSource, /walletGroup\.type = 'button'/);
+  assert.match(shellSource, /walletGroup\.className = 'app-shell-wallet-group'/);
+  assert.match(shellSource, /walletGroup\.addEventListener\('click', \(\) => actions\.purchases\(\)\)/);
+  assert.doesNotMatch(shellSource, /const walletAddButton = document\.createElement\('button'\)/);
 });

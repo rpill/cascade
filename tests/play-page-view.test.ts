@@ -7,12 +7,13 @@ const playSource = readFileSync(
   'utf8',
 );
 
-test('Play destination renders Standard Daily Classic through one mode-card helper', () => {
+test('Play destination renders only Game and Daily through one mode-card helper', () => {
   assert.match(playSource, /createModeCard\(/);
   assert.match(playSource, /main-shell-mode-card/);
-  assert.match(playSource, /СТАНДАРТ/);
+  assert.match(playSource, /ИГРА/);
   assert.match(playSource, /ИСПЫТАНИЕ ДНЯ/);
-  assert.match(playSource, /КЛАССИКА/);
+  assert.doesNotMatch(playSource, /СТАНДАРТ|КЛАССИКА/);
+  assert.doesNotMatch(playSource, /createModeCard\('original'/);
 
   const helperDefinitions = playSource.match(/private createModeCard\(/g) ?? [];
   assert.equal(helperDefinitions.length, 1);
@@ -51,7 +52,7 @@ test('Daily card uses a human date and its own seven-day progress row', () => {
 test('mode and footer artwork uses the dedicated Home art-icon layer instead of text glyphs', () => {
   assert.match(playSource, /createModeCard\('winnable',\s*'spade'/);
   assert.match(playSource, /createModeCard\('daily',\s*'crown'/);
-  assert.match(playSource, /createModeCard\('original',\s*'heart'/);
+  assert.doesNotMatch(playSource, /createModeCard\('original'/);
   assert.match(playSource, /emblemNode\.append\(createHomeArtIcon\(icon\)\)/);
   assert.match(playSource, /createHomeArtIcon\('trophy'\)/);
   assert.doesNotMatch(playSource, /'♠'|'♛'|'♥'/);

@@ -135,12 +135,12 @@ test('ordinary completion shows celebratory result and pre-reward progression wi
 });
 
 
-test('ordinary best sync is gated by improvedBest and does not gate local completion', () => {
+test('Standard completion syncs best streak and Classic does not submit a global score', () => {
   const ordinary = extractMethod(scene, 'finishOrdinaryAttempt');
-
-  assert.match(ordinary, /completion\.improvedBest/);
-  assert.match(ordinary, /void this\.leaderboardService\?\.syncBest\(mode, bestTimeMs\)/);
-  assertOrdered(ordinary, 'this.dispatchMeta(event)', 'syncBest(mode, bestTimeMs)');
+  assert.match(ordinary, /recorded && mode === 'winnable'/);
+  assert.match(ordinary, /syncStandardStreak\(this\.metaState\.standardWinStreak\.best\)/);
+  assert.doesNotMatch(ordinary, /syncBest|classicbesttime|standardbesttime/);
+  assertOrdered(ordinary, 'this.dispatchMeta(event)', 'syncStandardStreak(this.metaState.standardWinStreak.best)');
 });
 
 test('ordinary attempt timing uses the shared gameplay activity reconciliation', () => {

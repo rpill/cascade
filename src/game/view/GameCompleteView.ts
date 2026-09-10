@@ -4,6 +4,7 @@ import type Phaser from 'phaser';
 import type { RewardSummaryState } from './RewardSummaryView.ts';
 import { createVictoryProgressSequence, type VictoryProgressStep } from './VictoryProgress.ts';
 import type { SfxCue } from '../../settings/SfxController.ts';
+import { createCoinInline } from './ui/CoinInline.ts';
 
 export interface GameCompleteState {
   readonly completionId: string;
@@ -22,7 +23,20 @@ export interface GameCompleteActions {
 
 const FILL_DURATION_MS = 680;
 const LEVEL_REWARD_DURATION_MS = 780;
-const START_DELAY_MS = 300;
+const START_DELAY_MS = 720;
+const CONFETTI_DURATION_MS = 1900;
+const COIN_SOUND_DELAY_MS = 260;
+
+const VICTORY_WOOD_DETAIL = './assets/theme/fine-grained-wood.jpg';
+const VICTORY_PAPER = './assets/ui/paper-001-color.jpg';
+const VICTORY_CORNER_TL = './assets/ui/ornaments/corners/home-corner-tl.png';
+const VICTORY_CORNER_TR = './assets/ui/ornaments/corners/home-corner-tr.png';
+const VICTORY_CORNER_BR = './assets/ui/ornaments/corners/home-corner-br.png';
+const VICTORY_CORNER_BL = './assets/ui/ornaments/corners/home-corner-bl.png';
+
+function toCssUrl(path: string): string {
+  return `url("${new URL(path, document.baseURI).href}")`;
+}
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(Math.max(0, ms) / 1000);
@@ -31,17 +45,14 @@ function formatDuration(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function getModeLabel(mode: GameCompleteState['mode']): string {
-  return mode === 'winnable' ? t('СТАНДАРТ') : t('КЛАССИКА');
-}
-
 export class GameCompleteView {
   private readonly localization = new LocalizationBindings();
   private readonly root: HTMLDivElement;
-  private readonly mode: HTMLParagraphElement;
   private readonly elapsed: HTMLParagraphElement;
   private readonly record: HTMLParagraphElement;
-  private readonly coins: HTMLParagraphElement;
+  private readonly coins: HTMLDivElement;
+  private readonly coinAmount: HTMLElement;
+  private readonly coinLabel: HTMLSpanElement;
   private readonly progression: HTMLElement;
   private readonly level: HTMLSpanElement;
   private readonly xpTrack: HTMLDivElement;
@@ -58,9 +69,20 @@ export class GameCompleteView {
     this.actions = actions;
     this.root = document.createElement('div');
     this.root.className = 'daily-complete-dom game-complete-dom';
+    this.root.style.setProperty('--victory-wood-detail', toCssUrl(VICTORY_WOOD_DETAIL));
+    this.root.style.setProperty('--victory-paper', toCssUrl(VICTORY_PAPER));
+    this.root.style.setProperty('--victory-corner-tl', toCssUrl(VICTORY_CORNER_TL));
+    this.root.style.setProperty('--victory-corner-tr', toCssUrl(VICTORY_CORNER_TR));
+    this.root.style.setProperty('--victory-corner-br', toCssUrl(VICTORY_CORNER_BR));
+    this.root.style.setProperty('--victory-corner-bl', toCssUrl(VICTORY_CORNER_BL));
 
     const backdrop = document.createElement('div');
     backdrop.className = 'daily-complete-backdrop game-complete-backdrop';
+
+    const confetti = document.createElement('div');
+    confetti.className = 'game-complete-confetti';
+    confetti.setAttribute('aria-hidden', 'true');
+    confetti.append(...Array.from({ length: 18 }, () => document.createElement('span')));
 
     const panel = document.createElement('section');
     panel.className = 'daily-complete-panel game-complete-panel';
@@ -74,17 +96,22 @@ export class GameCompleteView {
     divider.className = 'daily-complete-divider game-complete-divider';
     divider.setAttribute('aria-hidden', 'true');
 
-    this.mode = document.createElement('p');
-    this.mode.className = 'game-complete-mode';
-
     this.elapsed = document.createElement('p');
     this.elapsed.className = 'game-complete-time';
 
     this.record = document.createElement('p');
     this.record.className = 'game-complete-record';
 
-    this.coins = document.createElement('p');
+    this.coins = document.createElement('div');
     this.coins.className = 'game-complete-coins';
+    const coinIcon = document.createElement('span');
+    coinIcon.className = 'game-complete-coin-icon';
+    coinIcon.setAttribute('aria-hidden', 'true');
+    this.coinAmount = document.createElement('strong');
+    this.coinAmount.className = 'game-complete-coin-amount';
+    this.coinLabel = document.createElement('span');
+    this.coinLabel.className = 'game-complete-coin-label';
+    this.coins.append(coinIcon, this.coinAmount, this.coinLabel);
 
     this.progression = document.createElement('section');
     this.progression.className = 'game-complete-progression';
@@ -131,8 +158,8 @@ export class GameCompleteView {
     menuButton.addEventListener('click', () => actions.menu());
 
     buttonRow.append(newGameButton, menuButton);
-    panel.append(title, divider, this.mode, this.elapsed, this.record, this.coins, this.progression, buttonRow);
-    this.root.append(backdrop, panel);
+    panel.append(title, divider, this.elapsed, this.record, this.coins, this.progression, buttonRow);
+    this.root.append(backdrop, confetti, panel);
 
     const host = scene.game.canvas.parentElement;
     if (host === null) {
@@ -154,7 +181,6 @@ export class GameCompleteView {
       this.currentCompletionId = state.completionId;
     }
 
-    this.localization.text(this.mode, () => getModeLabel(state.mode));
     this.elapsed.textContent = formatDuration(state.elapsedMs);
     this.localization.text(this.record, () => state.improvedBest ? t('Новый рекорд') : '');
     this.record.hidden = !state.improvedBest;
@@ -164,9 +190,11 @@ export class GameCompleteView {
     this.coins.hidden = !hasReward;
     this.progression.hidden = !hasReward;
     if (reward !== undefined) {
-      this.coins.textContent = reward.pending
-        ? t('Награды начисляются…')
-        : t('{value0}{value1} монет', { value0: reward.coins > 0 ? '+' : '', value1: reward.coins });
+      this.coins.classList.toggle('is-pending', reward.pending);
+      this.coinAmount.textContent = reward.pending
+        ? '…'
+        : `${reward.coins > 0 ? '+' : ''}${reward.coins}`;
+      this.localization.text(this.coinLabel, () => reward.pending ? t('Награды начисляются…') : t('монет'));
       if (isNewCompletion) {
         this.showInitialProgress(state.totalXpBefore);
       }
@@ -175,7 +203,14 @@ export class GameCompleteView {
     this.root.hidden = false;
     this.root.style.pointerEvents = 'auto';
     if (isNewCompletion) {
+      this.root.classList.remove('is-celebrating');
+      void this.root.offsetWidth;
+      this.root.classList.add('is-celebrating');
       this.actions.sound?.('victory');
+      if (reward !== undefined && !reward.pending && reward.coins > 0) {
+        this.schedule(() => this.actions.sound?.('coin-reward'), COIN_SOUND_DELAY_MS);
+      }
+      this.schedule(() => this.root.classList.remove('is-celebrating'), CONFETTI_DURATION_MS);
     }
 
     if (isNewCompletion && reward !== undefined && reward.xp > 0) {
@@ -189,6 +224,7 @@ export class GameCompleteView {
 
   hide(): void {
     this.cancelAnimation();
+    this.root.classList.remove('is-celebrating');
     this.root.style.pointerEvents = 'none';
     this.root.hidden = true;
   }
@@ -226,7 +262,13 @@ export class GameCompleteView {
     }
 
     this.levelRewardTitle.textContent = t('Новый уровень!');
-    this.levelRewardValue.textContent = t('+{count} монет за уровень', { count: step.coins });
+    this.levelRewardValue.replaceChildren(
+      createCoinInline(`+${step.coins}`, {
+        className: 'game-complete-level-reward-coin',
+        label: t('монет'),
+      }),
+      document.createTextNode(` ${t('за уровень')}`),
+    );
     this.levelReward.hidden = false;
     this.levelReward.classList.add('is-visible');
     this.actions.sound?.('level-up');
@@ -266,5 +308,6 @@ export class GameCompleteView {
   private cancelAnimation(): void {
     this.animationTimers.forEach((timer) => window.clearTimeout(timer));
     this.animationTimers = [];
+    this.root.classList.remove('is-celebrating');
   }
 }

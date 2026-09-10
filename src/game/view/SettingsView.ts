@@ -1,4 +1,4 @@
-import { getLanguage, setLanguage, t } from '../../localization/Localization.ts';
+import { getLanguage, setLanguage, t, type Language } from '../../localization/Localization.ts';
 import { preferences } from '../../settings/Preferences.ts';
 
 export class SettingsView {
@@ -7,7 +7,7 @@ export class SettingsView {
   private readonly soundLabel: HTMLSpanElement;
   private readonly soundButton: HTMLButtonElement;
   private readonly languageLabel: HTMLSpanElement;
-  private readonly languageSelect: HTMLSelectElement;
+  private readonly languageButtons = new Map<Language, HTMLButtonElement>();
   private readonly closeButton: HTMLButtonElement;
   private readonly unsubscribe: () => void;
   private previousFocus: HTMLElement | null = null;
@@ -19,6 +19,7 @@ export class SettingsView {
     this.title=document.createElement('h2');
     this.title.id='settings-title';
     this.title.className='settings-title';
+
     const soundRow=document.createElement('div');
     soundRow.className='settings-row';
     this.soundLabel=document.createElement('span');
@@ -30,18 +31,26 @@ export class SettingsView {
     this.soundButton.setAttribute('aria-labelledby',this.soundLabel.id);
     this.soundButton.addEventListener('click',()=>preferences.setSoundEnabled(!preferences.soundEnabled));
     soundRow.append(this.soundLabel,this.soundButton);
-    const languageRow=document.createElement('label');
-    languageRow.className='settings-row';
+
+    const languageRow=document.createElement('div');
+    languageRow.className='settings-row settings-language-row';
     this.languageLabel=document.createElement('span');
-    this.languageSelect=document.createElement('select');
-    this.languageSelect.className='settings-language';
-    for (const [value,label] of [['ru','Русский'],['en','English']]) {
-      const option=document.createElement('option');
-      option.value=value!;option.textContent=label!;
-      this.languageSelect.append(option);
+    this.languageLabel.id='settings-language-label';
+    const languageOptions=document.createElement('div');
+    languageOptions.className='settings-language-options';
+    languageOptions.setAttribute('role','group');
+    languageOptions.setAttribute('aria-labelledby',this.languageLabel.id);
+    for (const language of ['ru','en'] as const) {
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='settings-language-option';
+      button.dataset.language=language;
+      button.addEventListener('click',()=>setLanguage(language));
+      this.languageButtons.set(language,button);
+      languageOptions.append(button);
     }
-    this.languageSelect.addEventListener('change',()=>setLanguage(this.languageSelect.value==='ru'?'ru':'en'));
-    languageRow.append(this.languageLabel,this.languageSelect);
+    languageRow.append(this.languageLabel,languageOptions);
+
     this.closeButton=document.createElement('button');
     this.closeButton.type='button';
     this.closeButton.className='settings-close';
@@ -66,7 +75,9 @@ export class SettingsView {
     this.unsubscribe=preferences.subscribe(()=>this.refreshLocalization());
     this.refreshLocalization();
   }
+
   get isOpen(): boolean { return this.root.open; }
+
   show(): void {
     if(this.root.open)return;
     this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
@@ -74,20 +85,29 @@ export class SettingsView {
     this.root.showModal();
     this.soundButton.focus();
   }
+
   hide(): void {
     if(!this.root.open)return;
     this.root.close();
     this.previousFocus?.focus({preventScroll:true});
     this.previousFocus=null;
   }
+
   refreshLocalization(): void {
     this.title.textContent=t('Настройки');
     this.soundLabel.textContent=t('Звук');
     this.soundButton.textContent=preferences.soundEnabled?t('Включён'):t('Выключен');
     this.soundButton.setAttribute('aria-checked',String(preferences.soundEnabled));
     this.languageLabel.textContent=t('Язык');
-    this.languageSelect.value=getLanguage();
+    const currentLanguage=getLanguage();
+    for (const [language,button] of this.languageButtons) {
+      const active=language===currentLanguage;
+      button.textContent=language==='ru'?t('Русский'):t('Английский');
+      button.classList.toggle('is-active',active);
+      button.setAttribute('aria-pressed',String(active));
+    }
     this.closeButton.textContent=t('Готово');
   }
+
   destroy(): void {this.hide();this.unsubscribe();this.root.remove();}
 }

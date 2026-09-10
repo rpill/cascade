@@ -82,16 +82,15 @@
 
 ## Statistics / Yandex leaderboards
 
-- Standard and Classic statistics are available from a dedicated native DOM `СТАТИСТИКА` modal; they are no longer expanded inline inside the main menu.
-- The shell stays within the viewport. Catalogs and narrow-phone statistics use internal vertical scrolling; fixed menus/results remain fitted to the available space. This replaces the earlier blanket no-scroll rule at the user's request.
-- The main menu exposes a dedicated `ТАБЛИЦА ЛИДЕРОВ` action. The leaderboard modal has Standard/Classic tabs, top-10, loading/empty/error/unavailable states, an optional personal row, explicit sign-in, and close/Esc behavior.
-- Built-in Yandex leaderboards use the fixed technical names `standardbesttime` (`winnable`) and `classicbesttime` (`original`). Daily intentionally has no built-in global leaderboard.
+- Player-facing mode language is simplified to two choices: `ИГРА` (the internal `winnable`/Standard mode) and `ДЕЙЛИ`. Classic/original remains internal legacy code but has no Home card, Statistics tab, gameplay label, or ordinary victory label. The Statistics page has only Game and Daily tabs; Game shows aggregate personal stats plus best win streak, Daily shows today's attempts/status/best time.
+- Standard global competition uses `standardwinstreak`: numeric, descending, best consecutive Standard win streak. A completed Standard win increments the streak; a deliberate replacement of an unfinished Standard deal resets the current streak. Pre-v5 saves start streak tracking at zero because old aggregate stats cannot reconstruct history.
+- Daily global competition uses one persistent `dailyfastest` numeric/descending board. The game encodes UTC Daily date + inverse elapsed time into one safe integer so newer dates outrank older dates and faster runs win within the same date; the UI decodes values back to normal time and filters rows to today's trusted Daily ID.
+- Classic intentionally has no global leaderboard and never submits a score.
 - Public top-10 browsing does not require authorization. Personal rank and score submission require Yandex authorization; the game never opens the auth dialog automatically.
-- Authorization is disabled while an unfinished active game exists, avoiding guest-board/account-meta mixing during Yandex account/progress selection. If `ACCOUNT_SELECTION_DIALOG_CLOSED` fires, the page reloads so the selected Yandex progress is reacquired cleanly.
-- Best-time writes are serialized with a 1100 ms interval and same-board pending writes coalesce to the lowest time. A slower local result never overwrites a faster server result.
-- Completing an ordinary game with a newly improved personal best triggers a fire-and-forget leaderboard sync only after local meta finalization/checkpoint cleanup. Leaderboard failures never block local victory or statistics.
-- Existing local best times are synchronized after successful authorization/platform bootstrap.
-- Final Yandex Console setup requires two `time` leaderboards sorted ascending. Exact settings and E2E checks are documented in `docs/YANDEX_LEADERBOARDS_SETUP.md`.
+- Authorization is disabled while an unfinished active game exists. If `ACCOUNT_SELECTION_DIALOG_CLOSED` fires, the page reloads so the selected Yandex progress is reacquired cleanly.
+- Leaderboard writes are serialized with a 1100 ms interval and pending same-board writes coalesce to the largest score because both active boards rank descending. Server comparisons prevent overwriting a better Standard streak or a faster same-day Daily result.
+- Standard best streak and today's Daily best are synchronized after successful authorized bootstrap; completion synchronization is fire-and-forget after local meta finalization and never blocks gameplay.
+- Final Console setup requires `standardwinstreak` and `dailyfastest`, both numeric/descending. Exact settings and E2E checks are documented in `docs/YANDEX_LEADERBOARDS_SETUP.md`.
 
 ## Current visual/input state
 
@@ -154,4 +153,4 @@ pnpm deals:verify-all
 
 ## Current next focus
 
-Local collections, theme purchases with earned coins, XP/levels, RU/EN settings, statistics/leaderboards, the unified gameplay lifecycle, and the verified-deal runtime/tooling are implemented. The currently committed catalog is still the small development smoke catalog; release-size generation/verification remains the next data-production gate. The remaining leaderboard release gate is external: create `standardbesttime` and `classicbesttime` in the Yandex Games Console as documented in `docs/YANDEX_LEADERBOARDS_SETUP.md`, then run the real draft E2E checklist, including profile persistence and economy recovery. `docs/YANDEX_UI_ACCEPTANCE.md` records the language, audio and mobile checks still needed on the actual platform. Future work includes advertising at logical pauses, audio content, achievements and release verification. Real-money purchases and multi-device conflict merging are outside this implementation.
+Local collections, theme purchases with earned coins, XP/levels, RU/EN settings, statistics/leaderboards, the unified gameplay lifecycle, and the verified-deal runtime/tooling are implemented. The currently committed catalog is still the small development smoke catalog; release-size generation/verification remains the next data-production gate. The remaining leaderboard release gate is external: create `standardwinstreak` and `dailyfastest` in the Yandex Games Console as documented in `docs/YANDEX_LEADERBOARDS_SETUP.md`, then run the real draft E2E checklist, including profile persistence and economy recovery. `docs/YANDEX_UI_ACCEPTANCE.md` records the language, audio and mobile checks still needed on the actual platform. Future work includes advertising at logical pauses, audio content, achievements and release verification. Real-money purchases and multi-device conflict merging are outside this implementation.
