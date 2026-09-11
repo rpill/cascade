@@ -32,18 +32,19 @@ const shellSource = readFileSync(
   'utf8',
 );
 
-test('desktop rendering resizes the real canvas to the viewport instead of CSS-scaling a fixed canvas', () => {
+test('rendering uses a HiDPI backing store while preserving antialiased card textures', () => {
   assert.doesNotMatch(mainSource, /\bresolution\s*:/);
-  assert.match(mainSource, /mode:\s*Phaser\.Scale\.RESIZE/);
+  assert.match(mainSource, /planHiDpiCanvas/);
+  assert.match(mainSource, /mode:\s*Phaser\.Scale\.NONE/);
   assert.doesNotMatch(mainSource, /Phaser\.Scale\.FIT/);
-  assert.doesNotMatch(mainSource, /max:\s*\{/);
   assert.match(mainSource, /roundPixels:\s*false/);
 });
 
-test('startup keeps the existing renderer and resize policy while delaying construction', () => {
+test('startup keeps AUTO renderer and waits for a measured host before applying HiDPI size', () => {
   assert.match(mainSource, /type:\s*Phaser\.AUTO/);
   assert.match(mainSource, /startWhenHostReady/);
-  assert.match(mainSource, /mode:\s*Phaser\.Scale\.RESIZE/);
+  assert.match(mainSource, /devicePixelRatio/);
+  assert.match(mainSource, /ResizeObserver/);
   assert.doesNotMatch(mainSource, /Phaser\.CANVAS/);
 });
 

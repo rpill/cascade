@@ -1,8 +1,10 @@
 import {
   createUnavailablePlatformServices,
   type GameplayMarkup,
+  type PlatformAds,
   type PlatformLeaderboardEntry,
   type PlatformLeaderboards,
+  type PlatformPayments,
   type PlatformPause,
   type PlatformServices,
 } from './services.ts';
@@ -14,6 +16,43 @@ interface YandexLeaderboardEntry {
     publicName: string;
     uniqueID: string;
   };
+}
+
+interface YandexProduct {
+  id: string;
+  title: string;
+  description: string;
+  imageURI: string;
+  price: string;
+  priceValue: string;
+  priceCurrencyCode: string;
+  getPriceCurrencyImage(size: 'small' | 'medium' | 'svg'): string;
+}
+
+interface YandexPurchase {
+  productID: string;
+  purchaseToken: string;
+}
+
+interface YandexPayments {
+  getCatalog(): Promise<YandexProduct[]>;
+  purchase(options: { id: string }): Promise<YandexPurchase>;
+  getPurchases(): Promise<YandexPurchase[]>;
+  consumePurchase(purchaseToken: string): Promise<void>;
+}
+
+interface YandexAdv {
+  showFullscreenAdv(options: { callbacks: {
+    onOpen?: () => void;
+    onClose?: (wasShown: boolean) => void;
+    onError?: (error: object) => void;
+  } }): void;
+  showRewardedVideo(options: { callbacks: {
+    onOpen?: () => void;
+    onRewarded?: () => void;
+    onClose?: (wasShown: boolean) => void;
+    onError?: (error: object) => void;
+  } }): void;
 }
 
 interface YandexLeaderboards {
@@ -48,6 +87,9 @@ export interface YandexSdk {
     openAuthDialog(): Promise<void>;
   };
   leaderboards?: YandexLeaderboards;
+  payments?: YandexPayments;
+  getPayments?: () => Promise<YandexPayments>;
+  adv?: YandexAdv;
   EVENTS?: {
     ACCOUNT_SELECTION_DIALOG_CLOSED: string;
   };
@@ -170,6 +212,101 @@ function createYandexLeaderboards(
       await requireMethod(ysdk, 'leaderboards.setScore');
       await leaderboards.setScore(technicalName, score);
     },
+  };
+}
+
+function createYandexPayments(ysdk: YandexSdk): PlatformPayments {
+  const available = ysdk.payments !== undefined || ysdk.getPayments !== undefined;
+  let loading: Promise<YandexPayments> | null = null;
+
+  const resolvePayments = async (): Promise<YandexPayments> => {
+    if (ysdk.payments !== undefined) return ysdk.payments;
+    if (ysdk.getPayments === undefined) throw new Error('Payments unavailable');
+    if (loading === null) loading = ysdk.getPayments();
+    try {
+      return await loading;
+    } catch (error) {
+      loading = null;
+      throw error;
+    }
+  };
+
+  return {
+    available,
+    async getCatalog() {
+      const products = await (await resolvePayments()).getCatalog();
+      return products.map((product) => ({
+        id: product.id,
+        title: product.title,
+        description: product.description,
+        price: product.price,
+        priceValue: product.priceValue,
+        priceCurrencyCode: product.priceCurrencyCode,
+        currencyImageUrl: product.getPriceCurrencyImage('small'),
+      }));
+    },
+    async purchase(productId) {
+      const purchase = await (await resolvePayments()).purchase({ id: productId });
+      return { productId: purchase.productID, purchaseToken: purchase.purchaseToken };
+    },
+    async getPurchases() {
+      const purchases = await (await resolvePayments()).getPurchases();
+      return purchases.map((purchase) => ({
+        productId: purchase.productID,
+        purchaseToken: purchase.purchaseToken,
+      }));
+    },
+    async consumePurchase(purchaseToken) {
+      await (await resolvePayments()).consumePurchase(purchaseToken);
+    },
+  };
+}
+
+function createYandexAds(ysdk: YandexSdk): PlatformAds {
+  if (ysdk.adv === undefined) {
+    return {
+      available: false,
+      showInterstitial: async () => false,
+      showRewarded: async () => false,
+    };
+  }
+
+  return {
+    available: true,
+    showInterstitial: () => new Promise<boolean>((resolve) => {
+      let settled = false;
+      const finish = (value: boolean) => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+      };
+      try {
+        ysdk.adv!.showFullscreenAdv({ callbacks: {
+          onClose: (wasShown) => finish(wasShown),
+          onError: () => finish(false),
+        } });
+      } catch {
+        finish(false);
+      }
+    }),
+    showRewarded: () => new Promise<boolean>((resolve) => {
+      let settled = false;
+      let earned = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve(earned);
+      };
+      try {
+        ysdk.adv!.showRewardedVideo({ callbacks: {
+          onRewarded: () => { earned = true; },
+          onClose: () => finish(),
+          onError: () => finish(),
+        } });
+      } catch {
+        finish();
+      }
+    }),
   };
 }
 
@@ -338,6 +475,8 @@ export async function createYandexPlatformServices(
       },
     },
     leaderboards: createYandexLeaderboards(ysdk, ysdk.leaderboards),
+    payments: createYandexPayments(ysdk),
+    ads: createYandexAds(ysdk),
     platformPause,
     gameplay: createGameplayMarkup(ysdk),
     ready: () => ysdk.features?.LoadingAPI?.ready(),

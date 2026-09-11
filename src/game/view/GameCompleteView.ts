@@ -29,10 +29,10 @@ const COIN_SOUND_DELAY_MS = 260;
 
 const VICTORY_WOOD_DETAIL = './assets/theme/fine-grained-wood.jpg';
 const VICTORY_PAPER = './assets/ui/paper-001-color.jpg';
-const VICTORY_CORNER_TL = './assets/ui/ornaments/corners/home-corner-tl.png';
-const VICTORY_CORNER_TR = './assets/ui/ornaments/corners/home-corner-tr.png';
-const VICTORY_CORNER_BR = './assets/ui/ornaments/corners/home-corner-br.png';
-const VICTORY_CORNER_BL = './assets/ui/ornaments/corners/home-corner-bl.png';
+const VICTORY_CORNER_TL = './assets/ui/ornaments/corners/home-corner-tl.webp';
+const VICTORY_CORNER_TR = './assets/ui/ornaments/corners/home-corner-tr.webp';
+const VICTORY_CORNER_BR = './assets/ui/ornaments/corners/home-corner-br.webp';
+const VICTORY_CORNER_BL = './assets/ui/ornaments/corners/home-corner-bl.webp';
 
 function toCssUrl(path: string): string {
   return `url("${new URL(path, document.baseURI).href}")`;

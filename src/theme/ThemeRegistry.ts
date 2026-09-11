@@ -10,6 +10,7 @@ const WINTER_LIVING_ROOM_ROOT = './assets/themes/winter-living-room';
 const SPRING_MORNING_ROOT = './assets/themes/spring-morning';
 const SUMMER_VERANDA_ROOT = './assets/themes/summer-veranda';
 const OFFICE_ROOT = './assets/themes/office';
+const RETRO_HOTEL_ROOT = './assets/themes/retro-hotel';
 
 export const THEMES = {
   walnut_study: {
@@ -22,7 +23,7 @@ export const THEMES = {
     surfaceScale: 'cover',
     cardBack: {
       key: 'card-back',
-      url: './assets/themes/walnut-study/card-back.png',
+      url: './assets/themes/walnut-study/card-back.webp',
     },
     slots: {
       palette: {
@@ -49,7 +50,7 @@ export const THEMES = {
     surfaceScale: 'tile',
     cardBack: {
       key: 'card-back-green-felt-club',
-      url: `${GREEN_FELT_ROOT}/card-back.png`,
+      url: `${GREEN_FELT_ROOT}/card-back.webp`,
     },
     slots: {
       palette: {
@@ -72,8 +73,7 @@ export const THEMES = {
     surfaceScale: 'cover',
     cardBack: {
       key: 'card-back-burgundy-club',
-      url: `${BURGUNDY_ROOT}/card-back.png`,
-      crop: { x: 2, y: 2, width: 356, height: 466 },
+      url: `${BURGUNDY_ROOT}/card-back.webp`,
     },
     slots: {
       palette: {
@@ -97,7 +97,7 @@ export const THEMES = {
     surfaceScale: 'cover',
     cardBack: {
       key: 'card-back-autumn-evening',
-      url: `${AUTUMN_EVENING_ROOT}/card-back.png`,
+      url: `${AUTUMN_EVENING_ROOT}/card-back.webp`,
     },
     slots: {
       palette: {
@@ -122,7 +122,7 @@ export const THEMES = {
     surfaceScale: 'cover',
     cardBack: {
       key: 'card-back-winter-living-room',
-      url: `${WINTER_LIVING_ROOM_ROOT}/card-back.png`,
+      url: `${WINTER_LIVING_ROOM_ROOT}/card-back.webp`,
     },
     slots: {
       palette: {
@@ -147,7 +147,7 @@ export const THEMES = {
     surfaceScale: 'cover',
     cardBack: {
       key: 'card-back-spring-morning',
-      url: `${SPRING_MORNING_ROOT}/card-back.png`,
+      url: `${SPRING_MORNING_ROOT}/card-back.webp`,
     },
     slots: {
       palette: {
@@ -173,7 +173,7 @@ export const THEMES = {
     surfaceScale: 'cover',
     cardBack: {
       key: 'card-back-summer-veranda',
-      url: `${SUMMER_VERANDA_ROOT}/card-back.png`,
+      url: `${SUMMER_VERANDA_ROOT}/card-back.webp`,
     },
     slots: {
       palette: {
@@ -199,7 +199,7 @@ export const THEMES = {
     surfaceScale: 'cover',
     cardBack: {
       key: 'card-back-office',
-      url: `${OFFICE_ROOT}/card-back.png`,
+      url: `${OFFICE_ROOT}/card-back.webp`,
     },
     slots: {
       palette: {
@@ -214,6 +214,31 @@ export const THEMES = {
     boardTint: 0xffffff,
   },
 
+  retro_hotel: {
+    id: 'retro_hotel',
+    name: 'Retro Hotel',
+    boardSurface: {
+      key: 'cascade-board-surface-retro-hotel',
+      url: `${RETRO_HOTEL_ROOT}/board-surface.webp`,
+    },
+    surfaceScale: 'cover',
+    cardBack: {
+      key: 'card-back-retro-hotel',
+      url: `${RETRO_HOTEL_ROOT}/card-back.webp`,
+    },
+    slots: {
+      palette: {
+        recess: '#0c2f25', edge: '#b08a4d', highlight: '#dec27e',
+        blackSuit: '#c7af79', redSuit: '#a7685d',
+      },
+    },
+    controls: {
+      surface: '#d7c18f', hover: '#e4cf9f', ink: '#16352b', edge: '#987744',
+      labelSurface: '#0f2a23', labelInk: '#e0c47d', focus: '#eed697',
+    },
+    boardTint: 0xffffff,
+  },
+
   navy_study: {
     id: 'navy_study',
     name: 'Navy Study',
@@ -224,7 +249,7 @@ export const THEMES = {
     surfaceScale: 'cover',
     cardBack: {
       key: 'card-back-navy-study',
-      url: `${NAVY_STUDY_ROOT}/card-back.png`,
+      url: `${NAVY_STUDY_ROOT}/card-back.webp`,
     },
     slots: {
       palette: {

@@ -150,3 +150,32 @@
   .purchase-divider { margin: 10px 0 8px; }
   .purchase-close-icon { top: 8px; right: 8px; width: 34px; height: 34px; font-size: 25px; }
 }
+
+.purchase-retry {
+  display: block;
+  margin: -10px auto 14px;
+  min-height: 32px;
+  padding: 6px 14px;
+  border: 1px solid #8f7048;
+  border-radius: 8px;
+  background: #ead9b6;
+  color: #5c4028;
+  font: 700 12px/1 Georgia, 'Times New Roman', serif;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+
+.purchase-retry[hidden] { display: none; }
+.purchase-rewarded-row { background: #efe2c2; }
+.purchase-rewarded-remaining { color: #725b43; font-size: 12px; line-height: 1.2; }
+.purchase-rewarded-button { min-width: 150px; }
+.purchase-price-value { display: inline-block; }
+.purchase-currency-icon {
+  width: 1.1em;
+  height: 1.1em;
+  margin-left: 5px;
+  object-fit: contain;
+  vertical-align: -0.18em;
+}
+.purchase-pack-button.is-busy { opacity: .78; }
+.purchase-pack-button.is-owned { opacity: .72; }

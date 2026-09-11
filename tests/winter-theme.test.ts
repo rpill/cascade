@@ -12,7 +12,7 @@ test('Winter Living Room is a released purchasable theme with complete assets', 
   assert.equal(theme.id, 'winter_living_room');
   assert.equal(theme.surfaceScale, 'cover');
   assert.match(theme.boardSurface.url, /winter-living-room\/board-surface\.webp$/);
-  assert.match(theme.cardBack.url, /winter-living-room\/card-back\.png$/);
+  assert.match(theme.cardBack.url, /winter-living-room\/card-back\.webp$/);
 
   const product = getThemeProduct('winter_living_room');
   assert.ok(product);
@@ -23,7 +23,7 @@ test('Winter Living Room is a released purchasable theme with complete assets', 
 
   for (const path of [
     '../public/assets/themes/winter-living-room/board-surface.webp',
-    '../public/assets/themes/winter-living-room/card-back.png',
+    '../public/assets/themes/winter-living-room/card-back.webp',
     '../public/assets/themes/winter-living-room/shop-preview.webp',
     '../public/assets/themes/winter-living-room/shop-card-back.webp',
   ]) {

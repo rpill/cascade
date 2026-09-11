@@ -12,7 +12,7 @@ test('Autumn Evening is a released purchasable theme with complete assets', () =
   assert.equal(theme.id, 'autumn_evening');
   assert.equal(theme.surfaceScale, 'cover');
   assert.match(theme.boardSurface.url, /autumn-evening\/board-surface\.webp$/);
-  assert.match(theme.cardBack.url, /autumn-evening\/card-back\.png$/);
+  assert.match(theme.cardBack.url, /autumn-evening\/card-back\.webp$/);
 
   const product = getThemeProduct('autumn_evening');
   assert.ok(product);
@@ -23,7 +23,7 @@ test('Autumn Evening is a released purchasable theme with complete assets', () =
 
   for (const path of [
     '../public/assets/themes/autumn-evening/board-surface.webp',
-    '../public/assets/themes/autumn-evening/card-back.png',
+    '../public/assets/themes/autumn-evening/card-back.webp',
     '../public/assets/themes/autumn-evening/shop-preview.webp',
     '../public/assets/themes/autumn-evening/shop-card-back.webp',
   ]) {

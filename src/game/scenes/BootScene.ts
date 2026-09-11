@@ -1,13 +1,18 @@
 import Phaser from 'phaser';
 
-import { SUITS, type Suit } from '../model/types.ts';
+import { SUITS, type Card, type Deal, type Suit } from '../model/types.ts';
+import { createDealForMode } from '../model/deal.ts';
+import { createRandomDealSeed } from '../model/GameSession.ts';
+import { StandardDifficultyDirector, type StandardSelection } from '../model/StandardDifficultyDirector.ts';
 import { VerifiedDealCatalog } from '../model/VerifiedDealCatalog.ts';
 import { getTheme } from '../../theme/ThemeRegistry.ts';
 import { resolveThemeId } from '../../theme/ThemeSelection.ts';
+import { readStartupThemeId } from '../../theme/ThemeStartupCache.ts';
 import type { ThemeAssetRef } from '../../theme/ThemeDefinition.ts';
 import { getThemeAssets } from '../../theme/ThemeAssets.ts';
 import { prepareCardBack } from '../../theme/CardBackTexture.ts';
-import { SFX_ASSETS } from '../../settings/SfxController.ts';
+import { preferences } from '../../settings/Preferences.ts';
+import { SFX_ASSETS, type SfxAssetGroup } from '../../settings/SfxController.ts';
 
 const SUIT_FILE: Record<Suit, string> = {
   clubs: 'club',
@@ -20,6 +25,7 @@ const CARD_ASSET_ROOT = './assets/cards';
 export const VERIFIED_DEALS_BINARY_KEY = 'verified-deals-binary';
 export const VERIFIED_DEALS_MANIFEST_KEY = 'verified-deals-manifest';
 export const VERIFIED_DEALS_REGISTRY_KEY = 'verified-deal-catalog';
+export const FIRST_RUN_STANDARD_SELECTION_REGISTRY_KEY = 'first-run-standard-selection';
 
 const FACE_FILE: Partial<Record<number, string>> = {
   1: 'Ace',
@@ -28,28 +34,62 @@ const FACE_FILE: Partial<Record<number, string>> = {
   13: 'King',
 };
 
+export interface CardFaceAssetRef {
+  readonly key: string;
+  readonly url: string;
+}
+
+export function getCardFaceAsset(card: Pick<Card, 'id' | 'suit' | 'rank'>): CardFaceAssetRef {
+  const fileRank = FACE_FILE[card.rank] ?? String(card.rank);
+  const fileName = `${SUIT_FILE[card.suit]}${fileRank}.webp`;
+  return {
+    key: card.id,
+    url: `${CARD_ASSET_ROOT}/${fileName}`,
+  };
+}
+
+export function getCriticalFirstRunCards(deal: Deal): readonly Card[] {
+  return [
+    ...deal.tableau.flat(),
+    ...deal.stock.slice(-3),
+  ];
+}
+
+export function getDeferredFirstRunCards(deal: Deal): readonly Card[] {
+  const criticalIds = new Set(getCriticalFirstRunCards(deal).map(card => card.id));
+  return deal.stock.filter(card => !criticalIds.has(card.id));
+}
+
+export function getDeferredFirstRunCardBatches(deal: Deal): readonly (readonly Card[])[] {
+  const deferred = deal.stock.slice(0, -3);
+  const batches: Card[][] = [];
+
+  for (let end = deferred.length; end > 0; end -= 3) {
+    batches.push(deferred.slice(Math.max(0, end - 3), end));
+  }
+
+  return batches;
+}
+
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('BootScene');
   }
 
   preload(): void {
-    const theme = getTheme(resolveThemeId(import.meta.env.DEV ? window.location.search : ''));
+    const theme = getTheme(resolveThemeId(import.meta.env.DEV ? window.location.search : '', readStartupThemeId()));
+    const firstRun = !preferences.howToPlaySeen;
     this.load.binary(VERIFIED_DEALS_BINARY_KEY, './assets/deals/verified-deals.bin');
     this.load.json(VERIFIED_DEALS_MANIFEST_KEY, './assets/deals/verified-deals-manifest.json');
 
     getThemeAssets(theme).forEach(asset => this.loadThemeAsset(asset));
-    Object.values(SFX_ASSETS).forEach((asset) => {
-      asset.keys.forEach((key, index) => this.load.audio(key, asset.urls[index]));
-    });
 
-    SUITS.forEach((suit) => {
-      for (let rank = 1; rank <= 13; rank += 1) {
-        const fileRank = FACE_FILE[rank] ?? String(rank);
-        const fileName = `${SUIT_FILE[suit]}${fileRank}.png`;
-        this.load.image(`${suit}-${rank}`, `${CARD_ASSET_ROOT}/${fileName}`);
-      }
-    });
+    if (firstRun) {
+      this.loadSfxGroup(SFX_ASSETS.deal);
+    } else {
+      Object.values(SFX_ASSETS).forEach(asset => this.loadSfxGroup(asset));
+      this.loadAllCardFaces();
+    }
   }
 
   create(): void {
@@ -61,8 +101,54 @@ export class BootScene extends Phaser.Scene {
     const catalog = VerifiedDealCatalog.decode(binary, manifest);
     this.registry.set(VERIFIED_DEALS_REGISTRY_KEY, catalog);
 
-    prepareCardBack(this, getTheme(resolveThemeId(import.meta.env.DEV ? window.location.search : '')));
+    const theme = getTheme(resolveThemeId(import.meta.env.DEV ? window.location.search : '', readStartupThemeId()));
+    prepareCardBack(this, theme);
+
+    if (!preferences.howToPlaySeen) {
+      this.loadFirstRunCriticalAssets(catalog);
+      return;
+    }
+
     this.scene.start('GameScene');
+  }
+
+  private loadFirstRunCriticalAssets(catalog: VerifiedDealCatalog): void {
+    const director = new StandardDifficultyDirector(
+      catalog,
+      () => Number(createRandomDealSeed() & 0xffff_ffffn),
+    );
+    const selection: StandardSelection = director.select({
+      wins: 0,
+      failureStreak: 0,
+      lastServedTier: '',
+      recentSeeds: [],
+    });
+    const deal = createDealForMode('winnable', selection.seed);
+    this.registry.set(FIRST_RUN_STANDARD_SELECTION_REGISTRY_KEY, selection);
+
+    getCriticalFirstRunCards(deal).forEach((card) => {
+      const asset = getCardFaceAsset(card);
+      this.load.image(asset.key, asset.url);
+    });
+
+    this.load.once(Phaser.Loader.Events.COMPLETE, () => {
+      this.scene.start('GameScene');
+    });
+    this.load.start();
+  }
+
+  private loadAllCardFaces(): void {
+    SUITS.forEach((suit) => {
+      for (let rank = 1; rank <= 13; rank += 1) {
+        const fileRank = FACE_FILE[rank] ?? String(rank);
+        const fileName = `${SUIT_FILE[suit]}${fileRank}.webp`;
+        this.load.image(`${suit}-${rank}`, `${CARD_ASSET_ROOT}/${fileName}`);
+      }
+    });
+  }
+
+  private loadSfxGroup(asset: SfxAssetGroup): void {
+    asset.keys.forEach((key, index) => this.load.audio(key, asset.urls[index]));
   }
 
   private loadThemeAsset(asset: ThemeAssetRef): void {

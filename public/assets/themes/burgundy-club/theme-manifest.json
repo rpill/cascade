@@ -3,7 +3,7 @@
   "sourceOfTruth": "src/theme/ThemeRegistry.ts",
   "assets": {
     "boardSurface": "board-surface-refined.webp",
-    "cardBack": "card-back.png",
+    "cardBack": "card-back.webp",
     "slots": "Generated separate frame and shared glyph layers via ThemeAssets.ts",
     "stockEdges": "Shared paper-edge SVG"
   },
@@ -22,11 +22,13 @@
     "top": 430,
     "bottom": 450
   },
-  "cardBackCrop": {
-    "x": 2,
-    "y": 2,
-    "width": 356,
-    "height": 466
+  "notes": "Card back is normalized to the shared 432×604 rounded transparent contour and uses no runtime crop. Placeholder remains visible beneath the stock. Layout and card faces unchanged.",
+  "cardBackSize": {
+    "width": 432,
+    "height": 604
   },
-  "notes": "Original board and baked slot PNGs preserved but unused. Placeholder remains visible beneath the stock. Layout and card faces unchanged."
+  "shopCardBackSize": {
+    "width": 165,
+    "height": 230
+  }
 }

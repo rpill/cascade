@@ -28,11 +28,11 @@ test('Rules is a concise five-slide carousel instead of the old section list', (
 });
 
 test('Rules slides use supplied gameplay screenshots and the game wood visual language', () => {
-  assert.match(slidesSource, /assets\/rules\/foundation\.png/);
-  assert.match(slidesSource, /assets\/rules\/stock-draw-three\.png/);
-  assert.match(slidesSource, /assets\/rules\/empty-column\.png/);
-  assert.match(slidesSource, /assets\/rules\/free-stock-cell\.png/);
-  assert.match(slidesSource, /assets\/rules\/alternating-colors\.png/);
+  assert.match(slidesSource, /assets\/rules\/foundation\.webp/);
+  assert.match(slidesSource, /assets\/rules\/stock-draw-three\.webp/);
+  assert.match(slidesSource, /assets\/rules\/empty-column\.webp/);
+  assert.match(slidesSource, /assets\/rules\/free-stock-cell\.webp/);
+  assert.match(slidesSource, /assets\/rules\/alternating-colors\.webp/);
 
   assert.match(stylesSource, /\.main-shell-rules-stage\s*\{[\s\S]*var\(--app-shell-wood\)/s);
   assert.match(rulesSource, /createScreenshotCursor/);

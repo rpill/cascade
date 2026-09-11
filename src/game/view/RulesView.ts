@@ -4,10 +4,10 @@ import { RULE_SLIDES, type RuleSlide } from './RulesSlides.ts';
 const RULES_WOOD = './assets/theme/menu-dark-wood.jpg';
 const RULES_WOOD_DETAIL = './assets/theme/fine-grained-wood.jpg';
 const RULES_PAPER_PRIMARY = './assets/ui/paper-001-color.jpg';
-const RULES_CORNER_TL = './assets/ui/ornaments/corners/home-corner-tl.png';
-const RULES_CORNER_TR = './assets/ui/ornaments/corners/home-corner-tr.png';
-const RULES_CORNER_BR = './assets/ui/ornaments/corners/home-corner-br.png';
-const RULES_CORNER_BL = './assets/ui/ornaments/corners/home-corner-bl.png';
+const RULES_CORNER_TL = './assets/ui/ornaments/corners/home-corner-tl.webp';
+const RULES_CORNER_TR = './assets/ui/ornaments/corners/home-corner-tr.webp';
+const RULES_CORNER_BR = './assets/ui/ornaments/corners/home-corner-br.webp';
+const RULES_CORNER_BL = './assets/ui/ornaments/corners/home-corner-bl.webp';
 
 export interface RulesViewActions {
   readonly close: () => void;

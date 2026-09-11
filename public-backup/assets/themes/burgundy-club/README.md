@@ -1,0 +1,18 @@
+# Burgundy Club
+
+Reference implementation, 2026-09-08. Runtime definition: src/theme/ThemeRegistry.ts.
+
+- board-surface-refined.webp: ImageGen edit of the user-supplied board-surface.webp. Muted wine cloth, strictly overhead scene, quiet upper-right controls area. Output 1672 × 941, encoded as WebP quality 90. Runtime uses 1672 × 922: trimming the bottom 19 pixels balances the outer gold rails at approximately 29 pixels from both edges. Nine-region rendering preserves the full border and corner proportions.
+- card-back.png: imported club ornament cleaned for production. The dark export fringe/padding was trimmed, the artwork was normalized to 432 × 604, and the same rounded transparent contour used by the approved card backs was applied. Runtime uses the full image with no crop frame.
+- Slot frames and glyphs are separate generated SVG layers. The stock placeholder stays present. Lower stock cards use shared plain paper edges.
+- Original board-surface.webp, slots/*.png and other imported files are retained as source material, not loaded by this theme.
+
+## ImageGen prompts
+
+First color pass:
+
+Edit this existing solitaire board background. Preserve its exact straight overhead orthographic view, all peripheral objects, their silhouettes, positions, lighting, details, and the thin double gold border on ALL FOUR sides. Preserve the current wide landscape aspect ratio. Change ONLY the cloth color treatment: the saturated bright red burgundy fabric must become much calmer, a low-saturation smoked oxblood / brown-plum wine felt, dark but not black. Reduce the red saturation dramatically (about 50 percent), keep gentle material detail and broad even light. Think a muted aged wine felt around #422a30 to #56343b, restrained elegant study. Gold lines and brass should be softly aged champagne bronze rather than bright yellow, but remain readable. Keep the large middle playable and quiet. No additional objects, no cards, no slots, no text. Do not blur or simplify the existing detailed ornamented books, pen, teacup, wax seal, paper, coins, leaves, candle, or watches. Do not crop any more of the border. Output a finished full background only. Absolutely no camera tilt or perspective.
+
+Final scene pass:
+
+Edit this exact muted-burgundy overhead game-table image. Keep its color, fabric, fine texture, lighting, all lower corner props, floral books, pen, coffee cup, paper and wax seal unchanged. Two precise layout corrections only: (1) make the thin double champagne-gold rectangular inlay have EQUAL top and bottom edge margins, about 3.5 percent of image height each. Both horizontal rails straight, parallel and equally inset. Keep left/right inlay similarly equally inset. (2) Reserve a clear quiet fabric region in the UPPER RIGHT for game controls: the entire top-right 30 percent of width and top 17 percent of height must contain NO candle, NO brass dish, NO leaves, NO bright objects or book corners. Remove the upper-right candle and its surrounding leaves; the existing right-edge book may remain only below that reserved area. Do not introduce any UI buttons. The top rail can continue across the quiet region. Do not add objects elsewhere. Also keep the upper-left mode-label zone (first 12 percent width, first 8 percent height) calm and uncluttered by moving the top-left brass dish slightly downward if needed, within the outer left margin. Preserve the strict perpendicular 90-degree camera looking straight down and current landscape aspect ratio. No new border or wooden rim, only existing thin gold inlay with corrected equal margins. Finished image, not a mockup.

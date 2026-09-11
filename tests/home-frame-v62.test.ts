@@ -25,8 +25,8 @@ test('Home ornament layers use bounded fixed-size corner art rather than stretch
 });
 
 test('nine-slice frame sources are shipped as bounded raster frame atlases', () => {
-  assert.match(shellSource, /home-shell-frame-9slice\.png/);
-  assert.match(shellSource, /home-mode-card-frame-9slice\.png/);
-  assert.equal(existsSync(new URL('../public/assets/ui/frames/home-shell-frame-9slice.png', import.meta.url)), true);
-  assert.equal(existsSync(new URL('../public/assets/ui/frames/home-mode-card-frame-9slice.png', import.meta.url)), true);
+  assert.match(shellSource, /home-shell-frame-9slice\.webp/);
+  assert.match(shellSource, /home-mode-card-frame-9slice\.webp/);
+  assert.equal(existsSync(new URL('../public/assets/ui/frames/home-shell-frame-9slice.webp', import.meta.url)), true);
+  assert.equal(existsSync(new URL('../public/assets/ui/frames/home-mode-card-frame-9slice.webp', import.meta.url)), true);
 });

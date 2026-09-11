@@ -12,7 +12,7 @@ test('Office is a released purchasable theme with complete assets', () => {
   assert.equal(theme.id, 'office');
   assert.equal(theme.surfaceScale, 'cover');
   assert.match(theme.boardSurface.url, /office\/board-surface\.webp$/);
-  assert.match(theme.cardBack.url, /office\/card-back\.png$/);
+  assert.match(theme.cardBack.url, /office\/card-back\.webp$/);
 
   const product = getThemeProduct('office');
   assert.ok(product);
@@ -23,7 +23,7 @@ test('Office is a released purchasable theme with complete assets', () => {
 
   for (const path of [
     '../public/assets/themes/office/board-surface.webp',
-    '../public/assets/themes/office/card-back.png',
+    '../public/assets/themes/office/card-back.webp',
     '../public/assets/themes/office/shop-preview.webp',
     '../public/assets/themes/office/shop-card-back.webp',
   ]) {

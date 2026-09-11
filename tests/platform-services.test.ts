@@ -639,3 +639,84 @@ test('package exposes one-command Yandex dev proxy launch', async () => {
   assert.ok(launch.args.includes('--dev-mode=true'));
   assert.ok(launch.args.includes('--port=8080'));
 });
+
+test('unavailable platform exposes safe ads and payments fallbacks', async () => {
+  const platform = createUnavailablePlatformServices(null);
+
+  assert.equal(platform.payments.available, false);
+  assert.deepEqual(await platform.payments.getCatalog(), []);
+  assert.deepEqual(await platform.payments.getPurchases(), []);
+  await assert.rejects(platform.payments.purchase('coins_500'));
+  await platform.payments.consumePurchase('ignored-token');
+
+  assert.equal(platform.ads.available, false);
+  assert.equal(await platform.ads.showInterstitial(), false);
+  assert.equal(await platform.ads.showRewarded(), false);
+});
+
+test('Yandex payments adapter normalizes catalog and passes purchases through', async () => {
+  const consumed: string[] = [];
+  const ysdk = createFakeYsdk() as YandexSdk & Record<string, unknown>;
+  ysdk.payments = {
+    getCatalog: async () => [{
+      id: 'coins_500',
+      title: '500 coins',
+      description: 'Coin pack',
+      imageURI: '/pack.png',
+      price: '39 YAN',
+      priceValue: '39',
+      priceCurrencyCode: 'YAN',
+      getPriceCurrencyImage: () => '/yan.svg',
+    }],
+    purchase: async ({ id }: { id: string }) => ({ productID: id, purchaseToken: 'purchase-1' }),
+    getPurchases: async () => [{ productID: 'coins_500', purchaseToken: 'purchase-0' }],
+    consumePurchase: async (token: string) => { consumed.push(token); },
+  };
+
+  const platform = await createYandexPlatformServices(ysdk);
+  assert.equal(platform.payments.available, true);
+  assert.deepEqual((await platform.payments.getCatalog())[0], {
+    id: 'coins_500',
+    title: '500 coins',
+    description: 'Coin pack',
+    price: '39 YAN',
+    priceValue: '39',
+    priceCurrencyCode: 'YAN',
+    currencyImageUrl: '/yan.svg',
+  });
+  assert.deepEqual(await platform.payments.purchase('coins_500'), {
+    productId: 'coins_500',
+    purchaseToken: 'purchase-1',
+  });
+  assert.deepEqual(await platform.payments.getPurchases(), [{
+    productId: 'coins_500',
+    purchaseToken: 'purchase-0',
+  }]);
+  await platform.payments.consumePurchase('purchase-0');
+  assert.deepEqual(consumed, ['purchase-0']);
+});
+
+test('Yandex ads adapter resolves only from SDK callbacks and rewards only onRewarded', async () => {
+  let fullscreenCall = 0;
+  let rewardedCall = 0;
+  const ysdk = createFakeYsdk() as YandexSdk & Record<string, unknown>;
+  ysdk.adv = {
+    showFullscreenAdv({ callbacks }: { callbacks: { onClose?: (wasShown: boolean) => void; onError?: (error: object) => void } }) {
+      fullscreenCall += 1;
+      if (fullscreenCall === 1) callbacks.onClose?.(true);
+      else callbacks.onError?.({});
+    },
+    showRewardedVideo({ callbacks }: { callbacks: { onRewarded?: () => void; onClose?: (wasShown: boolean) => void } }) {
+      rewardedCall += 1;
+      if (rewardedCall === 1) callbacks.onRewarded?.();
+      callbacks.onClose?.(true);
+    },
+  };
+
+  const platform = await createYandexPlatformServices(ysdk);
+  assert.equal(platform.ads.available, true);
+  assert.equal(await platform.ads.showInterstitial(), true);
+  assert.equal(await platform.ads.showInterstitial(), false);
+  assert.equal(await platform.ads.showRewarded(), true);
+  assert.equal(await platform.ads.showRewarded(), false);
+});

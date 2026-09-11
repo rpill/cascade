@@ -20,15 +20,15 @@ export interface AppShellShowOptions {
   readonly destination: ShellDestination;
 }
 
-const MENU_HOME_BACKGROUND = './assets/ui/backgrounds/home-main-menu-ambience.png';
+const MENU_HOME_BACKGROUND = './assets/ui/backgrounds/home-main-menu-ambience.webp';
 const MENU_WOOD_DETAIL = './assets/theme/fine-grained-wood.jpg';
 const MENU_PAPER_PRIMARY = './assets/ui/paper-001-color.jpg';
-const MENU_SHELL_FRAME = './assets/ui/frames/home-shell-frame-9slice.png';
-const MENU_CARD_FRAME = './assets/ui/frames/home-mode-card-frame-9slice.png';
-const MENU_CORNER_TL = './assets/ui/ornaments/corners/home-corner-tl.png';
-const MENU_CORNER_TR = './assets/ui/ornaments/corners/home-corner-tr.png';
-const MENU_CORNER_BR = './assets/ui/ornaments/corners/home-corner-br.png';
-const MENU_CORNER_BL = './assets/ui/ornaments/corners/home-corner-bl.png';
+const MENU_SHELL_FRAME = './assets/ui/frames/home-shell-frame-9slice.webp';
+const MENU_CARD_FRAME = './assets/ui/frames/home-mode-card-frame-9slice.webp';
+const MENU_CORNER_TL = './assets/ui/ornaments/corners/home-corner-tl.webp';
+const MENU_CORNER_TR = './assets/ui/ornaments/corners/home-corner-tr.webp';
+const MENU_CORNER_BR = './assets/ui/ornaments/corners/home-corner-br.webp';
+const MENU_CORNER_BL = './assets/ui/ornaments/corners/home-corner-bl.webp';
 const MENU_BRAND_FLOURISH = './assets/ui/ornaments/harpels-flourish.svg';
 
 function resolveAssetUrl(path: string): string {
@@ -87,7 +87,7 @@ export class AppShellView {
     brand.className = 'app-shell-brand';
     const brandTitle = document.createElement('div');
     brandTitle.className = 'app-shell-brand-title';
-    this.localization.text(brandTitle, () => 'CASCADE');
+    this.localization.text(brandTitle, () => t('КАСКАД'));
     const brandFlourish = document.createElement('span');
     brandFlourish.className = 'app-shell-brand-flourish';
     brandFlourish.setAttribute('aria-hidden', 'true');
@@ -132,7 +132,7 @@ export class AppShellView {
 
     const surface = document.createElement('section');
     surface.className = 'app-shell-surface';
-    this.localization.attribute(surface, 'aria-label', () => 'CASCADE');
+    this.localization.attribute(surface, 'aria-label', () => t('Пасьянс Каскад'));
 
     const nav = document.createElement('nav');
     nav.className = 'app-shell-nav';

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="1024" viewBox="0 0 2048 1024">
+  <defs>
+    <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.021 0.036" numOctaves="4" seed="61" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values=".14 0 0 0 .04  0 .10 0 0 .025  0 0 .07 0 .01  0 0 0 .30 0" result="mottle"/>
+      <feBlend in="SourceGraphic" in2="mottle" mode="multiply"/>
+    </filter>
+    <radialGradient id="paperLight" cx="46%" cy="42%" r="80%">
+      <stop offset="0" stop-color="#a8865b" stop-opacity=".54"/>
+      <stop offset=".74" stop-color="#765536" stop-opacity=".04"/>
+      <stop offset="1" stop-color="#4e3523" stop-opacity=".36"/>
+    </radialGradient>
+  </defs>
+  <rect width="2048" height="1024" fill="#83613f"/>
+  <rect width="2048" height="1024" fill="url(#paperLight)" filter="url(#paper)"/>
+  <g fill="none" stroke="#c8a978" stroke-width="1" opacity=".12">
+    <path d="M80 160 C360 100 530 190 760 120 S1240 80 1580 170 S1940 140 2080 90"/>
+    <path d="M-40 760 C300 620 560 690 860 610 S1320 650 1610 570 S1910 520 2100 620"/>
+    <circle cx="1720" cy="180" r="115"/>
+    <circle cx="1720" cy="180" r="83"/>
+  </g>
+</svg>

@@ -2,10 +2,10 @@ import { getLanguage, setLanguage, t, type Language } from '../../localization/L
 import { preferences } from '../../settings/Preferences.ts';
 
 const SETTINGS_PAPER_PRIMARY = './assets/ui/paper-001-color.jpg';
-const SETTINGS_CORNER_TL = './assets/ui/ornaments/corners/home-corner-tl.png';
-const SETTINGS_CORNER_TR = './assets/ui/ornaments/corners/home-corner-tr.png';
-const SETTINGS_CORNER_BR = './assets/ui/ornaments/corners/home-corner-br.png';
-const SETTINGS_CORNER_BL = './assets/ui/ornaments/corners/home-corner-bl.png';
+const SETTINGS_CORNER_TL = './assets/ui/ornaments/corners/home-corner-tl.webp';
+const SETTINGS_CORNER_TR = './assets/ui/ornaments/corners/home-corner-tr.webp';
+const SETTINGS_CORNER_BR = './assets/ui/ornaments/corners/home-corner-br.webp';
+const SETTINGS_CORNER_BL = './assets/ui/ornaments/corners/home-corner-bl.webp';
 
 function toCssUrl(path: string): string {
   return `url("${new URL(path, document.baseURI).href}")`;

@@ -43,12 +43,44 @@ export interface PlatformLeaderboards {
   setScore(technicalName: string, score: number): Promise<void>;
 }
 
+
+export interface PlatformProduct {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly price: string;
+  readonly priceValue: string;
+  readonly priceCurrencyCode: string;
+  readonly currencyImageUrl: string;
+}
+
+export interface PlatformPurchase {
+  readonly productId: string;
+  readonly purchaseToken: string;
+}
+
+export interface PlatformPayments {
+  readonly available: boolean;
+  getCatalog(): Promise<PlatformProduct[]>;
+  purchase(productId: string): Promise<PlatformPurchase>;
+  getPurchases(): Promise<PlatformPurchase[]>;
+  consumePurchase(purchaseToken: string): Promise<void>;
+}
+
+export interface PlatformAds {
+  readonly available: boolean;
+  showInterstitial(): Promise<boolean>;
+  showRewarded(): Promise<boolean>;
+}
+
 export interface PlatformServices {
   readonly language?: string;
   readonly playerStorage: PlayerStorage;
   readonly trustedClock: TrustedClock;
   readonly auth: PlatformAuth;
   readonly leaderboards: PlatformLeaderboards;
+  readonly payments: PlatformPayments;
+  readonly ads: PlatformAds;
   readonly platformPause: PlatformPause;
   readonly gameplay: GameplayMarkup;
   readonly ready: () => void;
@@ -152,6 +184,18 @@ export function createUnavailablePlatformServices(
       getEntries: async () => [],
       getPlayerEntry: async () => null,
       setScore: async () => undefined,
+    },
+    payments: {
+      available: false,
+      getCatalog: async () => [],
+      purchase: async () => { throw new Error('Payments unavailable'); },
+      getPurchases: async () => [],
+      consumePurchase: async () => undefined,
+    },
+    ads: {
+      available: false,
+      showInterstitial: async () => false,
+      showRewarded: async () => false,
     },
     platformPause: {
       isPaused: () => false,

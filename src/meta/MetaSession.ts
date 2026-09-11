@@ -121,6 +121,11 @@ export class MetaSession {
     return true;
   }
 
+  async dispatchAndFlush(operation: MetaOperation): Promise<boolean> {
+    if (!this.dispatch(operation)) return false;
+    return this.flush();
+  }
+
   flush(): Promise<boolean> {
     if (this.currentStatus !== 'ready') return Promise.resolve(false);
     if (this.flushInFlight !== null) return this.flushInFlight;

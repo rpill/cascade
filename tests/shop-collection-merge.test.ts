@@ -27,10 +27,12 @@ test('wallet exposes a dedicated purchase entry point and game scene opens it', 
   assert.match(scene, /purchases:\s*\(\)\s*=>\s*this\.purchaseView\.show\(\)/);
 });
 
-test('purchase sheet is explicitly a future IAP surface rather than fake checkout', () => {
+test('purchase sheet is a live platform-backed IAP surface', () => {
   const purchase = readFileSync(new URL('../src/game/view/PurchaseView.ts', import.meta.url), 'utf8');
-  assert.match(purchase, /МОНЕТЫ/);
-  assert.match(purchase, /УБРАТЬ РЕКЛАМУ/);
-  assert.match(purchase, /СКОРО/);
-  assert.match(purchase, /disabled\s*=\s*true/);
+  assert.match(purchase, /COIN_PRODUCT_IDS/);
+  assert.match(purchase, /REMOVE_ADS_PRODUCT_ID/);
+  assert.match(purchase, /currencyImageUrl/);
+  assert.match(purchase, /actions\.purchase/);
+  assert.match(purchase, /actions\.rewarded/);
+  assert.doesNotMatch(purchase, /СКОРО/);
 });

@@ -37,6 +37,7 @@ import {
 import type { SfxCue } from '../../settings/SfxController.ts';
 
 interface BoardActions {
+  readonly ensureCardsReady: (cards: readonly Card[]) => Promise<boolean>;
   readonly draw: () => Card[];
   readonly move: (source: CardSource, target: MoveTarget) => boolean;
   readonly autoFoundation: (source: CardSource) => boolean;
@@ -94,6 +95,8 @@ export class BoardView {
   private inputLocked = true;
   private uiPaused = false;
   private lastTap: { cardId: string; time: number } | null = null;
+  private stockLoadPending = false;
+  private destroyed = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -209,6 +212,7 @@ export class BoardView {
   }
 
   destroy(): void {
+    this.destroyed = true;
     this.timers.forEach((timer) => timer.remove(false));
     this.activeFlights.forEach((flight) => flight.stop());
     this.activeFlights.clear();
@@ -225,30 +229,36 @@ export class BoardView {
   }
 
   private createCardImages(): void {
-    const allCards = [
+    const visibleCards = [
       ...this.game.tableau.flat(),
-      ...this.game.stock,
       ...this.game.waste,
       ...SUITS.flatMap((suit) => this.game.foundations[suit]),
       ...(this.game.freeCell === null ? [] : [this.game.freeCell]),
     ];
 
-    allCards.forEach((card) => {
-      const image = this.scene.add.image(0, 0, card.id)
-        .setOrigin(0)
-        .setDisplaySize(this.layout.cardWidth, this.layout.cardHeight)
-        .setVisible(false);
+    visibleCards.forEach((card) => this.ensureCardImage(card));
+  }
 
-      image.on('pointerdown', () => this.handleCardPointerDown(card));
-      image.on('dragstart', () => this.beginDrag(card));
-      image.on('drag', (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
-        this.continueDrag(dragX, dragY);
-      });
-      image.on('dragend', () => this.endDrag());
+  private ensureCardImage(card: Card): Phaser.GameObjects.Image | null {
+    const existing = this.cardImages.get(card.id);
+    if (existing !== undefined) return existing;
+    if (!this.scene.textures.exists(card.id)) return null;
 
-      this.cardImages.set(card.id, image);
-      this.ownedObjects.push(image);
+    const image = this.scene.add.image(0, 0, card.id)
+      .setOrigin(0)
+      .setDisplaySize(this.layout.cardWidth, this.layout.cardHeight)
+      .setVisible(false);
+
+    image.on('pointerdown', () => this.handleCardPointerDown(card));
+    image.on('dragstart', () => this.beginDrag(card));
+    image.on('drag', (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
+      this.continueDrag(dragX, dragY);
     });
+    image.on('dragend', () => this.endDrag());
+
+    this.cardImages.set(card.id, image);
+    this.ownedObjects.push(image);
+    return image;
   }
 
   private createStockStack(): void {
@@ -393,21 +403,49 @@ export class BoardView {
   }
 
   private handleStockClick(): void {
-    if (this.inputLocked || this.uiPaused) {
+    void this.drawFromStockWhenReady();
+  }
+
+  private async drawFromStockWhenReady(): Promise<void> {
+    if (this.inputLocked || this.uiPaused || this.stockLoadPending || this.destroyed) {
       return;
+    }
+
+    const nextCards = this.game.stock.slice(-3);
+    if (nextCards.length === 0) return;
+
+    if (!this.areNextStockCardsReady()) {
+      this.stockLoadPending = true;
+      this.inputLocked = true;
+      const ready = await this.actions.ensureCardsReady(nextCards).catch(() => false);
+      this.stockLoadPending = false;
+
+      if (this.destroyed) return;
+      if (!ready || this.uiPaused) {
+        this.inputLocked = false;
+        this.sync(null);
+        return;
+      }
+
+      nextCards.forEach(card => this.ensureCardImage(card));
+      this.inputLocked = false;
     }
 
     const drawn = this.actions.draw();
-
-    if (drawn.length === 0) {
-      return;
-    }
-
+    if (drawn.length === 0) return;
     this.animateDraw(drawn);
+  }
+
+
+  private areNextStockCardsReady(): boolean {
+    return this.game.stock
+      .slice(-3)
+      .every((card) => this.cardImages.has(card.id) || this.scene.textures.exists(card.id));
   }
 
   private animateDraw(drawn: readonly Card[]): void {
     this.inputLocked = true;
+    drawn.forEach((card) => this.ensureCardImage(card));
     const stockOriginY = getStockFlightOriginY(
       this.layout.stock.y,
       this.stockVisual.getLayerOffsets(this.layout.profile),

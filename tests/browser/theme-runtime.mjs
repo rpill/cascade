@@ -130,10 +130,10 @@ try {
   await preview.close();
 
   const failure = await newGamePage();
-  await failure.route('**/green-felt-club/card-back.png', route => route.abort());
+  await failure.route('**/green-felt-club/card-back.webp', route => route.abort());
   assert.equal(await failure.evaluate(() => globalThis.__themeTestGame.scene.getScene('GameScene').setTheme('green_felt_club')), false);
   assert.equal(await failure.locator('.game-hud').getAttribute('data-theme'), 'walnut_study');
-  await failure.unroute('**/green-felt-club/card-back.png');
+  await failure.unroute('**/green-felt-club/card-back.webp');
   assert.equal(await failure.evaluate(() => globalThis.__themeTestGame.scene.getScene('GameScene').setTheme('green_felt_club')), true);
   const rapid = await failure.evaluate(() => {
     const scene = globalThis.__themeTestGame.scene.getScene('GameScene');

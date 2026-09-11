@@ -1,0 +1,30 @@
+{
+  "themeId": "burgundy_club",
+  "sourceOfTruth": "src/theme/ThemeRegistry.ts",
+  "assets": {
+    "boardSurface": "board-surface-refined.webp",
+    "cardBack": "card-back.png",
+    "slots": "Generated separate frame and shared glyph layers via ThemeAssets.ts",
+    "stockEdges": "Shared paper-edge SVG"
+  },
+  "sourceSize": {
+    "width": 1672,
+    "height": 941
+  },
+  "surfaceScale": "framed",
+  "surfaceCrop": {
+    "width": 1672,
+    "height": 922
+  },
+  "surfaceSlices": {
+    "left": 340,
+    "right": 370,
+    "top": 430,
+    "bottom": 450
+  },
+  "notes": "Original board and baked slot PNGs preserved but unused. Card back is normalized to the shared 432×604 rounded transparent contour. Placeholder remains visible beneath the stock. Layout and card faces unchanged.",
+  "cardBackSize": {
+    "width": 432,
+    "height": 604
+  }
+}

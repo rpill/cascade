@@ -1,7 +1,8 @@
 import type { StandardTier } from '../game/model/VerifiedDealCatalog.ts';
 import { DEFAULT_THEME_ID, isThemeId } from '../theme/ThemeRegistry.ts';
+import { REWARDED_DAILY_LIMIT } from '../monetization/Products.ts';
 
-export const META_SAVE_VERSION = 5 as const;
+export const META_SAVE_VERSION = 6 as const;
 export const DAILY_ALGORITHM_VERSION = 2 as const;
 export const WEEKLY_MILESTONES = [3, 5, 7] as const;
 
@@ -97,7 +98,19 @@ export interface MetaSaveV5 extends Omit<MetaSaveV4, 'version'> {
   standardWinStreak: StandardWinStreakState;
 }
 
-export type MetaSave = MetaSaveV5;
+export interface MonetizationState {
+  removeAds: boolean;
+  creditedPurchaseTokens: string[];
+  rewardedDay: string;
+  rewardedCount: number;
+}
+
+export interface MetaSaveV6 extends Omit<MetaSaveV5, 'version'> {
+  version: 6;
+  monetization: MonetizationState;
+}
+
+export type MetaSave = MetaSaveV6;
 export const MAX_ECONOMY_VALUE = 1_000_000_000;
 
 export function normalizeProgression(raw: unknown): ProgressionState {
@@ -167,6 +180,27 @@ export function normalizeStandardWinStreak(raw: unknown): StandardWinStreakState
   return { current, best: Math.max(current, rawBest) };
 }
 
+export function normalizeMonetization(raw: unknown): MonetizationState {
+  const value = isObject(raw) ? raw : {};
+  const tokens = uniqueStrings(value.creditedPurchaseTokens)
+    .filter((token) => token.length > 0 && token.length <= 512)
+    .slice(-128);
+  const rewardedDay = typeof value.rewardedDay === 'string'
+    && /^\d{4}-\d{2}-\d{2}$/.test(value.rewardedDay)
+    ? value.rewardedDay
+    : '';
+  const rewardedCount = Number.isSafeInteger(value.rewardedCount)
+    ? Math.max(0, Math.min(REWARDED_DAILY_LIMIT, value.rewardedCount as number))
+    : 0;
+
+  return {
+    removeAds: value.removeAds === true,
+    creditedPurchaseTokens: tokens,
+    rewardedDay,
+    rewardedCount,
+  };
+}
+
 export function createDefaultMetaSave(): MetaSave {
   return {
     version: META_SAVE_VERSION,
@@ -179,6 +213,7 @@ export function createDefaultMetaSave(): MetaSave {
     progression: normalizeProgression(null),
     standardDifficulty: normalizeStandardDifficulty(null),
     standardWinStreak: normalizeStandardWinStreak(null),
+    monetization: normalizeMonetization(null),
     achievements: [],
     stats: {
       original: createDefaultModeStats(),
@@ -336,7 +371,7 @@ export function normalizeMetaSave(raw: unknown): MetaSave {
     });
   }
 
-  if (raw.version !== 2 && raw.version !== 3 && raw.version !== 4 && raw.version !== META_SAVE_VERSION) return fallback;
+  if (raw.version !== 2 && raw.version !== 3 && raw.version !== 4 && raw.version !== 5 && raw.version !== META_SAVE_VERSION) return fallback;
 
   const stats = isObject(raw.stats) ? raw.stats : {};
   const collection = normalizeCollection(raw.collection);
@@ -350,8 +385,9 @@ export function normalizeMetaSave(raw: unknown): MetaSave {
     collection,
     equipped,
     progression: normalizeProgression(raw.version === 2 ? null : raw.progression),
-    standardDifficulty: normalizeStandardDifficulty(raw.version === 4 || raw.version === 5 ? raw.standardDifficulty : null),
-    standardWinStreak: normalizeStandardWinStreak(raw.version === 5 ? raw.standardWinStreak : null),
+    standardDifficulty: normalizeStandardDifficulty(raw.version === 4 || raw.version === 5 || raw.version === 6 ? raw.standardDifficulty : null),
+    standardWinStreak: normalizeStandardWinStreak(raw.version === 5 || raw.version === 6 ? raw.standardWinStreak : null),
+    monetization: normalizeMonetization(raw.version === 6 ? raw.monetization : null),
     achievements: uniqueStrings(raw.achievements),
     stats: {
       original: normalizeModeStats(stats.original),

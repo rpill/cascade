@@ -8,7 +8,7 @@ const shellSource = readFileSync(
 );
 
 test('hybrid shell exposes one brand, destination nav, utilities, and content host', () => {
-  assert.match(shellSource, /CASCADE/);
+  assert.match(shellSource, /t\('КАСКАД'\)/);
   assert.match(shellSource, /data-destination/);
   assert.match(shellSource, /contentHost/);
   assert.match(shellSource, /icon:\s*'rules'/);
@@ -33,11 +33,11 @@ test('shell back-to-game action is compact and contextual', () => {
 });
 
 test('hybrid presentation uses the generated home background asset and no fake decorative card props', () => {
-  assert.match(shellSource, /assets\/ui\/backgrounds\/home-main-menu-ambience\.png/);
+  assert.match(shellSource, /assets\/ui\/backgrounds\/home-main-menu-ambience\.webp/);
   assert.match(shellSource, /fine-grained-wood\.jpg/);
   assert.match(shellSource, /app-shell-topbar/);
   assert.doesNotMatch(shellSource, /app-shell-decor-card/);
-  assert.doesNotMatch(shellSource, /decor-card-back-red\.png|decor-card-queen-spades\.png/);
+  assert.doesNotMatch(shellSource, /decor-card-back-red\.webp|decor-card-queen-spades\.webp/);
   assert.match(shellSource, /this\.root\.append\(topbar, surface\)/);
 });
 

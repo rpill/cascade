@@ -3,7 +3,8 @@ import type { GameMode } from '../game/model/types.ts';
 import { beginDailyAttempt, completeDailyAttempt } from './DailyProgress.ts';
 import { beginModeAttempt, completeModeAttempt } from './GameStats.ts';
 import { awardLines, equipTheme, purchaseTheme, WIN_REWARDS, WEEK_REWARDS, type RewardLine, type RewardSummary } from './Economy.ts';
-import type { MetaSave } from './MetaSave.ts';
+import { MAX_ECONOMY_VALUE, type MetaSave } from './MetaSave.ts';
+import { getCoinGrantForProduct, REWARDED_COINS, REWARDED_DAILY_LIMIT } from '../monetization/Products.ts';
 import { getLevelProgress } from './Progression.ts';
 
 interface AttemptEvent { readonly attemptId:string; readonly mode:GameMode; readonly dailyId?:string; readonly weekId?:string }
@@ -11,7 +12,11 @@ export type CompletionEvent = AttemptEvent & {readonly kind:'complete';readonly 
 export type MetaOperation = (AttemptEvent & {readonly kind:'begin'}) | CompletionEvent
   | {readonly kind:'purchase';readonly themeId:string} | {readonly kind:'equip';readonly themeId:string}
   | {readonly kind:'standard-served';readonly seed:string;readonly tier:StandardTier}
-  | {readonly kind:'standard-failed';readonly attemptId:string};
+  | {readonly kind:'standard-failed';readonly attemptId:string}
+  | {readonly kind:'credit-platform-purchase';readonly productId:string;readonly purchaseToken:string}
+  | {readonly kind:'clear-platform-purchase';readonly purchaseToken:string}
+  | {readonly kind:'restore-remove-ads'}
+  | {readonly kind:'rewarded-ad';readonly dayId:string};
 
 function remember(ids: string[], id: string) { return [...ids,id].slice(-128); }
 function attemptCursor(id:string): {key:string;sequence:number}|null {
@@ -77,6 +82,56 @@ export function completeRewardedAttempt(state: MetaSave, event: CompletionEvent)
 export function applyMetaOperation(state: MetaSave, event: MetaOperation): MetaSave {
   switch (event.kind) {
     case 'purchase': return purchaseTheme(state,event.themeId);
+    case 'credit-platform-purchase': {
+      if (!event.purchaseToken || state.monetization.creditedPurchaseTokens.includes(event.purchaseToken)) return state;
+      const grant = getCoinGrantForProduct(event.productId);
+      if (grant === null) return state;
+      const coins = Math.min(MAX_ECONOMY_VALUE, state.progression.coins + grant);
+      return {
+        ...state,
+        progression: { ...state.progression, coins },
+        monetization: {
+          ...state.monetization,
+          creditedPurchaseTokens: [
+            ...state.monetization.creditedPurchaseTokens,
+            event.purchaseToken,
+          ].slice(-128),
+        },
+      };
+    }
+    case 'clear-platform-purchase': {
+      if (!state.monetization.creditedPurchaseTokens.includes(event.purchaseToken)) return state;
+      return {
+        ...state,
+        monetization: {
+          ...state.monetization,
+          creditedPurchaseTokens: state.monetization.creditedPurchaseTokens
+            .filter((token) => token !== event.purchaseToken),
+        },
+      };
+    }
+    case 'restore-remove-ads':
+      return state.monetization.removeAds
+        ? state
+        : { ...state, monetization: { ...state.monetization, removeAds: true } };
+    case 'rewarded-ad': {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(event.dayId)) return state;
+      const sameDay = state.monetization.rewardedDay === event.dayId;
+      const currentCount = sameDay ? state.monetization.rewardedCount : 0;
+      if (currentCount >= REWARDED_DAILY_LIMIT) return state;
+      return {
+        ...state,
+        progression: {
+          ...state.progression,
+          coins: Math.min(MAX_ECONOMY_VALUE, state.progression.coins + REWARDED_COINS),
+        },
+        monetization: {
+          ...state.monetization,
+          rewardedDay: event.dayId,
+          rewardedCount: currentCount + 1,
+        },
+      };
+    }
     case 'equip': return equipTheme(state,event.themeId);
     case 'standard-served': {
       if (!/^[1-9]\d{0,9}$/u.test(event.seed)) return state;

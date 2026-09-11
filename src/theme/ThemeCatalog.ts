@@ -27,6 +27,7 @@ export const THEME_CATALOG: readonly ThemeProduct[] = [
   product('spring_morning', 'Весеннее утро', 'Свежая зелень, цветущие ветви и мягкий весенний свет.', 300),
   product('summer_veranda', 'Летняя веранда', 'Тёплый стол, цитрусы и солнечные тени летнего дня.', 300),
   product('office', 'Офис', 'Тёмная кожа, латунные детали и аккуратный рабочий стол.', 350),
+  product('retro_hotel', 'Ретро-отель', 'Изумрудный стол, латунь и винтажные детали старого отеля.', 700),
 ];
 
 export function getThemeProduct(id: string): ThemeProduct | undefined {

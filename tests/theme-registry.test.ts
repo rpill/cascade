@@ -20,7 +20,7 @@ test('Green Felt Club is a complete registry theme', () => {
 
   assert.equal(theme.id, 'green_felt_club');
   assert.match(theme.boardSurface.url, /green-felt-club\/board-surface\.jpg$/);
-  assert.match(theme.cardBack.url, /green-felt-club\/card-back\.png$/);
+  assert.match(theme.cardBack.url, /green-felt-club\/card-back\.webp$/);
   assert.ok(getSlotFrameAsset(theme).url.startsWith('data:image/svg+xml'));
   assert.ok(getSlotGlyphAsset(theme, 'stock')?.url.startsWith('data:image/svg+xml'));
 });
@@ -37,7 +37,7 @@ test('Burgundy Club is a complete registry theme', () => {
 
   assert.equal(theme.id, 'burgundy_club');
   assert.match(theme.boardSurface.url, /burgundy-club\/board-surface-refined\.webp$/);
-  assert.match(theme.cardBack.url, /burgundy-club\/card-back\.png$/);
+  assert.match(theme.cardBack.url, /burgundy-club\/card-back\.webp$/);
   assert.ok(getSlotFrameAsset(theme).url.startsWith('data:image/svg+xml'));
   assert.ok(getSlotGlyphAsset(theme, 'stock')?.url.startsWith('data:image/svg+xml'));
 });

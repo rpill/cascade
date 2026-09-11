@@ -9,11 +9,11 @@ const slidesSource = existsSync(slidesUrl) ? readFileSync(slidesUrl, 'utf8') : '
 const stylesSource = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
 
 const screenshotAssets = [
-  'foundation.png',
-  'stock-draw-three.png',
-  'empty-column.png',
-  'free-stock-cell.png',
-  'alternating-colors.png',
+  'foundation.webp',
+  'stock-draw-three.webp',
+  'empty-column.webp',
+  'free-stock-cell.webp',
+  'alternating-colors.webp',
 ] as const;
 
 test('Rules v3 uses the five supplied gameplay screenshots as the visual source of truth', () => {

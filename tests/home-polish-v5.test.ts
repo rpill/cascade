@@ -30,7 +30,7 @@ test('home background uses the real table surface and does not render decorative
   const root = rootBlocks.find((rule) => rule.includes('background: var(--app-shell-wood)')) ?? '';
   assert.match(root, /background:\s*var\(--app-shell-wood\)/);
   assert.doesNotMatch(stylesSource, /\.app-shell-decor-card\s*\{/);
-  assert.doesNotMatch(shellSource, /app-shell-decor-card|decor-card-back-red\.png|decor-card-queen-spades\.png/);
+  assert.doesNotMatch(shellSource, /app-shell-decor-card|decor-card-back-red\.webp|decor-card-queen-spades\.webp/);
 });
 
 test('ornamented frames use fixed corner artwork without detached ornament DOM nodes', () => {

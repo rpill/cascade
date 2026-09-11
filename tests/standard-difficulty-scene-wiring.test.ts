@@ -6,7 +6,8 @@ const scene = readFileSync(new URL('../src/game/scenes/GameScene.ts', import.met
 const metaOperations = readFileSync(new URL('../src/meta/MetaOperations.ts', import.meta.url), 'utf8');
 
 function method(name: string): string {
-  const start = scene.indexOf(`private ${name}`);
+  let start = scene.indexOf(`private ${name}`);
+  if (start === -1) start = scene.indexOf(`private async ${name}`);
   assert.notEqual(start, -1, `missing ${name}`);
   const next = scene.indexOf('\n  private ', start + 1);
   return scene.slice(start, next === -1 ? scene.length : next);
@@ -34,7 +35,7 @@ test('GameScene owns hidden Standard director and records served seed before sta
 });
 
 test('New Deal in unfinished Standard records failure before choosing replacement', () => {
-  const source = method('startNewDeal');
+  const source = method('requestFreshDeal');
   assertOrdered(source, 'recordStandardFailureIfReplacing', 'selectStandardDeal');
   assertOrdered(source, "kind:'standard-served'", 'startNewInCurrentMode');
 });

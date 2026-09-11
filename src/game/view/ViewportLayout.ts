@@ -266,3 +266,59 @@ export function calculateViewportLayout(
     bottomMargin,
   };
 }
+
+function scaleNumber(value: number, scale: number): number {
+  return value * scale;
+}
+
+function scalePoint(point: LayoutPoint, scale: number): LayoutPoint {
+  return {
+    x: scaleNumber(point.x, scale),
+    y: scaleNumber(point.y, scale),
+  };
+}
+
+function scaleBounds(bounds: LayoutBounds, scale: number): LayoutBounds {
+  return {
+    x: scaleNumber(bounds.x, scale),
+    y: scaleNumber(bounds.y, scale),
+    width: scaleNumber(bounds.width, scale),
+    height: scaleNumber(bounds.height, scale),
+  };
+}
+
+export function scaleViewportLayout(
+  layout: ViewportLayout,
+  renderScale: number,
+): ViewportLayout {
+  const scale = Number.isFinite(renderScale) && renderScale > 0 ? renderScale : 1;
+  if (scale === 1) return layout;
+
+  return {
+    viewportWidth: scaleNumber(layout.viewportWidth, scale),
+    viewportHeight: scaleNumber(layout.viewportHeight, scale),
+    profile: layout.profile,
+    safeArea: {
+      top: scaleNumber(layout.safeArea.top, scale),
+      right: scaleNumber(layout.safeArea.right, scale),
+      bottom: scaleNumber(layout.safeArea.bottom, scale),
+      left: scaleNumber(layout.safeArea.left, scale),
+    },
+    hudBounds: scaleBounds(layout.hudBounds, scale),
+    boardBounds: scaleBounds(layout.boardBounds, scale),
+    compositionBounds: scaleBounds(layout.compositionBounds, scale),
+    foundationRailBounds: scaleBounds(layout.foundationRailBounds, scale),
+    mainPlayBounds: scaleBounds(layout.mainPlayBounds, scale),
+    cardWidth: scaleNumber(layout.cardWidth, scale),
+    cardHeight: scaleNumber(layout.cardHeight, scale),
+    stock: scalePoint(layout.stock, scale),
+    wasteLaneBounds: scaleBounds(layout.wasteLaneBounds, scale),
+    foundations: layout.foundations.map((point) => scalePoint(point, scale)),
+    tableauX: layout.tableauX.map((x) => scaleNumber(x, scale)),
+    tableauY: scaleNumber(layout.tableauY, scale),
+    tableauColumnGap: scaleNumber(layout.tableauColumnGap, scale),
+    tableauCardGap: scaleNumber(layout.tableauCardGap, scale),
+    wasteGap: scaleNumber(layout.wasteGap, scale),
+    bottomMargin: scaleNumber(layout.bottomMargin, scale),
+  };
+}

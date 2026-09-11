@@ -12,7 +12,7 @@ test('Spring Morning is a released purchasable theme with complete assets', () =
   assert.equal(theme.id, 'spring_morning');
   assert.equal(theme.surfaceScale, 'cover');
   assert.match(theme.boardSurface.url, /spring-morning\/board-surface\.webp$/);
-  assert.match(theme.cardBack.url, /spring-morning\/card-back\.png$/);
+  assert.match(theme.cardBack.url, /spring-morning\/card-back\.webp$/);
 
   const product = getThemeProduct('spring_morning');
   assert.ok(product);
@@ -23,7 +23,7 @@ test('Spring Morning is a released purchasable theme with complete assets', () =
 
   for (const path of [
     '../public/assets/themes/spring-morning/board-surface.webp',
-    '../public/assets/themes/spring-morning/card-back.png',
+    '../public/assets/themes/spring-morning/card-back.webp',
     '../public/assets/themes/spring-morning/shop-preview.webp',
     '../public/assets/themes/spring-morning/shop-card-back.webp',
   ]) {

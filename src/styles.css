@@ -2240,6 +2240,44 @@ canvas {
     0 10px 20px rgba(42, 27, 15, 0.16);
 }
 
+.main-shell-statistics-summary::before,
+.main-shell-statistics-leaderboard::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  z-index: 0;
+  border: 1px solid var(--home-frame-ink-soft);
+  border-radius: 10px;
+  box-shadow: inset 0 0 18px rgba(89, 55, 26, 0.07);
+  pointer-events: none;
+}
+
+.main-shell-statistics-summary::after,
+.main-shell-statistics-leaderboard::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  z-index: 0;
+  border-radius: 10px;
+  background-image:
+    var(--home-corner-tl),
+    var(--home-corner-tr),
+    var(--home-corner-br),
+    var(--home-corner-bl);
+  background-position: left top, right top, right bottom, left bottom;
+  background-size: 28px 28px;
+  background-repeat: no-repeat;
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.main-shell-statistics-summary > *,
+.main-shell-statistics-leaderboard > * {
+  position: relative;
+  z-index: 1;
+}
+
 .main-shell-statistics-summary {
   padding: 22px 20px;
 }

@@ -7,11 +7,11 @@ const scene = readFileSync(new URL('../src/game/scenes/GameScene.ts', import.met
 const board = readFileSync(new URL('../src/game/view/BoardView.ts', import.meta.url), 'utf8');
 const daily = readFileSync(new URL('../src/game/view/DailyCompleteView.ts', import.meta.url), 'utf8');
 
-test('BootScene preloads every variant from every semantic SFX group', () => {
-  assert.match(boot, /Object\.values\(SFX_ASSETS\)/);
-  assert.match(boot, /asset\.keys/);
-  assert.match(boot, /asset\.urls/);
+test('first-run boot preloads deal audio only and defers the remaining SFX', () => {
+  assert.match(boot, /SFX_ASSETS\.deal/);
   assert.match(boot, /this\.load\.audio/);
+  assert.match(scene, /cue !== 'deal'/);
+  assert.match(scene, /this\.load\.audio/);
 });
 
 test('GameScene owns SFX controller and keeps DOM button feedback separate', () => {

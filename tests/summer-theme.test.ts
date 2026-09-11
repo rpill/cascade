@@ -12,7 +12,7 @@ test('Summer Veranda is a released purchasable theme with complete assets', () =
   assert.equal(theme.id, 'summer_veranda');
   assert.equal(theme.surfaceScale, 'cover');
   assert.match(theme.boardSurface.url, /summer-veranda\/board-surface\.webp$/);
-  assert.match(theme.cardBack.url, /summer-veranda\/card-back\.png$/);
+  assert.match(theme.cardBack.url, /summer-veranda\/card-back\.webp$/);
 
   const product = getThemeProduct('summer_veranda');
   assert.ok(product);
@@ -23,7 +23,7 @@ test('Summer Veranda is a released purchasable theme with complete assets', () =
 
   for (const path of [
     '../public/assets/themes/summer-veranda/board-surface.webp',
-    '../public/assets/themes/summer-veranda/card-back.png',
+    '../public/assets/themes/summer-veranda/card-back.webp',
     '../public/assets/themes/summer-veranda/shop-preview.webp',
     '../public/assets/themes/summer-veranda/shop-card-back.webp',
   ]) {
