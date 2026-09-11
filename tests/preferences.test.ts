@@ -60,3 +60,16 @@ test('blocked or corrupt storage still supports settings for the current session
   assert.equal(preferences.language,'en');
   assert.equal(preferences.soundEnabled,false);
 });
+
+test('How to Play completion persists and blocked storage still updates the current session', () => {
+  const storage=memoryStorage();
+  const preferences=new Preferences(storage);
+  assert.equal(preferences.howToPlaySeen,false);
+  preferences.markHowToPlaySeen();
+  assert.equal(preferences.howToPlaySeen,true);
+  assert.equal(new Preferences(storage).howToPlaySeen,true);
+
+  const blocked=new Preferences({getItem:()=>null,setItem:()=>{throw Error('blocked');}});
+  blocked.markHowToPlaySeen();
+  assert.equal(blocked.howToPlaySeen,true);
+});

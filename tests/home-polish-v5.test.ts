@@ -25,11 +25,12 @@ test('Home uses a dedicated professional art-icon layer rather than hand-drawn p
   assert.match(playSource, /createHomeArtIcon\('trophy'\)/);
 });
 
-test('decorative cards share one physical card size instead of shrinking the face-up queen', () => {
-  const base = cssBlock('.app-shell-decor-card');
-  const front = cssBlock('.app-shell-decor-right-front');
-  assert.match(base, /width:\s*clamp\(/);
-  assert.doesNotMatch(front, /\bwidth\s*:/);
+test('home background uses the real table surface and does not render decorative card props', () => {
+  const rootBlocks = stylesSource.match(/\.app-shell-dom\s*\{[\s\S]*?\n\}/g) ?? [];
+  const root = rootBlocks.find((rule) => rule.includes('background: var(--app-shell-wood)')) ?? '';
+  assert.match(root, /background:\s*var\(--app-shell-wood\)/);
+  assert.doesNotMatch(stylesSource, /\.app-shell-decor-card\s*\{/);
+  assert.doesNotMatch(shellSource, /app-shell-decor-card|decor-card-back-red\.png|decor-card-queen-spades\.png/);
 });
 
 test('ornamented frames use fixed corner artwork without detached ornament DOM nodes', () => {

@@ -39,3 +39,21 @@ test('card touch uses one stable physical sample instead of alternating pickup s
   assert.equal(calls.length, 2);
   assert.equal(calls[0].key, calls[1].key);
 });
+
+test('SfxController skips playback while Phaser audio is locked and does not advance variants', () => {
+  const calls: Array<{key:string;config?:{volume?:number}}> = [];
+  const manager = {
+    locked: true,
+    play:(key:string,config?:{volume?:number})=>{ calls.push({key,config}); return true; },
+  };
+  const sfx = new SfxController(manager);
+
+  sfx.play('deal');
+  sfx.play('deal');
+  assert.equal(calls.length, 0);
+
+  manager.locked = false;
+  sfx.play('deal');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].key, SFX_ASSETS.deal.keys[0]);
+});

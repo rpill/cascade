@@ -61,9 +61,12 @@ export class GameCompleteView {
   private readonly levelReward: HTMLDivElement;
   private readonly levelRewardTitle: HTMLSpanElement;
   private readonly levelRewardValue: HTMLSpanElement;
+  private readonly levelRewardNotice: HTMLSpanElement;
   private readonly actions: GameCompleteActions;
   private currentCompletionId: string | null = null;
   private animationTimers: number[] = [];
+  private themePurchaseUnlocked = false;
+  private themePurchaseNoticeShown = false;
 
   constructor(scene: Phaser.Scene, actions: GameCompleteActions) {
     this.actions = actions;
@@ -138,7 +141,10 @@ export class GameCompleteView {
     this.levelRewardTitle.className = 'game-complete-level-reward-title';
     this.levelRewardValue = document.createElement('span');
     this.levelRewardValue.className = 'game-complete-level-reward-value';
-    this.levelReward.append(this.levelRewardTitle, this.levelRewardValue);
+    this.levelRewardNotice = document.createElement('span');
+    this.levelRewardNotice.className = 'game-complete-level-reward-notice';
+    this.levelRewardNotice.hidden = true;
+    this.levelReward.append(this.levelRewardTitle, this.levelRewardValue, this.levelRewardNotice);
 
     this.progression.append(this.level, this.xpTrack, this.xp, this.levelReward);
 
@@ -179,6 +185,7 @@ export class GameCompleteView {
     if (isNewCompletion) {
       this.cancelAnimation();
       this.currentCompletionId = state.completionId;
+      this.themePurchaseNoticeShown = false;
     }
 
     this.elapsed.textContent = formatDuration(state.elapsedMs);
@@ -186,6 +193,7 @@ export class GameCompleteView {
     this.record.hidden = !state.improvedBest;
 
     const reward = state.reward;
+    this.themePurchaseUnlocked = reward?.themePurchaseUnlocked === true;
     const hasReward = reward !== undefined;
     this.coins.hidden = !hasReward;
     this.progression.hidden = !hasReward;
@@ -239,6 +247,7 @@ export class GameCompleteView {
     this.setProgress(progress.level, progress.xpIntoLevel, progress.xpForNextLevel, false);
     this.levelReward.hidden = true;
     this.levelReward.classList.remove('is-visible');
+    this.levelRewardNotice.hidden = true;
   }
 
   private playProgress(
@@ -269,6 +278,10 @@ export class GameCompleteView {
       }),
       document.createTextNode(` ${t('за уровень')}`),
     );
+    const showPurchaseNotice = this.themePurchaseUnlocked && !this.themePurchaseNoticeShown;
+    this.levelRewardNotice.textContent = showPurchaseNotice ? t('Доступны новые темы в коллекции') : '';
+    this.levelRewardNotice.hidden = !showPurchaseNotice;
+    if (showPurchaseNotice) this.themePurchaseNoticeShown = true;
     this.levelReward.hidden = false;
     this.levelReward.classList.add('is-visible');
     this.actions.sound?.('level-up');

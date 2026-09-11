@@ -11,6 +11,7 @@ import {
 } from './MetaJournal.ts';
 import {
   createDefaultMetaSave,
+  MAX_ECONOMY_VALUE,
   normalizeMetaSave,
   type MetaSave,
 } from './MetaSave.ts';
@@ -69,6 +70,27 @@ export class MetaSession {
 
   getImprovedBest(attemptId:string): boolean|undefined {
     return this.records.get(attemptId);
+  }
+
+  setDevelopmentCoinFloor(coins: number): boolean {
+    if (this.currentStatus !== 'ready' || !Number.isSafeInteger(coins) || coins < 0) {
+      return false;
+    }
+
+    const floor = Math.min(coins, MAX_ECONOMY_VALUE);
+    if (this.currentState.progression.coins >= floor) {
+      return false;
+    }
+
+    this.currentState = {
+      ...this.currentState,
+      progression: {
+        ...this.currentState.progression,
+        coins: floor,
+      },
+    };
+    this.notify();
+    return true;
   }
 
   load(): Promise<boolean> {

@@ -39,6 +39,7 @@ test('shared and modal styles define the coin icon and wood-button presentation'
   assert.match(shellStyles, /\.theme-catalog-action-coin\s*\{/);
 
   assert.match(purchaseStyles, /var\(--purchase-wood-detail\)/);
-  assert.match(purchaseStyles, /\.purchase-pack-button,\s*[\r\n]+\.purchase-close\s*\{/);
+  assert.match(purchaseStyles, /\.purchase-pack-button\s*\{/);
+  assert.match(purchaseStyles, /\.purchase-close-icon\s*\{/);
   assert.doesNotMatch(purchaseStyles, /content:\s*'●'/);
 });

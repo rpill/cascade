@@ -29,8 +29,8 @@ test('new-deal uses the shared standard Tabler cards glyph', () => {
   assert.doesNotMatch(iconsSource, /dataset\.plus = 'true'/);
 });
 
-test('Walnut gameplay skin removes the perimeter frame without changing the 44px shared hit size', () => {
+test('Walnut gameplay skin removes the perimeter frame with the enlarged 50px shared hit size', () => {
   assert.match(polishStyles, /#game:has\(\.game-hud\)::after\s*\{[^}]*display:\s*none/s);
-  assert.match(polishStyles, /width:\s*var\(--ui-hit-size,\s*44px\)/);
-  assert.match(polishStyles, /height:\s*var\(--ui-hit-size,\s*44px\)/);
+  assert.match(polishStyles, /width:\s*var\(--ui-hit-size,\s*50px\)/);
+  assert.match(polishStyles, /height:\s*var\(--ui-hit-size,\s*50px\)/);
 });

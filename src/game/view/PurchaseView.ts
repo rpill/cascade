@@ -4,6 +4,11 @@ import { createCoinInline } from './ui/CoinInline.ts';
 const COIN_PACKS = [500, 1500, 4000] as const;
 
 const PURCHASE_WOOD_DETAIL = './assets/theme/fine-grained-wood.jpg';
+const PURCHASE_PAPER_PRIMARY = './assets/ui/paper-001-color.jpg';
+const PURCHASE_CORNER_TL = './assets/ui/ornaments/corners/home-corner-tl.png';
+const PURCHASE_CORNER_TR = './assets/ui/ornaments/corners/home-corner-tr.png';
+const PURCHASE_CORNER_BR = './assets/ui/ornaments/corners/home-corner-br.png';
+const PURCHASE_CORNER_BL = './assets/ui/ornaments/corners/home-corner-bl.png';
 
 function toCssUrl(path: string): string {
   return `url("${new URL(path, document.baseURI).href}")`;
@@ -25,11 +30,22 @@ export class PurchaseView {
     this.root = document.createElement('dialog');
     this.root.className = 'purchase-dialog';
     this.root.style.setProperty('--purchase-wood-detail', toCssUrl(PURCHASE_WOOD_DETAIL));
+    this.root.style.setProperty('--app-shell-paper-primary', toCssUrl(PURCHASE_PAPER_PRIMARY));
+    this.root.style.setProperty('--home-corner-tl', toCssUrl(PURCHASE_CORNER_TL));
+    this.root.style.setProperty('--home-corner-tr', toCssUrl(PURCHASE_CORNER_TR));
+    this.root.style.setProperty('--home-corner-br', toCssUrl(PURCHASE_CORNER_BR));
+    this.root.style.setProperty('--home-corner-bl', toCssUrl(PURCHASE_CORNER_BL));
     this.root.setAttribute('aria-labelledby', 'purchase-title');
 
     this.title = document.createElement('h2');
     this.title.id = 'purchase-title';
     this.title.className = 'purchase-title';
+
+    this.closeButton = document.createElement('button');
+    this.closeButton.type = 'button';
+    this.closeButton.className = 'purchase-close-icon';
+    this.closeButton.textContent = '×';
+    this.closeButton.addEventListener('click', () => this.hide());
 
     this.note = document.createElement('p');
     this.note.className = 'purchase-note';
@@ -67,12 +83,8 @@ export class PurchaseView {
     this.adsButton.className = 'purchase-pack-button purchase-ads-button';
     this.adsButton.disabled = true;
 
-    this.closeButton = document.createElement('button');
-    this.closeButton.type = 'button';
-    this.closeButton.className = 'purchase-close';
-    this.closeButton.addEventListener('click', () => this.hide());
-
     this.root.append(
+      this.closeButton,
       this.title,
       this.note,
       this.coinHeading,
@@ -142,7 +154,8 @@ export class PurchaseView {
     this.adsHeading.textContent = t('УБРАТЬ РЕКЛАМУ');
     this.adsCopy.textContent = t('Отключает обычную рекламу навсегда.');
     this.adsButton.textContent = t('СКОРО');
-    this.closeButton.textContent = t('Готово');
+    this.closeButton.setAttribute('aria-label', t('Закрыть'));
+    this.closeButton.setAttribute('title', t('Закрыть'));
   }
 
   destroy(): void {

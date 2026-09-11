@@ -17,7 +17,7 @@ export const THEMES = {
     surfaceScale: 'cover',
     cardBack: {
       key: 'card-back',
-      url: './assets/themes/walnut-study/card-back.svg',
+      url: './assets/themes/walnut-study/card-back.png',
     },
     slots: {
       palette: {

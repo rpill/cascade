@@ -12,6 +12,7 @@ export interface RewardSummaryState {
   readonly level: number;
   readonly lines: readonly RewardSummaryLine[];
   readonly pending?: boolean;
+  readonly themePurchaseUnlocked?: boolean;
 }
 
 export function translateRewardLabel(label: string): string {
@@ -56,6 +57,7 @@ export class RewardSummaryView {
   private readonly total: HTMLParagraphElement;
   private readonly level: HTMLParagraphElement;
   private readonly lines: HTMLDivElement;
+  private readonly purchaseNotice: HTMLParagraphElement;
   private state: RewardSummaryState | undefined;
 
   constructor(host: HTMLElement) {
@@ -69,7 +71,9 @@ export class RewardSummaryView {
     this.level.className = 'reward-summary-level';
     this.lines = document.createElement('div');
     this.lines.className = 'reward-summary-lines';
-    this.root.append(this.total, this.level, this.lines);
+    this.purchaseNotice = document.createElement('p');
+    this.purchaseNotice.className = 'reward-summary-purchase-notice';
+    this.root.append(this.total, this.level, this.lines, this.purchaseNotice);
     host.append(this.root);
     this.update(undefined);
   }
@@ -86,6 +90,7 @@ export class RewardSummaryView {
       this.localization.text(this.total, () => t('Награды начисляются…'));
       this.localization.text(this.level, () => '');
       this.lines.replaceChildren();
+      this.purchaseNotice.hidden = true;
       return;
     }
 
@@ -110,5 +115,9 @@ export class RewardSummaryView {
       row.append(label, value);
       return row;
     }));
+    this.purchaseNotice.textContent = reward.themePurchaseUnlocked
+      ? t('Доступны новые темы в коллекции')
+      : '';
+    this.purchaseNotice.hidden = reward.themePurchaseUnlocked !== true;
   }
 }

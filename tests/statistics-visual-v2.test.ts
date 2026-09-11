@@ -29,9 +29,16 @@ test('Home mode cards and Statistics panels share one parchment material contrac
   assert.match(statsPanels, /background-blend-mode:\s*var\(--home-card-paper-blend\)/);
 });
 
-test('Statistics summary uses compact metric tiles rather than one tall empty list', () => {
+test('Statistics summary keeps one vertical column of metric tiles while both large panels stay equal height', () => {
+  const content = ruleFor('.main-shell-statistics-content');
+  assert.match(content, /height:\s*100%/);
+  assert.match(content, /align-items:\s*stretch/);
+
+  assert.match(styles, /\.main-shell-statistics-summary \{[\s\S]*align-self:\s*stretch/);
+  assert.match(styles, /\.main-shell-statistics-leaderboard \{[\s\S]*align-self:\s*stretch/);
+
   const values = ruleFor('.main-shell-statistics-values');
-  assert.match(values, /grid-template-columns:\s*repeat\(2,/);
+  assert.match(values, /grid-template-columns:\s*minmax\(0, 1fr\)/);
 
   const row = ruleFor('.main-shell-statistics-row');
   assert.match(row, /border:\s*1px solid/);

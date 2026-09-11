@@ -170,6 +170,47 @@ export class SolitaireGame {
       .map((target) => ({ source, target })));
   }
 
+  findHintMoves(): LegalMove[] {
+    const seenEquivalentTableauMoves = new Set<string>();
+
+    return this.findLegalMoves().filter((move) => {
+      if (move.source.zone !== 'tableau' || move.target.zone !== 'tableau') {
+        return true;
+      }
+
+      const sourcePile = this.tableau[move.source.pile];
+      const destination = this.tableau[move.target.pile];
+
+      if (sourcePile === undefined || destination === undefined) {
+        return false;
+      }
+
+      // Hint only the largest currently movable run from a tableau pile.
+      // Smaller suffixes are legal, but splitting an already ordered run is
+      // the source of noisy A→B→A reshuffle suggestions.
+      if (move.source.index !== this.maximalOrderedRunStart(sourcePile)) {
+        return false;
+      }
+
+      if (move.source.index === 0 && destination.length === 0) {
+        return false;
+      }
+
+      const destinationTop = destination.at(-1);
+      const destinationClass = destinationTop === undefined
+        ? 'empty'
+        : `${destinationTop.rank}:${destinationTop.color}`;
+      const equivalenceKey = `${move.source.pile}:${move.source.index}->${destinationClass}`;
+
+      if (seenEquivalentTableauMoves.has(equivalenceKey)) {
+        return false;
+      }
+
+      seenEquivalentTableauMoves.add(equivalenceKey);
+      return true;
+    });
+  }
+
   canMove(source: CardSource, target: MoveTarget): boolean {
     const cards = this.cardsFromSource(source);
 
@@ -271,6 +312,18 @@ export class SolitaireGame {
     }
 
     return moved;
+  }
+
+  private maximalOrderedRunStart(pile: readonly Card[]): number {
+    if (pile.length === 0) {
+      return -1;
+    }
+
+    let index = pile.length - 1;
+    while (index > 0 && this.canStackOnTableau(pile[index], pile[index - 1])) {
+      index -= 1;
+    }
+    return index;
   }
 
   private isOrderedRun(cards: readonly Card[]): boolean {

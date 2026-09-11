@@ -32,13 +32,13 @@ test('shell back-to-game action is compact and contextual', () => {
   assert.doesNotMatch(shellSource, /ЗАКРЫТЬ/);
 });
 
-test('hybrid presentation hides the live board behind its own wood backdrop', () => {
+test('hybrid presentation uses the generated home background asset and no fake decorative card props', () => {
+  assert.match(shellSource, /assets\/ui\/backgrounds\/home-main-menu-ambience\.png/);
   assert.match(shellSource, /fine-grained-wood\.jpg/);
   assert.match(shellSource, /app-shell-topbar/);
-  assert.match(shellSource, /app-shell-decor-card/);
-  assert.match(shellSource, /decor-card-back-red\.png/);
-  assert.match(shellSource, /decor-card-queen-spades\.png/);
-  assert.match(shellSource, /this\.root\.append\([\s\S]*topbar[\s\S]*surface/);
+  assert.doesNotMatch(shellSource, /app-shell-decor-card/);
+  assert.doesNotMatch(shellSource, /decor-card-back-red\.png|decor-card-queen-spades\.png/);
+  assert.match(shellSource, /this\.root\.append\(topbar, surface\)/);
 });
 
 test('brand and utilities live on the wood header rather than inside the parchment surface', () => {
@@ -54,4 +54,10 @@ test('wallet purchase entry point is a single clickable capsule', () => {
   assert.match(shellSource, /walletGroup\.className = 'app-shell-wallet-group'/);
   assert.match(shellSource, /walletGroup\.addEventListener\('click', \(\) => actions\.purchases\(\)\)/);
   assert.doesNotMatch(shellSource, /const walletAddButton = document\.createElement\('button'\)/);
+});
+
+
+test('brand header no longer uses the legacy classic-solitaire subtitle', () => {
+  assert.doesNotMatch(shellSource, /КЛАССИЧЕСКИЙ ПАСЬЯНС/);
+  assert.match(shellSource, /brand\.append\(brandTitle, brandFlourish\)/);
 });

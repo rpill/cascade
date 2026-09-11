@@ -178,13 +178,15 @@ export function calculateViewportLayout(
     y: foundationStartY + index * (cardHeight + foundationGap),
   }));
 
+  const mainPlayTopOffset = compact ? clamp(10, safeHeight * 0.025, 14) : 0;
+  const mainPlayY = boardY + mainPlayTopOffset;
   const mainPlayBounds = {
     x: mainPlayX,
-    y: boardY,
+    y: mainPlayY,
     width: tableauWidth,
-    height: boardHeight,
+    height: Math.max(1, boardHeight - mainPlayTopOffset),
   };
-  const stock = { x: mainPlayX, y: boardY };
+  const stock = { x: mainPlayX, y: mainPlayY };
   const wasteZoneGap = clamp(
     compact ? 8 : 16,
     cardWidth * 0.15,
@@ -194,7 +196,7 @@ export function calculateViewportLayout(
   const mainPlayRight = mainPlayBounds.x + mainPlayBounds.width;
   const wasteLaneBounds = {
     x: wasteX,
-    y: boardY,
+    y: mainPlayY,
     width: Math.max(cardWidth, mainPlayRight - wasteX),
     height: cardHeight,
   };
@@ -208,7 +210,7 @@ export function calculateViewportLayout(
     safeHeight * (compact ? 0.02 : 0.04),
     compact ? 14 : 52,
   );
-  const tableauY = boardY + cardHeight + rowGap;
+  const tableauY = mainPlayY + cardHeight + rowGap;
   const tableauCardGap = clamp(
     compact ? 8 : 20,
     cardHeight * (compact ? 0.15 : 28 / 151),

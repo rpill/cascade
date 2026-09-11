@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "yandex:dev": "pnpm build && node scripts/yandex-dev-proxy.mjs",
+    "yandex:dev": "pnpm build:yandex-dev && node scripts/yandex-dev-proxy.mjs",
     "test": "node --test tests/*.test.ts tests/*.test.mjs",
     "generate:winnable-pool": "D:\\msys64\\ucrt64\\bin\\g++.exe -std=c++20 -O3 -pthread tools/sawayama_solver.cpp -o tools/sawayama_solver.exe && tools\\sawayama_solver.exe --genpool --start 1 --count 4096 --limit 512 --budget 250000 --jobs 4 --out src/game/model/winnableSeeds.ts",
     "deals:build-solver": "node tools/deals/build-solver.mjs",
@@ -16,7 +16,8 @@
     "deals:generate": "node tools/deals/generate.mjs",
     "deals:verify-sample": "node --test tests/verified-proof-sample.test.ts",
     "deals:verify-all": "node tools/deals/verify-all.mjs",
-    "deals:report": "node tools/deals/report.mjs"
+    "deals:report": "node tools/deals/report.mjs",
+    "build:yandex-dev": "tsc && vite build --mode yandex-dev"
   },
   "dependencies": {
     "phaser": "^3.90.0"

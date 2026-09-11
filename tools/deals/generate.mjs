@@ -1,11 +1,16 @@
 import { createHash } from 'node:crypto';
 import {
   appendFileSync,
+  closeSync,
+  createReadStream,
   existsSync,
   mkdirSync,
+  openSync,
   readFileSync,
+  readSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -65,11 +70,63 @@ export function appendCandidate(outputPath, record) {
   appendFileSync(outputPath, `${JSON.stringify(record)}\n`, 'utf8');
 }
 
-function readOutputSeeds(outputPath) {
-  if (!existsSync(outputPath)) return new Set();
-  const text = readFileSync(outputPath, 'utf8').trim();
-  if (!text) return new Set();
-  return new Set(text.split('\n').map((line) => JSON.parse(line).seed));
+async function* readJsonlLines(outputPath, { startOffset = 0, startLineNumber = 0 } = {}) {
+  if (!existsSync(outputPath)) return;
+
+  const input = createReadStream(outputPath, { start: startOffset });
+  let carry = Buffer.alloc(0);
+  let carryOffset = startOffset;
+  let lineNumber = startLineNumber;
+
+  for await (const chunk of input) {
+    const data = carry.length > 0 ? Buffer.concat([carry, chunk]) : chunk;
+    const dataOffset = carryOffset;
+    let cursor = 0;
+    let newlineIndex;
+
+    while ((newlineIndex = data.indexOf(0x0a, cursor)) !== -1) {
+      const lineBuffer = data.subarray(cursor, newlineIndex);
+      lineNumber += 1;
+      yield {
+        line: lineBuffer.toString('utf8'),
+        lineNumber,
+        offset: dataOffset + cursor,
+        byteLength: lineBuffer.length,
+      };
+      cursor = newlineIndex + 1;
+    }
+
+    carry = Buffer.from(data.subarray(cursor));
+    carryOffset = dataOffset + cursor;
+  }
+
+  if (carry.length > 0) {
+    lineNumber += 1;
+    yield {
+      line: carry.toString('utf8'),
+      lineNumber,
+      offset: carryOffset,
+      byteLength: carry.length,
+    };
+  }
+}
+
+function parseCandidateLine(line, outputPath, lineNumber) {
+  if (!line.trim()) return null;
+  try {
+    return JSON.parse(line);
+  } catch (error) {
+    throw new Error(`Invalid candidate JSONL at ${outputPath}:${lineNumber}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+async function readOutputSeeds(outputPath) {
+  const seeds = new Set();
+  for await (const { line, lineNumber } of readJsonlLines(outputPath)) {
+    const record = parseCandidateLine(line, outputPath, lineNumber);
+    if (record) seeds.add(record.seed);
+  }
+  return seeds;
 }
 
 function freshCheckpoint(startSeed, maxSeeds) {
@@ -187,6 +244,7 @@ export async function scanRange({
   fastBudget = FAST_NODE_BUDGET,
   slowBudget = SLOW_NODE_BUDGET,
   solverPath,
+  knownOutputSeeds,
 } = {}) {
   assertPositiveUint32(startSeed, 'startSeed');
   if (!Number.isSafeInteger(maxSeeds) || maxSeeds < 1) throw new RangeError(`maxSeeds must be >= 1, got ${String(maxSeeds)}`);
@@ -198,7 +256,7 @@ export async function scanRange({
 
   const checkpoint = readCheckpoint(checkpointPath) ?? freshCheckpoint(startSeed, maxSeeds);
   validateResume(checkpoint, startSeed, maxSeeds);
-  const outputSeeds = readOutputSeeds(outputPath);
+  const outputSeeds = knownOutputSeeds ?? await readOutputSeeds(outputPath);
 
   // Recover from a crash after JSONL append but before checkpoint replacement.
   while (checkpoint.nextSeed <= endSeed && outputSeeds.has(checkpoint.nextSeed)) {
@@ -321,23 +379,118 @@ export async function scanRange({
   return checkpoint;
 }
 
-export function readCandidateRecords(outputPath) {
-  if (!existsSync(outputPath)) return [];
-  const text = readFileSync(outputPath, 'utf8').trim();
-  if (!text) return [];
-  return text.split('\n').map((line, index) => {
-    try {
-      return JSON.parse(line);
-    } catch (error) {
-      throw new Error(`Invalid candidate JSONL at ${outputPath}:${index + 1}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  });
+export async function readCandidateRecords(outputPath) {
+  const records = [];
+  for await (const { line, lineNumber } of readJsonlLines(outputPath)) {
+    const record = parseCandidateLine(line, outputPath, lineNumber);
+    if (record) records.push(record);
+  }
+  return records;
 }
 
-export function acceptedCandidateRecords(outputPath) {
-  return readCandidateRecords(outputPath).filter(
-    (record) => record?.status === 'SOLVED' && record?.verification?.ok === true && Array.isArray(record.proof),
-  );
+export async function acceptedCandidateRecords(outputPath) {
+  const records = [];
+  for await (const { line, lineNumber } of readJsonlLines(outputPath)) {
+    const record = parseCandidateLine(line, outputPath, lineNumber);
+    if (record?.status === 'SOLVED' && record?.verification?.ok === true && Array.isArray(record.proof)) records.push(record);
+  }
+  return records;
+}
+
+class CandidateStore {
+  constructor(outputPath) {
+    this.outputPath = outputPath;
+    this.records = [];
+    this.seeds = new Set();
+    this.proofLocations = new Map();
+    this.byteOffset = 0;
+    this.lineCount = 0;
+    this.fileDescriptor = null;
+  }
+
+  async refresh() {
+    if (!existsSync(this.outputPath)) return;
+    const size = statSync(this.outputPath).size;
+    if (size < this.byteOffset) throw new Error(`Candidate JSONL was truncated during generation: ${this.outputPath}`);
+    if (size === this.byteOffset) return;
+
+    for await (const entry of readJsonlLines(this.outputPath, {
+      startOffset: this.byteOffset,
+      startLineNumber: this.lineCount,
+    })) {
+      this.lineCount = entry.lineNumber;
+      const record = parseCandidateLine(entry.line, this.outputPath, entry.lineNumber);
+      if (!record) continue;
+      this.seeds.add(record.seed);
+      if (record.status !== 'SOLVED' || record?.verification?.ok !== true || !Array.isArray(record.proof)) continue;
+
+      this.proofLocations.set(record.seed, {
+        offset: entry.offset,
+        byteLength: entry.byteLength,
+        lineNumber: entry.lineNumber,
+      });
+      const compact = { ...record };
+      delete compact.proof;
+      Object.defineProperty(compact, 'proof', {
+        enumerable: false,
+        configurable: true,
+        get: () => this.readProof(record.seed),
+      });
+      this.records.push(compact);
+    }
+
+    this.byteOffset = statSync(this.outputPath).size;
+    if (this.fileDescriptor === null) this.fileDescriptor = openSync(this.outputPath, 'r');
+  }
+
+  readProof(seed) {
+    const location = this.proofLocations.get(seed);
+    if (!location) throw new Error(`Missing proof location for seed ${seed} in ${this.outputPath}`);
+    if (this.fileDescriptor === null) this.fileDescriptor = openSync(this.outputPath, 'r');
+
+    const buffer = Buffer.allocUnsafe(location.byteLength);
+    let totalRead = 0;
+    while (totalRead < buffer.length) {
+      const bytesRead = readSync(
+        this.fileDescriptor,
+        buffer,
+        totalRead,
+        buffer.length - totalRead,
+        location.offset + totalRead,
+      );
+      if (bytesRead === 0) throw new Error(`Unexpected EOF while reading proof for seed ${seed} from ${this.outputPath}`);
+      totalRead += bytesRead;
+    }
+
+    const record = parseCandidateLine(buffer.toString('utf8'), this.outputPath, location.lineNumber);
+    if (record?.seed !== seed || !Array.isArray(record?.proof)) {
+      throw new Error(`Invalid proof record for seed ${seed} at ${this.outputPath}:${location.lineNumber}`);
+    }
+    return record.proof;
+  }
+
+  attachProof(record) {
+    if (!record) return record;
+    Object.defineProperty(record, 'proof', {
+      enumerable: false,
+      configurable: true,
+      get: () => this.readProof(record.seed),
+    });
+    return record;
+  }
+
+  close() {
+    if (this.fileDescriptor !== null) {
+      closeSync(this.fileDescriptor);
+      this.fileDescriptor = null;
+    }
+  }
+}
+
+async function openCandidateStore(outputPath) {
+  const store = new CandidateStore(outputPath);
+  await store.refresh();
+  return store;
 }
 
 export function quotasForStandardTotal(total) {
@@ -426,18 +579,16 @@ function standardSampleEntry(tier, record) {
     tier,
     seed: record.seed,
     difficultyScore: record.difficultyScore,
-    proof: record.proof,
   };
 }
 
-function dailySampleEntry(row, record) {
+function dailySampleEntry(row) {
   return {
     source: 'daily',
     weekday: new Date(`${row.dailyId}T00:00:00Z`).getUTCDay(),
     dailyId: row.dailyId,
     seed: row.seed,
     difficultyScore: row.difficultyScore,
-    proof: record.proof,
   };
 }
 
@@ -445,46 +596,55 @@ export function selectProofSample({ standard, dailySchedule, dailyBySeed, target
   if (!Number.isSafeInteger(target) || target < 64 || target > 128) throw new RangeError(`proof sample target must be 64..128, got ${String(target)}`);
   if (!(dailyBySeed instanceof Map)) throw new TypeError('dailyBySeed must be a Map');
 
+  const standardBySeed = new Map();
   const groups = [];
   for (const tier of TIERS) {
     const entries = [...(standard[tier] ?? [])]
       .sort((left, right) => left.difficultyScore - right.difficultyScore || left.seed - right.seed)
-      .map((record) => standardSampleEntry(tier, record));
+      .map((record) => {
+        standardBySeed.set(record.seed, record);
+        return standardSampleEntry(tier, record);
+      });
     if (entries.length === 0) throw new Error(`Cannot build proof sample: Standard tier ${tier} is empty`);
     groups.push(entries);
   }
+
   for (let weekday = 0; weekday < 7; weekday += 1) {
     const entries = dailySchedule
       .filter((row) => new Date(`${row.dailyId}T00:00:00Z`).getUTCDay() === weekday)
       .sort((left, right) => left.dailyId.localeCompare(right.dailyId))
-      .map((row) => {
-        const record = dailyBySeed.get(row.seed);
-        if (!record?.proof) throw new Error(`Cannot build proof sample: missing proof for Daily seed ${row.seed}`);
-        return dailySampleEntry(row, record);
-      });
+      .map((row) => dailySampleEntry(row));
     if (entries.length === 0) throw new Error(`Cannot build proof sample: Daily weekday ${weekday} is empty`);
     groups.push(entries);
   }
 
-  const sample = [];
+  const selected = [];
   const used = new Set();
   const cursors = new Array(groups.length).fill(0);
-  while (sample.length < target) {
+  while (selected.length < target) {
     let added = false;
-    for (let groupIndex = 0; groupIndex < groups.length && sample.length < target; groupIndex += 1) {
+    for (let groupIndex = 0; groupIndex < groups.length && selected.length < target; groupIndex += 1) {
       const group = groups[groupIndex];
       while (cursors[groupIndex] < group.length && used.has(group[cursors[groupIndex]].seed)) cursors[groupIndex] += 1;
       if (cursors[groupIndex] >= group.length) continue;
       const entry = group[cursors[groupIndex]++];
       used.add(entry.seed);
-      sample.push(entry);
+      selected.push(entry);
       added = true;
     }
     if (!added) break;
   }
 
-  if (sample.length < target) throw new Error(`Cannot build proof sample: requested ${target}, only ${sample.length} unique fixtures available`);
-  return sample;
+  if (selected.length < target) throw new Error(`Cannot build proof sample: requested ${target}, only ${selected.length} unique fixtures available`);
+  return selected.map((entry) => {
+    const record = entry.source === 'standard' ? standardBySeed.get(entry.seed) : dailyBySeed.get(entry.seed);
+    const proof = record?.proof;
+    if (!Array.isArray(proof)) {
+      const label = entry.source === 'daily' ? `Daily seed ${entry.seed}` : `Standard ${entry.tier} seed ${entry.seed}`;
+      throw new Error(`Cannot build proof sample: missing proof for ${label}`);
+    }
+    return { ...entry, proof };
+  });
 }
 
 function hashSourceFiles(files) {
@@ -518,10 +678,19 @@ function releasePaths(root = process.cwd()) {
   };
 }
 
+function discardMaterializedProofs(records) {
+  for (const record of records) {
+    const descriptor = Object.getOwnPropertyDescriptor(record, 'proof');
+    if (descriptor?.enumerable === true) delete record.proof;
+  }
+  return records;
+}
+
 function tryStandardPartitions(records, quotas) {
   if (records.length < Object.values(quotas).reduce((sum, value) => sum + value, 0)) return null;
   try {
-    return partitionStandard(scorePopulation(records), quotas);
+    const scored = discardMaterializedProofs(scorePopulation(records));
+    return partitionStandard(scored, quotas);
   } catch (error) {
     if (/cannot fill/iu.test(error instanceof Error ? error.message : String(error))) return null;
     throw error;
@@ -530,7 +699,7 @@ function tryStandardPartitions(records, quotas) {
 
 function tryDailySchedule(records, dailyScheduleStart, dailyDays) {
   if (records.length < dailyDays) return null;
-  const scored = scorePopulation(records);
+  const scored = discardMaterializedProofs(scorePopulation(records));
   try {
     return { scored, schedule: generateDailySchedule(scored, { startDailyId: dailyScheduleStart, length: dailyDays }) };
   } catch (error) {
@@ -642,62 +811,75 @@ export async function generateReleaseCatalog({
   const standardMaxSeeds = DAILY_SOURCE_START - STANDARD_SOURCE_START;
   const dailyMaxSeeds = MAX_UINT32 - DAILY_SOURCE_START + 1;
 
-  let standard = null;
-  let daily = null;
-  while (standard === null || daily === null) {
-    if (standard === null) {
-      const accepted = acceptedCandidateRecords(paths.standardCandidates);
-      standard = tryStandardPartitions(accepted, quotas);
+  const standardStore = await openCandidateStore(paths.standardCandidates);
+  const dailyStore = await openCandidateStore(paths.dailyCandidates);
+  let emitted;
+  try {
+    let standard = null;
+    let daily = null;
+    while (standard === null || daily === null) {
       if (standard === null) {
-        const checkpoint = await scanRange({
-          startSeed: STANDARD_SOURCE_START,
-          maxSeeds: standardMaxSeeds,
-          checkpointPath: paths.standardCheckpoint,
-          outputPath: paths.standardCandidates,
-          stopAfter: scanBatch,
-          batchSize: scanBatch,
-          jobs,
-          solveSeed,
-          verifyProofRecord,
-        });
-        process.stdout.write(`[deals] standard scanned=${checkpoint.scannedCount} verified=${checkpoint.acceptedCount}\n`);
+        standard = tryStandardPartitions(standardStore.records, quotas);
+        if (standard === null) {
+          const checkpoint = await scanRange({
+            startSeed: STANDARD_SOURCE_START,
+            maxSeeds: standardMaxSeeds,
+            checkpointPath: paths.standardCheckpoint,
+            outputPath: paths.standardCandidates,
+            stopAfter: scanBatch,
+            batchSize: scanBatch,
+            jobs,
+            solveSeed,
+            verifyProofRecord,
+            knownOutputSeeds: standardStore.seeds,
+          });
+          await standardStore.refresh();
+          process.stdout.write(`[deals] standard scanned=${checkpoint.scannedCount} verified=${checkpoint.acceptedCount}\n`);
+        }
       }
-    }
 
-    if (daily === null) {
-      const accepted = acceptedCandidateRecords(paths.dailyCandidates);
-      daily = tryDailySchedule(accepted, dailyScheduleStart, dailyDays);
       if (daily === null) {
-        const checkpoint = await scanRange({
-          startSeed: DAILY_SOURCE_START,
-          maxSeeds: dailyMaxSeeds,
-          checkpointPath: paths.dailyCheckpoint,
-          outputPath: paths.dailyCandidates,
-          stopAfter: scanBatch,
-          batchSize: scanBatch,
-          jobs,
-          solveSeed,
-          verifyProofRecord,
-        });
-        process.stdout.write(`[deals] daily scanned=${checkpoint.scannedCount} verified=${checkpoint.acceptedCount}\n`);
+        daily = tryDailySchedule(dailyStore.records, dailyScheduleStart, dailyDays);
+        if (daily === null) {
+          const checkpoint = await scanRange({
+            startSeed: DAILY_SOURCE_START,
+            maxSeeds: dailyMaxSeeds,
+            checkpointPath: paths.dailyCheckpoint,
+            outputPath: paths.dailyCandidates,
+            stopAfter: scanBatch,
+            batchSize: scanBatch,
+            jobs,
+            solveSeed,
+            verifyProofRecord,
+            knownOutputSeeds: dailyStore.seeds,
+          });
+          await dailyStore.refresh();
+          process.stdout.write(`[deals] daily scanned=${checkpoint.scannedCount} verified=${checkpoint.acceptedCount}\n`);
+        }
       }
     }
-  }
 
-  const standardCheckpoint = readCheckpoint(paths.standardCheckpoint);
-  const dailyCheckpoint = readCheckpoint(paths.dailyCheckpoint);
-  const emitted = emitReleaseCatalog({
-    standard,
-    dailyScored: daily.scored,
-    dailySchedule: daily.schedule,
-    quotas,
-    dailyDays,
-    dailyScheduleStart,
-    standardCheckpoint,
-    dailyCheckpoint,
-    output: paths,
-    proofSampleTarget,
-  });
+    for (const tier of TIERS) for (const record of standard[tier]) standardStore.attachProof(record);
+    for (const record of daily.scored) dailyStore.attachProof(record);
+
+    const standardCheckpoint = readCheckpoint(paths.standardCheckpoint);
+    const dailyCheckpoint = readCheckpoint(paths.dailyCheckpoint);
+    emitted = emitReleaseCatalog({
+      standard,
+      dailyScored: daily.scored,
+      dailySchedule: daily.schedule,
+      quotas,
+      dailyDays,
+      dailyScheduleStart,
+      standardCheckpoint,
+      dailyCheckpoint,
+      output: paths,
+      proofSampleTarget,
+    });
+  } finally {
+    standardStore.close();
+    dailyStore.close();
+  }
 
   const standardCount = Object.values(quotas).reduce((sum, value) => sum + value, 0);
   process.stdout.write(

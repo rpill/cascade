@@ -18,6 +18,7 @@ export class Preferences {
   private manualLanguage = false;
   private currentLanguage: Language = 'ru';
   private currentSoundEnabled = true;
+  private currentHowToPlaySeen = false;
 
   constructor(storage: PreferenceStorage | null = browserStorage()) {
     this.storage=storage;
@@ -28,10 +29,12 @@ export class Preferences {
         this.manualLanguage=true;
       }
       if (typeof value?.soundEnabled === 'boolean') this.currentSoundEnabled=value.soundEnabled;
+      if (typeof value?.howToPlaySeen === 'boolean') this.currentHowToPlaySeen=value.howToPlaySeen;
     } catch { /* Invalid or blocked storage uses safe defaults. */ }
   }
   get language(): Language { return this.currentLanguage; }
   get soundEnabled(): boolean { return this.currentSoundEnabled; }
+  get howToPlaySeen(): boolean { return this.currentHowToPlaySeen; }
   initializeLanguage(locale: string | undefined): void {
     if (this.manualLanguage) return;
     this.currentLanguage=mapPlatformLanguage(locale);
@@ -46,6 +49,11 @@ export class Preferences {
     this.currentSoundEnabled=enabled;
     this.save(); this.emit();
   }
+  markHowToPlaySeen(): void {
+    if (this.currentHowToPlaySeen) return;
+    this.currentHowToPlaySeen=true;
+    this.save(); this.emit();
+  }
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => { this.listeners.delete(listener); };
@@ -54,6 +62,7 @@ export class Preferences {
     try {
       this.storage?.setItem(PREFERENCES_KEY,JSON.stringify({
         ...(this.manualLanguage ? {language:this.currentLanguage} : {}),soundEnabled:this.currentSoundEnabled,
+        howToPlaySeen:this.currentHowToPlaySeen,
       }));
     } catch { /* Preferences still work for this page lifetime. */ }
   }

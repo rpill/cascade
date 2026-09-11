@@ -160,7 +160,7 @@ export class BoardView {
 
         const stockOriginY = getStockFlightOriginY(
           this.layout.stock.y,
-          this.stockVisual.layerOffsets,
+          this.stockVisual.getLayerOffsets(this.layout.profile),
         );
 
         this.stockVisual.removeDealtCard();
@@ -267,7 +267,7 @@ export class BoardView {
   }
 
   private updateStockStack(): void {
-    const offsets = this.stockVisual.layerOffsets;
+    const offsets = this.stockVisual.getLayerOffsets(this.layout.profile);
 
     this.stockBacks.forEach((back, index) => {
       const offset = offsets[index];
@@ -410,7 +410,7 @@ export class BoardView {
     this.inputLocked = true;
     const stockOriginY = getStockFlightOriginY(
       this.layout.stock.y,
-      this.stockVisual.layerOffsets,
+      this.stockVisual.getLayerOffsets(this.layout.profile),
     );
 
     this.stockVisual.sync(this.game.stock.length);
@@ -613,15 +613,7 @@ export class BoardView {
   }
 
   private findMoveHints(): LegalMove[] {
-    return this.game.findLegalMoves()
-      .filter((move) => {
-        if (move.source.zone !== 'tableau' || move.target.zone !== 'tableau') {
-          return true;
-        }
-        const movingWholePile = move.source.index === 0;
-        const destinationEmpty = this.game.tableau[move.target.pile]?.length === 0;
-        return !(movingWholePile && destinationEmpty);
-      })
+    return this.game.findHintMoves()
       .sort((left, right) => this.hintPriority(left) - this.hintPriority(right));
   }
 

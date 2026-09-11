@@ -27,3 +27,22 @@ export const THEME_CATALOG: readonly ThemeProduct[] = [
 export function getThemeProduct(id: string): ThemeProduct | undefined {
   return THEME_CATALOG.find(item => item.id === id);
 }
+
+export function hasAffordableUnownedTheme(
+  coins: number,
+  ownedThemes: readonly string[],
+): boolean {
+  const balance = Number.isFinite(coins) ? Math.max(0, Math.floor(coins)) : 0;
+  const owned = new Set(ownedThemes);
+  return THEME_CATALOG.some((item) => item.price > 0 && !owned.has(item.id) && item.price <= balance);
+}
+
+export function didCoinsUnlockThemePurchase(
+  beforeCoins: number,
+  afterCoins: number,
+  ownedThemes: readonly string[],
+): boolean {
+  return !hasAffordableUnownedTheme(beforeCoins, ownedThemes)
+    && hasAffordableUnownedTheme(afterCoins, ownedThemes);
+}
+

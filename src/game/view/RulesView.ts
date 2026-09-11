@@ -1,9 +1,16 @@
 import { t, LocalizationBindings } from '../../localization/Localization.ts';
 import { RULE_SLIDES, type RuleSlide } from './RulesSlides.ts';
-import { createUiIcon } from './ui/UiIcons.ts';
+
+const RULES_WOOD = './assets/theme/menu-dark-wood.jpg';
+const RULES_WOOD_DETAIL = './assets/theme/fine-grained-wood.jpg';
+const RULES_PAPER_PRIMARY = './assets/ui/paper-001-color.jpg';
+const RULES_CORNER_TL = './assets/ui/ornaments/corners/home-corner-tl.png';
+const RULES_CORNER_TR = './assets/ui/ornaments/corners/home-corner-tr.png';
+const RULES_CORNER_BR = './assets/ui/ornaments/corners/home-corner-br.png';
+const RULES_CORNER_BL = './assets/ui/ornaments/corners/home-corner-bl.png';
 
 export interface RulesViewActions {
-  readonly back: () => void;
+  readonly close: () => void;
 }
 
 function resolveAssetUrl(path: string): string {
@@ -17,41 +24,47 @@ export class RulesView {
     this.localization.refresh();
   }
 
-  private readonly root: HTMLElement;
+  private readonly root: HTMLDialogElement;
   private readonly stage: HTMLElement;
   private readonly heading: HTMLHeadingElement;
   private readonly copy: HTMLParagraphElement;
   private readonly previousButton: HTMLButtonElement;
   private readonly nextButton: HTMLButtonElement;
   private readonly dots: readonly HTMLButtonElement[];
+  private readonly closeButton: HTMLButtonElement;
+  private readonly finishButton: HTMLButtonElement;
   private activeSlideIndex = 0;
+  private previousFocus: HTMLElement | null = null;
 
   constructor(host: HTMLElement, actions: RulesViewActions) {
-    this.root = document.createElement('section');
-    this.root.className = 'main-shell-rules';
-    this.localization.attribute(this.root, 'aria-label', () => t('Правила'));
+    this.root = document.createElement('dialog');
+    this.root.className = 'rules-dialog main-shell-rules';
+    this.root.setAttribute('aria-labelledby', 'rules-dialog-title');
+    this.root.style.setProperty('--app-shell-wood', `url("${resolveAssetUrl(RULES_WOOD)}")`);
+    this.root.style.setProperty('--app-shell-wood-detail', `url("${resolveAssetUrl(RULES_WOOD_DETAIL)}")`);
+    this.root.style.setProperty('--app-shell-paper-primary', `url("${resolveAssetUrl(RULES_PAPER_PRIMARY)}")`);
+    this.root.style.setProperty('--home-corner-tl', `url("${resolveAssetUrl(RULES_CORNER_TL)}")`);
+    this.root.style.setProperty('--home-corner-tr', `url("${resolveAssetUrl(RULES_CORNER_TR)}")`);
+    this.root.style.setProperty('--home-corner-br', `url("${resolveAssetUrl(RULES_CORNER_BR)}")`);
+    this.root.style.setProperty('--home-corner-bl', `url("${resolveAssetUrl(RULES_CORNER_BL)}")`);
 
     const header = document.createElement('div');
     header.className = 'main-shell-rules-header';
 
-    const back = document.createElement('button');
-    back.type = 'button';
-    back.className = 'main-shell-rules-back';
-    this.localization.attribute(back, 'aria-label', () => t('Назад'));
-    back.append(createUiIcon('back'));
-    const backLabel = document.createElement('span');
-    this.localization.text(backLabel, () => t('Назад'));
-    back.append(backLabel);
-    back.addEventListener('click', () => actions.back());
-
     const title = document.createElement('h1');
+    title.id = 'rules-dialog-title';
     title.className = 'main-shell-rules-title';
-    this.localization.text(title, () => t('ПРАВИЛА'));
+    this.localization.text(title, () => t('КАК ИГРАТЬ'));
 
-    const headerBalance = document.createElement('span');
-    headerBalance.className = 'main-shell-rules-header-balance';
-    headerBalance.setAttribute('aria-hidden', 'true');
-    header.append(back, title, headerBalance);
+    this.closeButton = document.createElement('button');
+    this.closeButton.type = 'button';
+    this.closeButton.className = 'main-shell-rules-close';
+    this.closeButton.textContent = '×';
+    this.localization.attribute(this.closeButton, 'aria-label', () => t('Закрыть'));
+    this.localization.attribute(this.closeButton, 'title', () => t('Закрыть'));
+    this.closeButton.addEventListener('click', () => actions.close());
+
+    header.append(title, this.closeButton);
 
     const carousel = document.createElement('div');
     carousel.className = 'main-shell-rules-carousel';
@@ -98,35 +111,56 @@ export class RulesView {
       return dot;
     });
 
-    slide.append(this.stage, this.heading, this.copy, dotNavigation);
-    carousel.append(this.previousButton, slide, this.nextButton);
-    this.root.append(header, carousel);
-    host.append(this.root);
+    this.finishButton = document.createElement('button');
+    this.finishButton.type = 'button';
+    this.finishButton.className = 'main-shell-rules-finish';
+    this.localization.text(this.finishButton, () => t('ПОНЯТНО'));
+    this.finishButton.addEventListener('click', () => actions.close());
 
+    slide.append(this.stage, this.heading, this.copy, dotNavigation, this.finishButton);
+    carousel.append(this.previousButton, slide, this.nextButton);
+
+    this.root.append(header, carousel);
+    this.root.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      actions.close();
+    });
+    this.root.addEventListener('pointerdown', (event) => event.stopPropagation());
+    this.root.addEventListener('pointerup', (event) => event.stopPropagation());
+    this.root.addEventListener('click', (event) => event.stopPropagation());
+    this.root.addEventListener('keydown', this.handleKeyDown);
+
+    host.append(this.root);
     this.goToSlide(0);
-    this.hide();
   }
 
-  show(): void {
-    this.root.hidden = false;
-    document.addEventListener('keydown', this.handleKeyDown);
+  get isOpen(): boolean { return this.root.open; }
+
+  show(options: { readonly onboarding?: boolean } = {}): void {
+    if (this.root.open) return;
+    if (options.onboarding === true) this.activeSlideIndex = 0;
+    this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.refreshLocalization();
     this.goToSlide(this.activeSlideIndex);
+    this.root.showModal();
+    this.closeButton.focus();
   }
 
   hide(): void {
-    document.removeEventListener('keydown', this.handleKeyDown);
-    this.root.hidden = true;
+    if (!this.root.open) return;
+    this.root.close();
+    this.previousFocus?.focus({ preventScroll: true });
+    this.previousFocus = null;
   }
 
   destroy(): void {
-    document.removeEventListener('keydown', this.handleKeyDown);
+    this.hide();
+    this.root.removeEventListener('keydown', this.handleKeyDown);
     this.root.remove();
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
-    if (this.root.hidden) {
-      return;
-    }
+    if (!this.root.open) return;
 
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
@@ -143,9 +177,7 @@ export class RulesView {
   private goToSlide(index: number): void {
     const boundedIndex = Math.max(0, Math.min(RULE_SLIDES.length - 1, index));
     const slide = RULE_SLIDES[boundedIndex];
-    if (slide === undefined) {
-      return;
-    }
+    if (slide === undefined) return;
 
     this.activeSlideIndex = boundedIndex;
     this.localization.text(this.heading, () => t(slide.title));
@@ -154,16 +186,14 @@ export class RulesView {
 
     this.previousButton.disabled = boundedIndex === 0;
     this.nextButton.disabled = boundedIndex === RULE_SLIDES.length - 1;
+    this.finishButton.hidden = boundedIndex !== RULE_SLIDES.length - 1;
 
     for (let dotIndex = 0; dotIndex < this.dots.length; dotIndex += 1) {
       const dot = this.dots[dotIndex];
       const active = dotIndex === boundedIndex;
       dot.classList.toggle('is-active', active);
-      if (active) {
-        dot.setAttribute('aria-current', 'step');
-      } else {
-        dot.removeAttribute('aria-current');
-      }
+      if (active) dot.setAttribute('aria-current', 'step');
+      else dot.removeAttribute('aria-current');
     }
   }
 

@@ -68,6 +68,7 @@ export const SFX_ASSETS: Readonly<Record<SfxCue, SfxAssetGroup>> = {
 };
 
 interface SoundManagerLike {
+  readonly locked?: boolean;
   play(key: string, config?: { volume?: number }): boolean;
 }
 
@@ -80,6 +81,8 @@ export class SfxController {
   }
 
   play(cue: SfxCue): void {
+    if (this.manager.locked === true) return;
+
     const asset = SFX_ASSETS[cue];
     const index = this.nextVariant.get(cue) ?? 0;
     const key = asset.keys[index % asset.keys.length];
