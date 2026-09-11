@@ -5,6 +5,10 @@ export const DEFAULT_THEME_ID: ThemeId = 'walnut_study';
 const GREEN_FELT_ROOT = './assets/themes/green-felt-club';
 const BURGUNDY_ROOT = './assets/themes/burgundy-club';
 const NAVY_STUDY_ROOT = './assets/themes/navy-study';
+const AUTUMN_EVENING_ROOT = './assets/themes/autumn-evening';
+const WINTER_LIVING_ROOM_ROOT = './assets/themes/winter-living-room';
+const SPRING_MORNING_ROOT = './assets/themes/spring-morning';
+const SUMMER_VERANDA_ROOT = './assets/themes/summer-veranda';
 
 export const THEMES = {
   walnut_study: {
@@ -80,6 +84,107 @@ export const THEMES = {
       surface: '#dbc394', hover: '#ead6ac', ink: '#3a231e', edge: '#9b6d57',
       labelSurface: '#2f1719', labelInk: '#e4c67d', focus: '#f0d48f',
     },
+  },
+
+  autumn_evening: {
+    id: 'autumn_evening',
+    name: 'Autumn Evening',
+    boardSurface: {
+      key: 'cascade-board-surface-autumn-evening',
+      url: `${AUTUMN_EVENING_ROOT}/board-surface.webp`,
+    },
+    surfaceScale: 'cover',
+    cardBack: {
+      key: 'card-back-autumn-evening',
+      url: `${AUTUMN_EVENING_ROOT}/card-back.png`,
+    },
+    slots: {
+      palette: {
+        recess: '#2a160d', edge: '#c4934f', highlight: '#e3bd78',
+        blackSuit: '#cfaa70', redSuit: '#b85f3a',
+      },
+    },
+    controls: {
+      surface: '#d9bd86', hover: '#e7cc98', ink: '#3b2417', edge: '#9f6a35',
+      labelSurface: '#3a2115', labelInk: '#e1bd75', focus: '#f0cf8c',
+    },
+    boardTint: 0xffffff,
+  },
+
+  winter_living_room: {
+    id: 'winter_living_room',
+    name: 'Winter Living Room',
+    boardSurface: {
+      key: 'cascade-board-surface-winter-living-room',
+      url: `${WINTER_LIVING_ROOM_ROOT}/board-surface.webp`,
+    },
+    surfaceScale: 'cover',
+    cardBack: {
+      key: 'card-back-winter-living-room',
+      url: `${WINTER_LIVING_ROOM_ROOT}/card-back.png`,
+    },
+    slots: {
+      palette: {
+        recess: '#17202a', edge: '#9faeaf', highlight: '#d6d0b7',
+        blackSuit: '#bfc4bd', redSuit: '#a8665d',
+      },
+    },
+    controls: {
+      surface: '#d7d1bd', hover: '#e5e0d1', ink: '#26313a', edge: '#85969a',
+      labelSurface: '#1b252c', labelInk: '#d7cda9', focus: '#eee0b0',
+    },
+    boardTint: 0xffffff,
+  },
+
+  spring_morning: {
+    id: 'spring_morning',
+    name: 'Spring Morning',
+    boardSurface: {
+      key: 'cascade-board-surface-spring-morning',
+      url: `${SPRING_MORNING_ROOT}/board-surface.webp`,
+    },
+    surfaceScale: 'cover',
+    cardBack: {
+      key: 'card-back-spring-morning',
+      url: `${SPRING_MORNING_ROOT}/card-back.png`,
+    },
+    slots: {
+      palette: {
+        recess: '#24301f', edge: '#a9a36f', highlight: '#d8cf9f',
+        blackSuit: '#b7b48d', redSuit: '#b87972',
+      },
+    },
+    controls: {
+      surface: '#d7cfaa', hover: '#e4ddbc', ink: '#33402a', edge: '#8d8d62',
+      labelSurface: '#2a3323', labelInk: '#d7cf9b', focus: '#e8dca9',
+    },
+    boardTint: 0xffffff,
+  },
+
+
+  summer_veranda: {
+    id: 'summer_veranda',
+    name: 'Summer Veranda',
+    boardSurface: {
+      key: 'cascade-board-surface-summer-veranda',
+      url: `${SUMMER_VERANDA_ROOT}/board-surface.webp`,
+    },
+    surfaceScale: 'cover',
+    cardBack: {
+      key: 'card-back-summer-veranda',
+      url: `${SUMMER_VERANDA_ROOT}/card-back.png`,
+    },
+    slots: {
+      palette: {
+        recess: '#2c1b10', edge: '#c4a05d', highlight: '#e0c487',
+        blackSuit: '#c2ae7c', redSuit: '#b66d4e',
+      },
+    },
+    controls: {
+      surface: '#dbc58f', hover: '#e7d39f', ink: '#3d2a18', edge: '#9b7b45',
+      labelSurface: '#3a2617', labelInk: '#dfc783', focus: '#eed995',
+    },
+    boardTint: 0xffffff,
   },
 
   navy_study: {

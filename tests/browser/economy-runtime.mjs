@@ -70,8 +70,8 @@ try {
   await page.waitForFunction(()=>globalThis.__economyGame.scene.getScene('GameScene').activeTheme.id==='burgundy_club');
   assert.equal((await inspect(page)).state.progression.coins,0);
   await page.locator('.app-shell-nav-button[data-destination="collection"]').click();
-  assert.match(await page.locator('.theme-catalog-count').innerText(),/3 из 3/);
-  await page.getByRole('button',{name:'Как играть',exact:true}).click();
+  assert.match(await page.locator('.theme-catalog-count').innerText(),/3 из \d+/);
+  await page.getByRole('button',{name:'Правила',exact:true}).click();
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('.app-shell-dom').getAttribute('data-destination'),'collection');
   await page.locator('.app-shell-nav-button[data-destination="play"]').click();

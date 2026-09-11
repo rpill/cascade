@@ -22,14 +22,14 @@ test('catalog exposes whether the player can afford any unowned released theme',
   assert.equal(typeof hasAffordableUnownedTheme, 'function');
   assert.equal(hasAffordableUnownedTheme!(299, ['walnut_study']), false);
   assert.equal(hasAffordableUnownedTheme!(300, ['walnut_study']), true);
-  assert.equal(hasAffordableUnownedTheme!(999_999, ['walnut_study', 'navy_study', 'burgundy_club']), false);
+  assert.equal(hasAffordableUnownedTheme!(999_999, catalog.THEME_CATALOG.map(item => item.id)), false);
 });
 
 test('unlock detection only fires when coin gain crosses from unavailable to available', () => {
   assert.equal(typeof didCoinsUnlockThemePurchase, 'function');
   assert.equal(didCoinsUnlockThemePurchase!(275, 325, ['walnut_study']), true);
   assert.equal(didCoinsUnlockThemePurchase!(325, 375, ['walnut_study']), false);
-  assert.equal(didCoinsUnlockThemePurchase!(275, 325, ['walnut_study', 'navy_study', 'burgundy_club']), false);
+  assert.equal(didCoinsUnlockThemePurchase!(275, 325, catalog.THEME_CATALOG.map(item => item.id)), false);
 });
 
 test('collection success chatter is removed and the shell gets a live purchase-availability badge', () => {

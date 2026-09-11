@@ -22,6 +22,10 @@ export const THEME_CATALOG: readonly ThemeProduct[] = [
   product('walnut_study', 'Ореховый кабинет', 'Тёплое дерево и классическая рубашка. Ваша первая тема.', 0),
   product('navy_study', 'Синий кабинет', 'Глубокий синий стол, золотые детали и морской орнамент.', 300),
   product('burgundy_club', 'Бордовый клуб', 'Бордовая кожа, благородная патина и клубная рубашка.', 300),
+  product('autumn_evening', 'Осенний вечер', 'Тёплое дерево, янтарный свет и осенние листья.', 300),
+  product('winter_living_room', 'Зимняя гостиная', 'Тёмное дерево, хвоя и тёплый свет зимнего вечера.', 300),
+  product('spring_morning', 'Весеннее утро', 'Свежая зелень, цветущие ветви и мягкий весенний свет.', 300),
+  product('summer_veranda', 'Летняя веранда', 'Тёплый стол, цитрусы и солнечные тени летнего дня.', 300),
 ];
 
 export function getThemeProduct(id: string): ThemeProduct | undefined {
