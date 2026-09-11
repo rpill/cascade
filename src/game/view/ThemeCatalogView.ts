@@ -84,7 +84,6 @@ export class ThemeCatalogView {
     this.wallet = document.createElement('span');
     this.wallet.className = 'theme-catalog-wallet';
     summary.append(this.count, this.wallet);
-    header.append(heading, summary);
 
     this.filters = document.createElement('div');
     this.filters.className = 'theme-catalog-filters';
@@ -92,6 +91,7 @@ export class ThemeCatalogView {
     this.allFilter = this.createFilterButton('all', 'Все');
     this.mineFilter = this.createFilterButton('mine', 'Мои');
     this.filters.append(this.allFilter, this.mineFilter);
+    header.append(heading, this.filters, summary);
 
     this.status = document.createElement('div');
     this.status.className = 'theme-catalog-status';
@@ -109,7 +109,7 @@ export class ThemeCatalogView {
     this.grid.setAttribute('role', 'region');
     this.grid.setAttribute('aria-label', t('Темы игрового стола'));
 
-    this.root.append(header, this.filters, this.status, this.grid);
+    this.root.append(header, this.status, this.grid);
     this.host.append(this.root);
     this.hide();
 
@@ -258,6 +258,7 @@ export class ThemeCatalogView {
         className: 'theme-catalog-price-coin',
         label: t('монет'),
       }));
+      price.hidden = true;
     }
     copy.append(name, description, price);
 
@@ -274,6 +275,7 @@ export class ThemeCatalogView {
       action.textContent = t('ВЫБРАНА');
       action.disabled = true;
     } else if (item.owned) {
+      action.classList.add('is-equip-action');
       action.textContent = t('ПРИМЕНИТЬ');
       action.disabled = controlsDisabled;
       action.addEventListener('click', () => {
@@ -283,16 +285,15 @@ export class ThemeCatalogView {
       }, { once: true });
     } else {
       const missing = Math.max(0, item.price - this.state.coins);
+      action.classList.add('is-purchase-action');
+      action.replaceChildren(
+        createCoinInline(String(item.price), { className: 'theme-catalog-action-coin' }),
+      );
       if (missing > 0) {
-        action.replaceChildren(
-          document.createTextNode(t('Не хватает ')),
-          createCoinInline(String(missing), { className: 'theme-catalog-action-coin' }),
-        );
+        action.setAttribute('aria-label', `${t('Не хватает ')}${missing} ${t('монет')}`);
+        action.title = `${t('Не хватает ')}${missing} ${t('монет')}`;
       } else {
-        action.replaceChildren(
-          document.createTextNode(t('КУПИТЬ · ')),
-          createCoinInline(String(item.price), { className: 'theme-catalog-action-coin' }),
-        );
+        action.setAttribute('aria-label', `${t('КУПИТЬ')} ${item.price} ${t('монет')}`);
       }
       action.disabled = controlsDisabled || missing > 0;
       action.addEventListener('click', () => {

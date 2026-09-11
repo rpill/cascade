@@ -117,10 +117,10 @@
   .main-shell-player-level, .main-shell-player-xp, .main-shell-level-reward { font-size: 11px; }
   .main-shell-secondary-action { min-height: 54px; width: 100%; font-size: 12px; }
   .main-shell-leaderboard-icon { width: 21px; height: 21px; }
-  .theme-catalog-header { flex-wrap: wrap; gap: 9px; }
+  .theme-catalog-header { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; }
   .theme-catalog-title { font-size: 19px; }
   .theme-catalog-subtitle, .theme-catalog-summary, .theme-catalog-status { font-size: 12px; }
-  .theme-catalog-summary { justify-content: space-between; width: 100%; }
+  .theme-catalog-summary { justify-self: end; justify-content: flex-end; width: auto; }
   .theme-catalog-filter, .theme-catalog-retry { min-height: 36px; font-size: 12px; }
   .theme-catalog-grid { grid-template-columns: 1fr; padding-right: 7px; }
   .main-shell-statistics { padding-top: 12px; gap: 10px; }

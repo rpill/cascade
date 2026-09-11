@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -83,6 +83,88 @@ test('scanRange resumes from a large JSONL under a constrained heap', () => {
 
     const childExecArgv = process.execArgv.filter((arg) => arg !== '--test' && !arg.startsWith('--test=') && !arg.startsWith('--max-old-space-size='));
     const result = spawnSync(process.execPath, [...childExecArgv, '--max-old-space-size=48', runner], {
+      encoding: 'utf8',
+      timeout: 60_000,
+    });
+    assert.equal(result.status, 0, `child failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+
+test('generateReleaseCatalog does not retain every parsed proof while indexing JSONL', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'cascade-proof-retention-'));
+  try {
+    const standardCandidates = path.join(root, 'artifacts', 'deals', 'standard', 'candidates.jsonl');
+    const dailyCandidates = path.join(root, 'artifacts', 'deals', 'daily', 'candidates.jsonl');
+    const standardCheckpoint = path.join(root, 'artifacts', 'deals', 'standard', 'checkpoint.json');
+    const dailyCheckpoint = path.join(root, 'artifacts', 'deals', 'daily', 'checkpoint.json');
+    mkdirSync(path.dirname(standardCandidates), { recursive: true });
+    mkdirSync(path.dirname(dailyCandidates), { recursive: true });
+
+    const padding = 'x'.repeat(256 * 1024);
+    const existing = 512;
+    for (let seed = 1; seed <= existing; seed += 1) {
+      appendFileSync(standardCandidates, `${JSON.stringify({
+        seed,
+        status: 'SOLVED',
+        nodes: 1,
+        budget: 1,
+        initialStockCount: 0,
+        proof: [padding],
+        verification: { ok: true },
+      })}\n`);
+    }
+    writeFileSync(dailyCandidates, '');
+    writeFileSync(standardCheckpoint, `${JSON.stringify({
+      version: 1,
+      startSeed: 1,
+      maxSeeds: 1_000_000_000,
+      nextSeed: existing + 1,
+      scannedCount: existing,
+      acceptedCount: existing,
+      rejectedVerificationCount: 0,
+      unsolvableCount: 0,
+      undeterminedCount: 0,
+      unresolvedRetryQueue: [],
+    })}\n`);
+    writeFileSync(dailyCheckpoint, `${JSON.stringify({
+      version: 1,
+      startSeed: 1_000_000_001,
+      maxSeeds: 3_294_967_295,
+      nextSeed: 1_000_000_001,
+      scannedCount: 0,
+      acceptedCount: 0,
+      rejectedVerificationCount: 0,
+      unsolvableCount: 0,
+      undeterminedCount: 0,
+      unresolvedRetryQueue: [],
+    })}\n`);
+
+    const runner = path.join(root, 'runner.mjs');
+    const generateUrl = new URL('../tools/deals/generate.mjs', import.meta.url).href;
+    writeFileSync(runner, `
+      import { generateReleaseCatalog } from ${JSON.stringify(generateUrl)};
+      try {
+        await generateReleaseCatalog({
+          root: ${JSON.stringify(root)},
+          standardTotal: 50_000,
+          dailyDays: 36_525,
+          jobs: 1,
+          scanBatch: 1,
+          solveSeed: async () => { throw new Error('REACHED_SOLVER'); },
+          verifyProofRecord: async () => ({ ok: true }),
+        });
+      } catch (error) {
+        if (error?.message === 'REACHED_SOLVER') process.exit(0);
+        throw error;
+      }
+      process.exit(9);
+    `);
+
+    const childExecArgv = process.execArgv.filter((arg) => arg !== '--test' && !arg.startsWith('--test=') && !arg.startsWith('--max-old-space-size='));
+    const result = spawnSync(process.execPath, [...childExecArgv, '--max-old-space-size=96', runner], {
       encoding: 'utf8',
       timeout: 60_000,
     });

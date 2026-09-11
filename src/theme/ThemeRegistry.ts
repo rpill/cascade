@@ -9,6 +9,7 @@ const AUTUMN_EVENING_ROOT = './assets/themes/autumn-evening';
 const WINTER_LIVING_ROOM_ROOT = './assets/themes/winter-living-room';
 const SPRING_MORNING_ROOT = './assets/themes/spring-morning';
 const SUMMER_VERANDA_ROOT = './assets/themes/summer-veranda';
+const OFFICE_ROOT = './assets/themes/office';
 
 export const THEMES = {
   walnut_study: {
@@ -183,6 +184,32 @@ export const THEMES = {
     controls: {
       surface: '#dbc58f', hover: '#e7d39f', ink: '#3d2a18', edge: '#9b7b45',
       labelSurface: '#3a2617', labelInk: '#dfc783', focus: '#eed995',
+    },
+    boardTint: 0xffffff,
+  },
+
+
+  office: {
+    id: 'office',
+    name: 'Office',
+    boardSurface: {
+      key: 'cascade-board-surface-office',
+      url: `${OFFICE_ROOT}/board-surface.webp`,
+    },
+    surfaceScale: 'cover',
+    cardBack: {
+      key: 'card-back-office',
+      url: `${OFFICE_ROOT}/card-back.png`,
+    },
+    slots: {
+      palette: {
+        recess: '#141916', edge: '#a98752', highlight: '#d6bb7b',
+        blackSuit: '#c3ab78', redSuit: '#a56a5d',
+      },
+    },
+    controls: {
+      surface: '#cfbb8c', hover: '#ddc99b', ink: '#252a24', edge: '#8d7045',
+      labelSurface: '#171c19', labelInk: '#d7bb7a', focus: '#e7cf90',
     },
     boardTint: 0xffffff,
   },

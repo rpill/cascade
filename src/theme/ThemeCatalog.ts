@@ -26,6 +26,7 @@ export const THEME_CATALOG: readonly ThemeProduct[] = [
   product('winter_living_room', 'Зимняя гостиная', 'Тёмное дерево, хвоя и тёплый свет зимнего вечера.', 300),
   product('spring_morning', 'Весеннее утро', 'Свежая зелень, цветущие ветви и мягкий весенний свет.', 300),
   product('summer_veranda', 'Летняя веранда', 'Тёплый стол, цитрусы и солнечные тени летнего дня.', 300),
+  product('office', 'Офис', 'Тёмная кожа, латунные детали и аккуратный рабочий стол.', 350),
 ];
 
 export function getThemeProduct(id: string): ThemeProduct | undefined {

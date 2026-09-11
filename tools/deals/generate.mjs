@@ -429,12 +429,13 @@ class CandidateStore {
         byteLength: entry.byteLength,
         lineNumber: entry.lineNumber,
       });
+      const seed = record.seed;
       const compact = { ...record };
       delete compact.proof;
       Object.defineProperty(compact, 'proof', {
         enumerable: false,
         configurable: true,
-        get: () => this.readProof(record.seed),
+        get: () => this.readProof(seed),
       });
       this.records.push(compact);
     }
@@ -471,10 +472,11 @@ class CandidateStore {
 
   attachProof(record) {
     if (!record) return record;
+    const seed = record.seed;
     Object.defineProperty(record, 'proof', {
       enumerable: false,
       configurable: true,
-      get: () => this.readProof(record.seed),
+      get: () => this.readProof(seed),
     });
     return record;
   }

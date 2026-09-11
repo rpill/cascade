@@ -500,7 +500,9 @@ export class GameScene extends Phaser.Scene {
     const next = applyMetaOperation(this.metaState,{kind:'purchase',themeId:id});
     if (next === this.metaState) return;
     this.catalogMessage = undefined;
-    this.dispatchMeta({kind:'purchase',themeId:id});
+    if (this.dispatchMeta({kind:'purchase',themeId:id})) {
+      this.sfxController.play('coin-reward');
+    }
     this.refreshMenuMeta();
   }
 
