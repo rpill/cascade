@@ -67,6 +67,16 @@ function formatStreak(value: number): string {
   return t('Серия: {count}', { count: value });
 }
 
+function getVisiblePlayerRank(
+  visibleEntries: readonly LeaderboardRow[],
+  playerEntry: LeaderboardRow,
+): number {
+  const visibleIndex = visibleEntries.findIndex((entry) =>
+    entry.rank === playerEntry.rank && entry.value === playerEntry.value,
+  );
+  return visibleIndex >= 0 ? visibleIndex + 1 : playerEntry.rank;
+}
+
 export class StatisticsPageView {
   private readonly localization = new LocalizationBindings();
   private readonly actions: StatisticsPageActions;
@@ -275,18 +285,21 @@ export class StatisticsPageView {
       this.setStatus('Пока нет результатов');
     } else {
       this.setStatus('');
-      for (const entry of state.entries.slice(0, 10)) {
-        this.leaderboardList.append(this.createLeaderboardRow(entry, mode));
+      const visibleEntries = state.entries.slice(0, 10);
+      for (const [index, entry] of visibleEntries.entries()) {
+        const displayRank = index + 1;
+        this.leaderboardList.append(this.createLeaderboardRow(entry, mode, displayRank));
       }
     }
 
     if (state.authorized) {
       this.authBlock.hidden = true;
       this.playerResult.hidden = false;
+      const visibleEntries = state.entries.slice(0, 10);
       this.localization.text(this.playerResult, () => state.playerEntry === null
         ? t('Ваш результат: пока нет результата')
         : t('Ваш результат: {value0} место · {value1}', {
-            value0: state.playerEntry.rank,
+            value0: getVisiblePlayerRank(visibleEntries, state.playerEntry),
             value1: mode === 'daily' ? formatDuration(state.playerEntry.value) : formatStreak(state.playerEntry.value),
           }));
       return;
@@ -305,13 +318,17 @@ export class StatisticsPageView {
     this.localization.text(this.authButton, () => state.authPending ? t('Вход…') : t('ВОЙТИ'));
   }
 
-  private createLeaderboardRow(entry: LeaderboardRow, mode: 'winnable' | 'daily'): HTMLDivElement {
+  private createLeaderboardRow(
+    entry: LeaderboardRow,
+    mode: 'winnable' | 'daily',
+    displayRank: number,
+  ): HTMLDivElement {
     const row = document.createElement('div');
     row.className = 'main-shell-statistics-leaderboard-row';
 
     const rank = document.createElement('span');
     rank.className = 'main-shell-statistics-rank';
-    this.localization.text(rank, () => `${entry.rank}.`);
+    this.localization.text(rank, () => `${displayRank}.`);
 
     const name = document.createElement('span');
     name.className = 'main-shell-statistics-name';

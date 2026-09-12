@@ -60,6 +60,8 @@
 }
 
 .purchase-dialog::backdrop { background: #17100bc4; }
+.purchase-dialog button:not(:disabled) { cursor: pointer; }
+.purchase-dialog button:disabled { cursor: default; }
 
 .purchase-title { margin: 0 0 8px; text-align: center; font-size: 28px; }
 .purchase-note { margin: 0 auto 22px; max-width: 330px; text-align: center; color: #725b43; font-size: 13px; line-height: 1.35; }
@@ -108,6 +110,7 @@
     0 2px 4px rgba(35, 21, 11, 0.16);
   font: 700 13px/1 Georgia, 'Times New Roman', serif;
   letter-spacing: .035em;
+  cursor: pointer;
 }
 
 .purchase-pack-button:disabled {
@@ -121,25 +124,39 @@
 
 .purchase-close-icon {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 38px;
-  height: 38px;
-  padding: 0 0 2px;
-  border: 1px solid #b39560;
-  border-radius: 50%;
-  background: #f4e8cc;
+  top: 5px;
+  right: 5px;
+  width: 52px;
+  height: 52px;
+  padding: 7px;
+  border: 0;
+  background: transparent;
   color: #5c4028;
-  box-shadow: inset 0 0 0 1px rgba(255, 248, 224, 0.6), 0 2px 5px rgba(35, 21, 11, 0.16);
   font: 400 28px/1 Georgia, 'Times New Roman', serif;
   cursor: pointer;
 }
 
-.purchase-close-icon:hover {
+.purchase-close-glyph {
+  width: 38px;
+  height: 38px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  padding-bottom: 2px;
+  border: 1px solid #b39560;
+  border-radius: 50%;
+  background: #f4e8cc;
+  box-shadow: inset 0 0 0 1px rgba(255, 248, 224, 0.6), 0 2px 5px rgba(35, 21, 11, 0.16);
+  pointer-events: none;
+}
+
+.purchase-close-icon:hover .purchase-close-glyph {
   background: #ead9b6;
 }
 
 .purchase-dialog button:focus-visible { outline: 3px solid #386e98; outline-offset: 3px; }
+.purchase-close-icon:focus-visible { outline: none; }
+.purchase-close-icon:focus-visible .purchase-close-glyph { outline: 3px solid #386e98; outline-offset: 3px; }
 
 @media (max-height: 430px) {
   .purchase-dialog { padding: 16px 24px; }
@@ -148,7 +165,8 @@
   .purchase-section-title { margin: 9px 0 7px; }
   .purchase-pack { min-height: 40px; }
   .purchase-divider { margin: 10px 0 8px; }
-  .purchase-close-icon { top: 8px; right: 8px; width: 34px; height: 34px; font-size: 25px; }
+  .purchase-close-icon { top: 2px; right: 2px; width: 46px; height: 46px; padding: 6px; font-size: 25px; }
+  .purchase-close-glyph { width: 34px; height: 34px; }
 }
 
 .purchase-retry {

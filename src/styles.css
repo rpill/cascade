@@ -2263,6 +2263,8 @@ html[lang='en'] .app-shell-brand-title {
 
 .main-shell-statistics-summary {
   padding: 22px 20px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .main-shell-statistics-leaderboard {
@@ -2290,19 +2292,21 @@ html[lang='en'] .app-shell-brand-title {
 }
 
 .main-shell-statistics-values {
+  min-height: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
 .main-shell-statistics-row {
-  min-height: 78px;
-  padding: 12px 13px;
+  min-height: 0;
+  padding: 10px 13px;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
   justify-content: space-between;
-  gap: 9px;
+  gap: 12px;
   border: 1px solid rgba(98, 70, 40, 0.28);
   border-radius: 10px;
   background:
@@ -2396,7 +2400,7 @@ html[lang='en'] .app-shell-brand-title {
   grid-template-columns: minmax(0, 1fr) 104px;
   gap: 12px;
   align-items: center;
-  padding-top: 7px;
+  padding: 7px 18px 12px;
 }
 
 .main-shell-statistics-auth-copy {
@@ -2467,9 +2471,9 @@ html[lang='en'] .app-shell-brand-title {
   }
 
   .main-shell-statistics-row {
-    min-height: 49px;
-    padding: 7px 8px;
-    gap: 4px;
+    min-height: 0;
+    padding: 6px 8px;
+    gap: 8px;
     border-radius: 7px;
     font-size: 8px;
   }
@@ -2502,7 +2506,7 @@ html[lang='en'] .app-shell-brand-title {
     min-height: 28px;
     grid-template-columns: minmax(0, 1fr) 78px;
     gap: 7px;
-    padding-top: 3px;
+    padding: 3px 16px 10px;
   }
 
   .main-shell-statistics-auth-copy {

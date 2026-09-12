@@ -84,7 +84,10 @@ export class PurchaseView {
     this.closeButton = document.createElement('button');
     this.closeButton.type = 'button';
     this.closeButton.className = 'purchase-close-icon';
-    this.closeButton.textContent = '×';
+    const closeGlyph = document.createElement('span');
+    closeGlyph.className = 'purchase-close-glyph';
+    closeGlyph.textContent = '×';
+    this.closeButton.append(closeGlyph);
     this.closeButton.addEventListener('click', () => this.hide());
 
     this.note = document.createElement('p');
