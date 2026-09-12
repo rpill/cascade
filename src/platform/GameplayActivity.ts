@@ -2,6 +2,7 @@ export interface GameplayActivityInput {
   readonly attemptStarted: boolean;
   readonly attemptFinalized: boolean;
   readonly flowPlaying: boolean;
+  readonly localInteractionBlocked: boolean;
   readonly documentVisible: boolean;
   readonly platformPaused: boolean;
 }
@@ -21,6 +22,7 @@ export function deriveGameplayActivity(
     input.attemptStarted
     && !input.attemptFinalized
     && input.flowPlaying
+    && !input.localInteractionBlocked
     && input.documentVisible;
 
   return {

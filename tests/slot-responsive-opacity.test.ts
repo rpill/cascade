@@ -25,10 +25,10 @@ test('desktop slot frames use stronger translucent alpha for readability', () =>
   assert.equal(getSlotFrameAlpha(tableau.layout, tableau.slot), 0.30);
 });
 
-test('compact-landscape slot frames are fully opaque', () => {
+test('compact-landscape slot frames keep subtle table translucency', () => {
   for (const kind of ['foundation', 'stock', 'tableau'] as const) {
     const { layout, slot } = slotOf(kind, 844, 390);
     assert.equal(layout.profile, 'compact-landscape');
-    assert.equal(getSlotFrameAlpha(layout, slot), 1);
+    assert.equal(getSlotFrameAlpha(layout, slot), 0.78);
   }
 });

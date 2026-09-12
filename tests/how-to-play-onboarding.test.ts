@@ -48,7 +48,7 @@ test('How to Play is a reusable modal with close X and a final Got It action', (
 
 test('rules overlay pauses gameplay activity until it closes', () => {
   assert.match(sceneSource, /this\.board\?\.setUiPaused\(true\)/);
-  assert.match(sceneSource, /flowPlaying: this\.flow\?\.state === 'playing' && !this\.rulesOpen/);
+  assert.match(sceneSource, /localInteractionBlocked: this\.rulesOpen \|\| this\.freshDealActivityBlocked/);
   assert.match(sceneSource, /this\.board\?\.setUiPaused\(false\)/);
 });
 

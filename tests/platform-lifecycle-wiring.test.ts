@@ -44,3 +44,16 @@ test('platform pause checkpoints the active game before suspension', () => {
     /platformPause\.subscribe[\s\S]*checkpointActiveGame[\s\S]*reconcileGameplayActivity/,
   );
 });
+
+
+test('new-deal confirmation is a local gameplay blocker until the dialog or transition finishes', () => {
+  assert.match(sceneSource, /freshDealActivityBlocked/);
+  assert.match(
+    sceneSource,
+    /freshDealActivityBlocked = true[\s\S]*newDealConfirmView\.confirm\(\)[\s\S]*freshDealActivityBlocked = false[\s\S]*reconcileGameplayActivity/,
+  );
+  assert.match(
+    sceneSource,
+    /localInteractionBlocked: this\.rulesOpen \|\| this\.freshDealActivityBlocked/,
+  );
+});

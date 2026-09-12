@@ -289,18 +289,25 @@ canvas {
   gap: 8px;
   min-height: 42px;
   padding: 0 13px 0 9px;
-  border: 1px solid rgba(145, 103, 58, 0.2);
-  border-radius: 8px;
-  background: rgba(36, 20, 11, 0.28);
-  color: rgba(247, 229, 185, 0.93);
+  border: 1px solid rgba(218, 180, 107, 0.46);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(96, 63, 33, 0.72), rgba(26, 15, 8, 0.84)),
+    var(--app-shell-wood-detail) center / 180px 180px;
+  color: #f6dfaa;
   font: 700 13px/1 Georgia, "Times New Roman", serif;
-  box-shadow: 0 4px 12px rgba(12, 7, 4, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(245, 221, 169, 0.18),
+    inset 0 -1px 0 rgba(11, 6, 3, 0.32),
+    0 5px 14px rgba(12, 7, 4, 0.30);
   cursor: pointer;
 }
 
 .app-shell-return:hover {
-  border-color: rgba(217, 178, 110, 0.32);
-  background: rgba(36, 20, 11, 0.46);
+  border-color: rgba(235, 201, 134, 0.62);
+  background:
+    linear-gradient(180deg, rgba(116, 76, 40, 0.78), rgba(38, 22, 11, 0.88)),
+    var(--app-shell-wood-detail) center / 180px 180px;
   color: #fff0c7;
 }
 

@@ -77,6 +77,7 @@ export class PlayPageView {
   private readonly xpFill: HTMLDivElement;
   private readonly leaderboardButton: HTMLButtonElement;
   private selectedMode: GameMode | null = null;
+  private continueMode: GameMode | null = null;
 
   constructor(host: HTMLElement, actions: PlayPageActions) {
     this.actions = actions;
@@ -196,6 +197,16 @@ export class PlayPageView {
     this.updateModeVisuals();
   }
 
+  setContinueMode(mode: GameMode | null): void {
+    this.continueMode = mode;
+    this.renderModeButtonLabels();
+  }
+
+  private renderModeButtonLabels(): void {
+    for (const [mode, parts] of this.modeCards) {
+      parts.button.textContent = t(mode === this.continueMode ? 'ПРОДОЛЖИТЬ' : 'ИГРАТЬ');
+    }
+  }
 
   private renderLevelReward(): void {
     this.levelReward.replaceChildren(
@@ -219,8 +230,8 @@ export class PlayPageView {
       if (label === undefined) continue;
       parts.root.querySelector('h2')!.textContent = t(label[0]);
       parts.copy.textContent = t(label[1]);
-      parts.button.textContent = t('ИГРАТЬ');
     }
+    this.renderModeButtonLabels();
     this.leaderboardButton.lastElementChild!.textContent = t('Таблица лидеров');
     this.updateDailyState(this.dailyState);
     this.updateProgression(this.progressionState);

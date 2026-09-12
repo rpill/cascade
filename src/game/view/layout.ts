@@ -40,7 +40,7 @@ export function getSlotFrameAlpha(
   layout: Pick<ViewportLayout, 'profile'>,
   slot: Pick<BoardSlot, 'alpha'>,
 ): number {
-  return layout.profile === 'compact-landscape' ? 1 : slot.alpha;
+  return layout.profile === 'compact-landscape' ? 0.78 : slot.alpha;
 }
 
 export function tableauCardY(

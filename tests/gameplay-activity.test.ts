@@ -9,6 +9,7 @@ const active = {
   attemptStarted: true,
   attemptFinalized: false,
   flowPlaying: true,
+  localInteractionBlocked: false,
   documentVisible: true,
   platformPaused: false,
 } as const;
@@ -25,6 +26,17 @@ test('menu is a local blocker that stops timer and gameplay markup', () => {
   assert.deepEqual(deriveGameplayActivity({
     ...active,
     flowPlaying: false,
+  }), {
+    timerShouldRun: false,
+    sceneShouldPause: false,
+    markupAction: 'stop',
+  });
+});
+
+test('a blocking gameplay modal stops timer and gameplay markup without changing flow state', () => {
+  assert.deepEqual(deriveGameplayActivity({
+    ...active,
+    localInteractionBlocked: true,
   }), {
     timerShouldRun: false,
     sceneShouldPause: false,

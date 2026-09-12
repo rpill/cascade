@@ -46,7 +46,15 @@
   .main-shell-player-level, .main-shell-player-xp { font-size: 10px; }
   .main-shell-level-reward { font-size: 10px; }
   .theme-catalog-title { font-size: 17px; }
-  .theme-catalog-header { grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; }
+  .theme-catalog-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    column-gap: 12px;
+    row-gap: 4px;
+  }
+  .theme-catalog-heading { grid-column: 1; grid-row: 1; }
+  .theme-catalog-summary { grid-column: 2; grid-row: 1; justify-self: end; }
+  .theme-catalog-filters { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
   .theme-catalog-subtitle, .theme-catalog-summary, .theme-catalog-status { font-size: 11px; }
   .theme-catalog-filter, .theme-catalog-retry { min-height: 32px; font-size: 11px; }
   .theme-catalog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -62,7 +70,7 @@
   .theme-catalog-card-copy { align-self: center; }
   .theme-catalog-card-name { white-space: normal; overflow-wrap: anywhere; font-size: 14px; line-height: 1.15; }
   .theme-catalog-card-description { font-size: 11px; line-height: 1.3; }
-  .theme-catalog-card-action { width: 100%; height: 44px; padding: 0 5px; letter-spacing: 0; font-size: 11px; }
+  .theme-catalog-card-action { width: calc(100% - 64px); height: 44px; padding: 0 5px; letter-spacing: 0; font-size: 11px; }
 }
 
 @media (max-width: 600px) {
@@ -174,7 +182,7 @@
   .theme-catalog-card-name { font-size: 13px; white-space: normal; overflow-wrap: anywhere; }
   .theme-catalog-card-description { min-height: 24px; font-size: 10px; line-height: 1.2; }
   .theme-catalog-card-price { margin-top: 3px; font-size: 10px; }
-  .theme-catalog-card-action { width: calc(100% - 16px); height: 38px; padding: 0 5px; font-size: 10px; letter-spacing: 0; }
+  .theme-catalog-card-action { width: calc(100% - 64px); height: 38px; padding: 0 5px; font-size: 10px; letter-spacing: 0; }
 }
 
 @media (max-height: 340px) and (min-width: 601px) {

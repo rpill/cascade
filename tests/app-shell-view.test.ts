@@ -68,3 +68,15 @@ test('desktop back-to-game control keeps its localized label on one line', () =>
   const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
   assert.match(css, /@media \(min-width: 601px\)[\s\S]*?\.app-shell-return\s*\{[\s\S]*?white-space:\s*nowrap/);
 });
+
+
+test('back-to-game control uses an opaque wood capsule for contrast on the table', () => {
+  const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
+  const start = css.indexOf('.app-shell-return {');
+  const end = css.indexOf('}', start);
+  const rule = css.slice(start, end + 1);
+  assert.match(rule, /var\(--app-shell-wood-detail\)/);
+  assert.match(rule, /border:\s*1px solid rgba\(218, 180, 107,/);
+  assert.match(rule, /box-shadow:/);
+  assert.match(rule, /inset 0 1px 0/);
+});

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 
 import { GameFlow } from '../model/GameFlow.ts';
+import { getContinuableMenuMode } from '../model/MenuPlayAction.ts';
 import { createRandomDealSeed, GameSession } from '../model/GameSession.ts';
 import { VerifiedDealCatalog } from '../model/VerifiedDealCatalog.ts';
 import { StandardDifficultyDirector, type StandardSelection } from '../model/StandardDifficultyDirector.ts';
@@ -122,6 +123,7 @@ export class GameScene extends Phaser.Scene {
   private newDealConfirmView!: NewDealConfirmView;
   private monetizationController: MonetizationController | null = null;
   private freshDealTransitionInFlight = false;
+  private freshDealActivityBlocked = false;
   private audioController!: AudioController;
   private sfxController!: SfxController;
   private unsubscribeLanguage: (() => void) | null = null;
@@ -1066,37 +1068,47 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (confirmAbandon && !this.gameState?.isWon) {
-      const confirmed = await this.newDealConfirmView.confirm();
-      if (!confirmed || this.sys.settings.status >= Phaser.Scenes.SHUTDOWN) return;
-      if (this.flow.currentDeal !== currentDeal || this.flow.state !== 'playing') return;
-    }
+    this.freshDealActivityBlocked = true;
+    this.reconcileGameplayActivity();
 
-    this.trackAttemptAbandon('new_deal');
-    this.freshDealTransitionInFlight = true;
     try {
-      if (currentDeal.mode === 'winnable') {
-        await this.monetizationController?.beforeFreshStandardDeal();
+      if (confirmAbandon && !this.gameState?.isWon) {
+        const confirmed = await this.newDealConfirmView.confirm();
+        if (!confirmed || this.sys.settings.status >= Phaser.Scenes.SHUTDOWN) return;
+        if (this.flow.currentDeal !== currentDeal || this.flow.state !== 'playing') return;
       }
 
-      if (this.sys.settings.status >= Phaser.Scenes.SHUTDOWN) return;
-      if (this.flow.currentDeal !== currentDeal || this.flow.state !== 'playing') return;
+      this.trackAttemptAbandon('new_deal');
+      this.freshDealTransitionInFlight = true;
+      try {
+        if (currentDeal.mode === 'winnable') {
+          await this.monetizationController?.beforeFreshStandardDeal();
+        }
 
-      let deal: Deal;
-      if (currentDeal.mode === 'winnable') {
-        this.recordStandardFailureIfReplacing('winnable', null);
-        const selection = this.selectStandardDeal();
-        this.dispatchMeta({kind:'standard-served',seed:selection.seed.toString(),tier:selection.tier});
-        deal = this.flow.startNewInCurrentMode(selection.seed);
-      } else {
-        deal = this.flow.startNewInCurrentMode();
+        if (this.sys.settings.status >= Phaser.Scenes.SHUTDOWN) return;
+        if (this.flow.currentDeal !== currentDeal || this.flow.state !== 'playing') return;
+
+        let deal: Deal;
+        if (currentDeal.mode === 'winnable') {
+          this.recordStandardFailureIfReplacing('winnable', null);
+          const selection = this.selectStandardDeal();
+          this.dispatchMeta({kind:'standard-served',seed:selection.seed.toString(),tier:selection.tier});
+          deal = this.flow.startNewInCurrentMode(selection.seed);
+        } else {
+          deal = this.flow.startNewInCurrentMode();
+        }
+
+        this.board?.destroy();
+        this.startDeal(deal);
+        analytics.event('new_deal', { mode: deal.mode, source: 'new_deal' });
+      } finally {
+        this.freshDealTransitionInFlight = false;
       }
-
-      this.board?.destroy();
-      this.startDeal(deal);
-      analytics.event('new_deal', { mode: deal.mode, source: 'new_deal' });
     } finally {
-      this.freshDealTransitionInFlight = false;
+      this.freshDealActivityBlocked = false;
+      if (this.sys.settings.status < Phaser.Scenes.SHUTDOWN) {
+        this.reconcileGameplayActivity();
+      }
     }
   }
 
@@ -1120,6 +1132,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.playPage.setSelectedMode(this.flow.selectedMode);
+    this.playPage.setContinueMode(this.getContinuableMenuMode());
     this.playPage.updateDailyState(this.buildDailyMenuState());
     this.playPage.updateLeaderboardsAvailable(
       this.leaderboardService?.available ?? false,
@@ -1485,8 +1498,20 @@ export class GameScene extends Phaser.Scene {
       : this.flow.playSelectedMode();
   }
 
+  private getContinuableMenuMode(): GameMode | null {
+    return getContinuableMenuMode(
+      this.flow.state,
+      this.flow.currentDeal?.mode ?? null,
+      this.gameState?.isWon ?? true,
+    );
+  }
+
   private playMenuMode(mode: GameMode): void {
     if (this.flow.state === 'playing') return;
+    if (mode === this.getContinuableMenuMode()) {
+      this.closeMainMenu();
+      return;
+    }
     if (mode === 'daily') this.dailyContext = this.currentDailyContext();
     if (mode === 'daily' && this.dailyContext === null) return;
     this.startMenuMode(mode);
@@ -1675,7 +1700,8 @@ export class GameScene extends Phaser.Scene {
     const decision = deriveGameplayActivity({
       attemptStarted: this.attemptStarted,
       attemptFinalized: this.attemptFinalized,
-      flowPlaying: this.flow?.state === 'playing' && !this.rulesOpen,
+      flowPlaying: this.flow?.state === 'playing',
+      localInteractionBlocked: this.rulesOpen || this.freshDealActivityBlocked,
       documentVisible: document.visibilityState === 'visible',
       platformPaused: this.platformPaused,
     });
@@ -1760,6 +1786,7 @@ export class GameScene extends Phaser.Scene {
     if (this.monetizationController) this.monetizationController.onChange = undefined;
     this.monetizationController = null;
     this.freshDealTransitionInFlight = false;
+    this.freshDealActivityBlocked = false;
     this.audioController.destroy();
     this.themeRequest += 1;
     this.setGameplayMarkupActive(false);

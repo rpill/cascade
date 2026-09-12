@@ -41,6 +41,7 @@ export const ENGLISH: Readonly<Record<string,string>> = {
   'Звук': 'Sound',
   'Здесь появятся приобретённые темы.': 'Your purchased themes will appear here.',
   'ИГРАТЬ': 'PLAY',
+  'ПРОДОЛЖИТЬ': 'CONTINUE',
   'КАК ИГРАТЬ': 'HOW TO PLAY',
   'ИСПОЛЬЗУЙТЕ ПУСТЫЕ СТОЛБЦЫ': 'USE EMPTY COLUMNS',
   'ИСПЫТАНИЕ ДНЯ': 'DAILY CHALLENGE',
