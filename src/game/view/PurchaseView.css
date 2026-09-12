@@ -184,9 +184,25 @@
 }
 
 .purchase-retry[hidden] { display: none; }
-.purchase-rewarded-row { background: #efe2c2; }
-.purchase-rewarded-remaining { color: #725b43; font-size: 12px; line-height: 1.2; }
-.purchase-rewarded-button { min-width: 150px; }
+.purchase-rewarded-row {
+  gap: 10px;
+  background: #efe2c2;
+}
+.purchase-rewarded-remaining {
+  flex: 0 0 auto;
+  color: #725b43;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.purchase-rewarded-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 190px;
+  white-space: nowrap;
+}
 .purchase-price-value { display: inline-block; }
 .purchase-currency-icon {
   width: 1.1em;

@@ -169,9 +169,9 @@ export class AppShellView {
     this.localization.text(this.wallet, () => value);
     this.wallet.dataset.ready = String(coins !== null);
     this.localization.attribute(this.walletButton, 'aria-label', () => coins === null
-      ? t('Купить монеты. Баланс монет загружается')
-      : t('Купить монеты. Монеты: {value0}', { value0: value }));
-    this.localization.attribute(this.walletButton, 'title', () => t('Купить монеты'));
+      ? t('Получить монеты. Баланс монет загружается')
+      : t('Получить монеты. Монеты: {value0}', { value0: value }));
+    this.localization.attribute(this.walletButton, 'title', () => t('Получить монеты'));
   }
 
   setCollectionPurchaseAvailable(available: boolean): void {

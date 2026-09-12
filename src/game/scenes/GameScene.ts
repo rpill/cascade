@@ -235,9 +235,7 @@ export class GameScene extends Phaser.Scene {
     this.settingsView = new SettingsView(this.game.canvas.parentElement!);
     this.purchaseView = new PurchaseView(this.game.canvas.parentElement!, {
       opened: () => analytics.event('shop_open', { source: 'menu' }),
-      purchase: (productId) => { void this.monetizationController?.purchase(productId); },
       rewarded: () => { void this.monetizationController?.watchRewarded(); },
-      retry: () => { void this.monetizationController?.retryPayments(); },
     });
     this.newDealConfirmView = new NewDealConfirmView(this.game.canvas.parentElement!);
     this.catalogView = new ThemeCatalogView(this.appShell.contentHost, {
