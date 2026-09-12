@@ -89,7 +89,6 @@ export class RulesView {
 
     this.stage = document.createElement('div');
     this.stage.className = 'main-shell-rules-stage';
-    this.stage.setAttribute('aria-hidden', 'true');
 
     this.heading = document.createElement('h2');
     this.heading.className = 'main-shell-rule-title';
@@ -117,7 +116,10 @@ export class RulesView {
     this.localization.text(this.finishButton, () => t('ПОНЯТНО'));
     this.finishButton.addEventListener('click', () => actions.close());
 
-    slide.append(this.stage, this.heading, this.copy, dotNavigation, this.finishButton);
+    const footer = document.createElement('div');
+    footer.className = 'main-shell-rules-footer';
+    footer.append(dotNavigation, this.finishButton);
+    slide.append(this.stage, this.heading, this.copy, footer);
     carousel.append(this.previousButton, slide, this.nextButton);
 
     this.root.append(header, carousel);
@@ -208,30 +210,14 @@ export class RulesView {
     const image = document.createElement('img');
     image.className = 'rules-screenshot-image';
     image.src = resolveAssetUrl(slide.image);
+    image.width = slide.imageWidth;
+    image.height = slide.imageHeight;
     this.localization.attribute(image, 'alt', () => t(slide.imageAlt));
     image.draggable = false;
 
-    const cursor = this.createScreenshotCursor();
-    cursor.style.left = `${slide.cursor.x}%`;
-    cursor.style.top = `${slide.cursor.y}%`;
-    cursor.style.setProperty('--rules-cursor-rotation', `${slide.cursor.rotation ?? 0}deg`);
-
-    frame.append(image, cursor);
+    frame.append(image);
     scene.append(frame);
     return scene;
-  }
-
-  private createScreenshotCursor(): SVGSVGElement {
-    const namespace = 'http://www.w3.org/2000/svg';
-    const cursor = document.createElementNS(namespace, 'svg');
-    cursor.classList.add('rules-screenshot-cursor');
-    cursor.setAttribute('viewBox', '0 0 34 42');
-    cursor.setAttribute('aria-hidden', 'true');
-
-    const path = document.createElementNS(namespace, 'path');
-    path.setAttribute('d', 'M4.5 3.5 29 23.5l-10.7 1.2 5.8 10.8-6.2 3.3-5.6-10.7-7.8 7.5Z');
-    cursor.append(path);
-    return cursor;
   }
 
   private createCarouselButton(

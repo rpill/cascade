@@ -41,3 +41,23 @@ test('Burgundy Club is a complete registry theme', () => {
   assert.ok(getSlotFrameAsset(theme).url.startsWith('data:image/svg+xml'));
   assert.ok(getSlotGlyphAsset(theme, 'stock')?.url.startsWith('data:image/svg+xml'));
 });
+
+test('opaque slot recess colors stay surface-matched across every theme', async () => {
+  const { THEMES } = await import('../src/theme/ThemeRegistry.ts');
+  const expected: Record<string, string> = {
+    walnut_study: '#5f3a24',
+    green_felt_club: '#14523c',
+    burgundy_club: '#5b3031',
+    autumn_evening: '#63351d',
+    winter_living_room: '#5b3a2a',
+    spring_morning: '#633b27',
+    summer_veranda: '#75472a',
+    office: '#343631',
+    retro_hotel: '#104c38',
+    navy_study: '#173650',
+  };
+
+  for (const [id, color] of Object.entries(expected)) {
+    assert.equal(THEMES[id as keyof typeof THEMES].slots.palette.recess, color, id);
+  }
+});

@@ -2,49 +2,54 @@
   "catalogVersion": 1,
   "difficultyModelVersion": 1,
   "dailyAlgorithmVersion": 2,
-  "solverSourceHash": "8dc896676daa292c084c9355caa63959eb07adee960d89214c3c284e2005b766",
-  "gameRulesSourceHash": "ffe42f38888b49d24b9dd244708569a4cabb0de1f9ebc11901e9568e0e3c55bc",
+  "solverSourceHash": "5f1484a92fd943d34fe58fc65b86f097968dd7c6b79f129b7a7c4e850deb7ec7",
+  "gameRulesSourceHash": "a2ba717be0526aedfb04a220aaae3166872ca094bbfa2d2086d698e81bc390be",
   "standardCounts": {
-    "onboarding": 13,
-    "easy": 11,
-    "medium": 12,
-    "hard": 14
+    "onboarding": 500,
+    "easy": 13167,
+    "medium": 15361,
+    "hard": 10972
   },
-  "dailyScheduleStart": "2026-09-01",
-  "dailyScheduleLength": 14,
+  "dailyScheduleStart": "2026-01-01",
+  "dailyScheduleLength": 7305,
   "fastNodeBudget": 250000,
   "slowNodeBudget": 2000000,
   "sourceScanRanges": [
     {
-      "source": "development-smoke",
+      "source": "standard",
       "startSeed": 1,
-      "maxSeeds": 185
+      "maxSeeds": 72167
+    },
+    {
+      "source": "daily",
+      "startSeed": 1000000001,
+      "maxSeeds": 71672
     }
   ],
-  "verifiedCount": 64,
+  "verifiedCount": 47305,
   "rejectedVerificationCount": 0,
   "crossPoolDuplicateCount": 0,
-  "productionAssetHash": "2b688a08d14dbf40d2542ff9180c8f5639d0766a1260450239acc2100338264f",
+  "productionAssetHash": "3bdc2bbb33a1702c2c665dc697e1443215ff24ed4e297bcfe6153c3be906ef2d",
   "offsets": {
     "onboarding": {
       "byteOffset": 0,
-      "count": 13
+      "count": 500
     },
     "easy": {
-      "byteOffset": 52,
-      "count": 11
+      "byteOffset": 2000,
+      "count": 13167
     },
     "medium": {
-      "byteOffset": 96,
-      "count": 12
+      "byteOffset": 54668,
+      "count": 15361
     },
     "hard": {
-      "byteOffset": 144,
-      "count": 14
+      "byteOffset": 116112,
+      "count": 10972
     },
     "daily": {
-      "byteOffset": 200,
-      "count": 14
+      "byteOffset": 160000,
+      "count": 7305
     }
   }
 }

@@ -25,10 +25,10 @@ test('mode presentation icons use one clean vector asset language', () => {
   assert.doesNotMatch(iconSource, /\.png/);
 });
 
-test('brand is optically larger and higher without changing the shell material direction', () => {
+test('brand keeps the raised optical treatment at the reduced release size', () => {
   const titleRule = stylesSource.match(/\.app-shell-brand-title\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
   const brandRule = stylesSource.match(/\.app-shell-brand\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
-  assert.match(titleRule, /font-size:\s*clamp\([^,]+,[^,]+,\s*(?:6[4-9]|[7-9]\d)px\)/);
+  assert.match(titleRule, /font-size:\s*clamp\([^,]+,[^,]+,\s*58px\)/);
   assert.match(brandRule, /translateY\(-(?:1[2-9]|[2-9]\d)px\)/);
 });
 

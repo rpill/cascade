@@ -481,7 +481,7 @@ export class GameScene extends Phaser.Scene {
       try { localStorage.setItem('cascadeMetaScope',scope); } catch { /* journal exposes durability */ }
     }
     const loaded = await this.metaSession.load();
-    if (loaded && (import.meta.env.DEV || import.meta.env.VITE_DEV_CHEATS === 'true')) {
+    if (loaded && import.meta.env.DEV) {
       this.metaSession.setDevelopmentCoinFloor(999_999);
     }
     this.refreshSessionState();

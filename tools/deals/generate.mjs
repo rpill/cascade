@@ -19,7 +19,7 @@ import { pathToFileURL } from 'node:url';
 import { createDealForMode } from '../../src/game/model/deal.ts';
 import { buildVerifiedDealAsset, verifyProductionAssetHash } from './catalog-format.mjs';
 import { DAILY_BANDS, generateDailySchedule } from './daily-schedule.mjs';
-import { partitionStandard, scorePopulation, STANDARD_QUOTAS } from './difficulty.mjs';
+import { partitionStandard, scorePopulation, standardQuotasForTotal } from './difficulty.mjs';
 import { solveSeed as defaultSolveSeed } from './solver-client.mjs';
 import { verifyProofRecord as defaultVerifyProofRecord } from './verify-proof.mjs';
 
@@ -496,39 +496,7 @@ async function openCandidateStore(outputPath) {
 }
 
 export function quotasForStandardTotal(total) {
-  if (!Number.isSafeInteger(total) || total < 4) throw new RangeError(`standard-total must be >= 4, got ${String(total)}`);
-  if (total === 50_000) return { ...STANDARD_QUOTAS };
-
-  const releaseTotal = Object.values(STANDARD_QUOTAS).reduce((sum, value) => sum + value, 0);
-  const rows = TIERS.map((tier, index) => {
-    const exact = STANDARD_QUOTAS[tier] * total / releaseTotal;
-    return { tier, index, exact, value: Math.floor(exact) };
-  });
-  let assigned = rows.reduce((sum, row) => sum + row.value, 0);
-  for (const row of rows) {
-    if (row.value === 0) {
-      row.value = 1;
-      assigned += 1;
-    }
-  }
-  rows.sort((left, right) => (right.exact - Math.floor(right.exact)) - (left.exact - Math.floor(left.exact)) || left.index - right.index);
-  while (assigned < total) {
-    for (const row of rows) {
-      if (assigned >= total) break;
-      row.value += 1;
-      assigned += 1;
-    }
-  }
-  while (assigned > total) {
-    for (const row of [...rows].reverse()) {
-      if (assigned <= total) break;
-      if (row.value > 1) {
-        row.value -= 1;
-        assigned -= 1;
-      }
-    }
-  }
-  return Object.fromEntries(rows.sort((a, b) => a.index - b.index).map((row) => [row.tier, row.value]));
+  return standardQuotasForTotal(total);
 }
 
 function parseDailyId(dailyId) {

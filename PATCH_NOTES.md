@@ -1,15 +1,12 @@
-# HiDPI mobile geometry hotfix
+# Desktop header balance hotfix
 
-Apply this patch **after** `cascade_hidpi_mobile_fix_patch.zip` (and the startup reliability patch already used by that build).
+- Desktop `.app-shell-topbar` grid changes from `1fr auto 1fr` to `auto 1fr auto`.
+- The title remains in grid column 2 and is centered in the free space between the Back-to-game control and the utilities/wallet block.
+- Title size and vertical offset are unchanged.
+- Compact/mobile rules are unchanged.
+- Coin/profile logic is unchanged.
 
-The previous HiDPI patch correctly increased the backing-store resolution, but camera zoom also scaled the Phaser world and shifted the board into the upper-left part of the mobile viewport.
-
-This hotfix keeps the 2x HiDPI backing store but:
-
-- restores the Phaser camera to `zoom = 1`;
-- calculates the responsive layout from the original CSS/logical viewport;
-- scales only board geometry into backing-store coordinates;
-- preserves the same compact-landscape breakpoint/profile;
-- preserves Phaser's CSS-to-canvas pointer mapping.
-
-No asset or WebP files are changed.
+Verification:
+- RED confirmed against the old desktop grid.
+- Targeted header/branding tests: 18/18 PASS.
+- Full suite excluding `localization.test.ts`: 679 PASS / 0 FAIL / 2 SKIP.

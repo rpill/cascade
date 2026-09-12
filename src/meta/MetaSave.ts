@@ -2,7 +2,7 @@ import type { StandardTier } from '../game/model/VerifiedDealCatalog.ts';
 import { DEFAULT_THEME_ID, isThemeId } from '../theme/ThemeRegistry.ts';
 import { REWARDED_DAILY_LIMIT } from '../monetization/Products.ts';
 
-export const META_SAVE_VERSION = 6 as const;
+export const META_SAVE_VERSION = 7 as const;
 export const DAILY_ALGORITHM_VERSION = 2 as const;
 export const WEEKLY_MILESTONES = [3, 5, 7] as const;
 
@@ -110,7 +110,11 @@ export interface MetaSaveV6 extends Omit<MetaSaveV5, 'version'> {
   monetization: MonetizationState;
 }
 
-export type MetaSave = MetaSaveV6;
+export interface MetaSaveV7 extends Omit<MetaSaveV6, 'version'> {
+  version: 7;
+}
+
+export type MetaSave = MetaSaveV7;
 export const MAX_ECONOMY_VALUE = 1_000_000_000;
 
 export function normalizeProgression(raw: unknown): ProgressionState {
@@ -371,11 +375,16 @@ export function normalizeMetaSave(raw: unknown): MetaSave {
     });
   }
 
-  if (raw.version !== 2 && raw.version !== 3 && raw.version !== 4 && raw.version !== 5 && raw.version !== META_SAVE_VERSION) return fallback;
+  if (raw.version !== 2 && raw.version !== 3 && raw.version !== 4 && raw.version !== 5 && raw.version !== 6 && raw.version !== META_SAVE_VERSION) return fallback;
 
   const stats = isObject(raw.stats) ? raw.stats : {};
   const collection = normalizeCollection(raw.collection);
   const equipped = normalizeEquipped(raw.equipped);
+  const progression = normalizeProgression(raw.version === 2 ? null : raw.progression);
+  // Pre-release v6 builds could persist the 999999 development coin floor into
+  // the player profile after a test purchase. Clean only that legacy sentinel;
+  // v7+ balances are never rewritten by this migration.
+  if (raw.version === 6 && progression.coins === 999_999) progression.coins = 0;
   collection.ownedThemes = [...new Set([DEFAULT_THEME_ID, ...collection.ownedThemes,
     ...(raw.version === 2 && isThemeId(equipped.theme) ? [equipped.theme] : []),
   ])];
@@ -384,10 +393,10 @@ export function normalizeMetaSave(raw: unknown): MetaSave {
     version: META_SAVE_VERSION,
     collection,
     equipped,
-    progression: normalizeProgression(raw.version === 2 ? null : raw.progression),
-    standardDifficulty: normalizeStandardDifficulty(raw.version === 4 || raw.version === 5 || raw.version === 6 ? raw.standardDifficulty : null),
-    standardWinStreak: normalizeStandardWinStreak(raw.version === 5 || raw.version === 6 ? raw.standardWinStreak : null),
-    monetization: normalizeMonetization(raw.version === 6 ? raw.monetization : null),
+    progression,
+    standardDifficulty: normalizeStandardDifficulty(raw.version === 4 || raw.version === 5 || raw.version === 6 || raw.version === 7 ? raw.standardDifficulty : null),
+    standardWinStreak: normalizeStandardWinStreak(raw.version === 5 || raw.version === 6 || raw.version === 7 ? raw.standardWinStreak : null),
+    monetization: normalizeMonetization(raw.version === 6 || raw.version === 7 ? raw.monetization : null),
     achievements: uniqueStrings(raw.achievements),
     stats: {
       original: normalizeModeStats(stats.original),

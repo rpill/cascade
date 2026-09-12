@@ -1,24 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
   scripts?: Record<string, string>;
 };
 const gameSceneSource = readFileSync(new URL('../src/game/scenes/GameScene.ts', import.meta.url), 'utf8');
+const envSource = readFileSync(new URL('../.env.yandex-dev', import.meta.url), 'utf8');
 
-test('yandex:dev builds with a dedicated Vite mode that enables dev cheats', () => {
-  assert.equal(packageJson.scripts?.['build:yandex-dev'], 'tsc && vite build --mode yandex-dev');
-  assert.equal(packageJson.scripts?.['yandex:dev'], 'pnpm build:yandex-dev && node scripts/yandex-dev-proxy.mjs');
-
-  const envUrl = new URL('../.env.yandex-dev', import.meta.url);
-  assert.equal(existsSync(envUrl), true);
-  assert.match(readFileSync(envUrl, 'utf8'), /^VITE_DEV_CHEATS=true\s*$/m);
+test('yandex:dev uses the normal production build without dev cheats', () => {
+  assert.equal(packageJson.scripts?.['build:yandex-dev'], undefined);
+  assert.equal(packageJson.scripts?.['yandex:dev'], 'pnpm build && node scripts/yandex-dev-proxy.mjs');
+  assert.doesNotMatch(envSource, /VITE_DEV_CHEATS\s*=\s*true/i);
 });
 
-test('development coin floor works in either normal Vite dev or yandex:dev cheat mode', () => {
+test('development coin floor is limited to normal Vite DEV mode', () => {
+  assert.doesNotMatch(gameSceneSource, /VITE_DEV_CHEATS/);
   assert.match(
     gameSceneSource,
-    /\(import\.meta\.env\.DEV\s*\|\|\s*import\.meta\.env\.VITE_DEV_CHEATS\s*===\s*['"]true['"]\)[\s\S]{0,180}setDevelopmentCoinFloor\(999_999\)/,
+    /if \(loaded && import\.meta\.env\.DEV\)[\s\S]{0,180}setDevelopmentCoinFloor\(999_999\)/,
   );
 });

@@ -273,7 +273,7 @@ canvas {
 .app-shell-topbar {
   min-height: 100px;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   padding: 0 4px 10px;
   color: #efd59a;
@@ -304,6 +304,12 @@ canvas {
   color: #fff0c7;
 }
 
+@media (min-width: 601px) {
+  .app-shell-return {
+    white-space: nowrap;
+  }
+}
+
 .app-shell-return[hidden] {
   visibility: hidden;
   display: inline-flex;
@@ -320,14 +326,21 @@ canvas {
   justify-items: center;
   text-align: center;
   line-height: 1;
-  transform: translateY(-15px);
+  transform: translateY(-24px);
 }
 
 .app-shell-brand-title {
   color: #f3d89a;
-  font-size: clamp(50px, 4.35vw, 68px);
-  letter-spacing: 0.15em;
-  text-indent: 0.15em;
+  font-size: clamp(44px, 3.75vw, 58px);
+  letter-spacing: 0.08em;
+  text-indent: 0.08em;
+  white-space: nowrap;
+}
+
+html[lang='en'] .app-shell-brand-title {
+  font-size: clamp(30px, 2.65vw, 42px);
+  letter-spacing: 0.04em;
+  text-indent: 0.04em;
 }
 
 .app-shell-brand-subtitle {
@@ -959,7 +972,15 @@ canvas {
   }
 
   .app-shell-brand-title {
-    font-size: 25px;
+    font-size: 22px;
+    letter-spacing: 0.06em;
+    text-indent: 0.06em;
+  }
+
+  html[lang='en'] .app-shell-brand-title {
+    font-size: 18px;
+    letter-spacing: 0.025em;
+    text-indent: 0.025em;
   }
 
   .app-shell-brand-subtitle,
@@ -1980,20 +2001,9 @@ canvas {
   position: relative;
   width: min(100%, 690px);
   height: 100%;
-  min-height: 230px;
-  max-height: 320px;
+  min-height: 0;
   margin: 0 auto;
   overflow: hidden;
-  border: 1px solid rgba(80, 55, 32, 0.62);
-  border-radius: 14px;
-  background:
-    radial-gradient(circle at 50% 42%, rgba(248, 217, 158, 0.09), transparent 48%),
-    linear-gradient(rgba(31, 19, 10, 0.05), rgba(20, 12, 7, 0.12)),
-    var(--app-shell-wood) center / cover no-repeat;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 236, 195, 0.09),
-    inset 0 0 28px rgba(9, 5, 2, 0.17),
-    0 8px 18px rgba(48, 31, 16, 0.13);
 }
 
 .main-shell-rule-title {
@@ -2043,13 +2053,13 @@ canvas {
   display: grid;
   place-items: center;
   overflow: hidden;
-  padding: 8px;
+  container-type: size;
 }
 
 .rules-screenshot-frame {
   position: relative;
-  height: 100%;
-  max-width: 100%;
+  width: min(100%, 200cqh);
+  max-height: 100%;
   overflow: hidden;
   border-radius: 9px;
   box-shadow: 0 7px 16px rgba(16, 9, 4, 0.22);
@@ -2062,25 +2072,6 @@ canvas {
   object-fit: contain;
   user-select: none;
   pointer-events: none;
-}
-
-.rules-screenshot-cursor {
-  position: absolute;
-  z-index: 4;
-  width: 33px;
-  height: 41px;
-  overflow: visible;
-  transform: translate(-20%, -18%) rotate(var(--rules-cursor-rotation, 0deg));
-  transform-origin: 20% 18%;
-  filter: drop-shadow(0 2px 2px rgba(18, 10, 5, 0.55));
-  pointer-events: none;
-}
-
-.rules-screenshot-cursor path {
-  fill: #f4e7bd;
-  stroke: #34261b;
-  stroke-width: 2.4;
-  stroke-linejoin: round;
 }
 
 @media (max-height: 560px) {
@@ -2152,19 +2143,11 @@ canvas {
     height: 6px;
   }
 
-  .rules-screenshot-scene {
-    padding: 4px;
-  }
-
   .rules-screenshot-frame {
     border-radius: 6px;
     box-shadow: 0 4px 9px rgba(16, 9, 4, 0.18);
   }
 
-  .rules-screenshot-cursor {
-    width: 22px;
-    height: 28px;
-  }
 }
 
 /* Statistics + leaderboard shell page */
@@ -2847,7 +2830,7 @@ canvas {
   position: relative;
   box-sizing: border-box;
   width: min(780px, calc(100vw - 32px));
-  height: min(680px, calc(100dvh - 32px));
+  height: min(600px, calc(100dvh - 32px));
   max-height: calc(100dvh - 32px);
   margin: auto;
   padding: 22px 24px 20px;
@@ -2955,7 +2938,27 @@ canvas {
 }
 
 .rules-dialog .main-shell-rules-slide {
-  grid-template-rows: minmax(0, 1fr) auto auto auto auto;
+  /* Reserve the same caption/footer space on every slide, including the last. */
+  grid-template-rows: minmax(0, 1fr) 2.2em 3.9em 42px;
+  font-size: 14px;
+}
+
+.main-shell-rules-footer {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-width: 0;
+}
+
+.main-shell-rules-footer .main-shell-rules-dots {
+  grid-column: 2;
+}
+
+.main-shell-rules-footer .main-shell-rules-finish {
+  grid-column: 3;
+  justify-self: end;
+  min-width: 0;
+  margin: 0;
 }
 
 .main-shell-rules-finish {
@@ -2979,6 +2982,7 @@ canvas {
 }
 
 .main-shell-rules-finish[hidden] {
+  display: block;
   visibility: hidden;
   pointer-events: none;
 }
@@ -3028,13 +3032,13 @@ canvas {
   }
 
   .rules-dialog .main-shell-rule-title {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .rules-dialog .main-shell-rule-copy {
     max-width: 560px;
-    font-size: 9px;
-    line-height: 1.18;
+    font-size: 12px;
+    line-height: 1.3;
   }
 
   .rules-dialog .main-shell-rules-dots {
@@ -3046,5 +3050,11 @@ canvas {
     min-height: 32px;
     padding: 0 14px;
     font-size: 10px;
+  }
+
+  .rules-dialog .main-shell-rules-slide {
+    grid-template-rows: minmax(0, 1fr) 2.2em 3.9em 34px;
+    gap: 3px;
+    font-size: 12px;
   }
 }

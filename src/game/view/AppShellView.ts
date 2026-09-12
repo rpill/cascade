@@ -87,7 +87,7 @@ export class AppShellView {
     brand.className = 'app-shell-brand';
     const brandTitle = document.createElement('div');
     brandTitle.className = 'app-shell-brand-title';
-    this.localization.text(brandTitle, () => t('КАСКАД'));
+    this.localization.text(brandTitle, () => t('Пасьянс Каскад'));
     const brandFlourish = document.createElement('span');
     brandFlourish.className = 'app-shell-brand-flourish';
     brandFlourish.setAttribute('aria-hidden', 'true');

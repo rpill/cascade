@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { getBoardSlots } from './layout.ts';
+import { getBoardSlots, getSlotFrameAlpha } from './layout.ts';
 import type { ViewportLayout } from './ViewportLayout.ts';
 import { SUITS } from '../model/types.ts';
 import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
@@ -47,7 +47,8 @@ export class TableAppearanceView {
 
     getBoardSlots(layout).forEach((slot, index) => {
       this.slots[index].image.setPosition(slot.x, slot.y)
-        .setDisplaySize(layout.cardWidth, layout.cardHeight);
+        .setDisplaySize(layout.cardWidth, layout.cardHeight)
+        .setAlpha(getSlotFrameAlpha(layout, slot));
       this.slots[index].glyph?.setPosition(slot.x, slot.y)
         .setDisplaySize(layout.cardWidth, layout.cardHeight);
     });

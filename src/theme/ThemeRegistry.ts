@@ -27,7 +27,7 @@ export const THEMES = {
     },
     slots: {
       palette: {
-        recess: '#160f0b',
+        recess: '#5f3a24',
         edge: '#bd9b63',
         highlight: '#e0c48d',
         blackSuit: '#c0a272',
@@ -54,7 +54,7 @@ export const THEMES = {
     },
     slots: {
       palette: {
-        recess: '#102d24', edge: '#a89e69', highlight: '#d0c694',
+        recess: '#14523c', edge: '#a89e69', highlight: '#d0c694',
         blackSuit: '#b4a275', redSuit: '#ba7863',
       },
     },
@@ -77,7 +77,7 @@ export const THEMES = {
     },
     slots: {
       palette: {
-        recess: '#1e1118', edge: '#ae956b', highlight: '#cfb68c',
+        recess: '#5b3031', edge: '#ae956b', highlight: '#cfb68c',
         blackSuit: '#c2a779', redSuit: '#c2a779',
       },
     },
@@ -101,7 +101,7 @@ export const THEMES = {
     },
     slots: {
       palette: {
-        recess: '#2a160d', edge: '#c4934f', highlight: '#e3bd78',
+        recess: '#63351d', edge: '#c4934f', highlight: '#e3bd78',
         blackSuit: '#cfaa70', redSuit: '#b85f3a',
       },
     },
@@ -126,7 +126,7 @@ export const THEMES = {
     },
     slots: {
       palette: {
-        recess: '#17202a', edge: '#9faeaf', highlight: '#d6d0b7',
+        recess: '#5b3a2a', edge: '#9faeaf', highlight: '#d6d0b7',
         blackSuit: '#bfc4bd', redSuit: '#a8665d',
       },
     },
@@ -151,7 +151,7 @@ export const THEMES = {
     },
     slots: {
       palette: {
-        recess: '#24301f', edge: '#a9a36f', highlight: '#d8cf9f',
+        recess: '#633b27', edge: '#a9a36f', highlight: '#d8cf9f',
         blackSuit: '#b7b48d', redSuit: '#b87972',
       },
     },
@@ -177,7 +177,7 @@ export const THEMES = {
     },
     slots: {
       palette: {
-        recess: '#2c1b10', edge: '#c4a05d', highlight: '#e0c487',
+        recess: '#75472a', edge: '#c4a05d', highlight: '#e0c487',
         blackSuit: '#c2ae7c', redSuit: '#b66d4e',
       },
     },
@@ -203,7 +203,7 @@ export const THEMES = {
     },
     slots: {
       palette: {
-        recess: '#141916', edge: '#a98752', highlight: '#d6bb7b',
+        recess: '#343631', edge: '#a98752', highlight: '#d6bb7b',
         blackSuit: '#c3ab78', redSuit: '#a56a5d',
       },
     },
@@ -228,7 +228,7 @@ export const THEMES = {
     },
     slots: {
       palette: {
-        recess: '#0c2f25', edge: '#b08a4d', highlight: '#dec27e',
+        recess: '#104c38', edge: '#b08a4d', highlight: '#dec27e',
         blackSuit: '#c7af79', redSuit: '#a7685d',
       },
     },
@@ -253,7 +253,7 @@ export const THEMES = {
     },
     slots: {
       palette: {
-        recess: '#071a2b', edge: '#9c8357', highlight: '#d3ba80',
+        recess: '#173650', edge: '#9c8357', highlight: '#d3ba80',
         blackSuit: '#b9a170', redSuit: '#a66f61',
       },
     },

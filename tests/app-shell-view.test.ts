@@ -8,7 +8,8 @@ const shellSource = readFileSync(
 );
 
 test('hybrid shell exposes one brand, destination nav, utilities, and content host', () => {
-  assert.match(shellSource, /t\('КАСКАД'\)/);
+  assert.match(shellSource, /t\('Пасьянс Каскад'\)/);
+  assert.doesNotMatch(shellSource, /t\('КАСКАД'\)/);
   assert.match(shellSource, /data-destination/);
   assert.match(shellSource, /contentHost/);
   assert.match(shellSource, /icon:\s*'rules'/);
@@ -60,4 +61,10 @@ test('wallet purchase entry point is a single clickable capsule', () => {
 test('brand header no longer uses the legacy classic-solitaire subtitle', () => {
   assert.doesNotMatch(shellSource, /КЛАССИЧЕСКИЙ ПАСЬЯНС/);
   assert.match(shellSource, /brand\.append\(brandTitle, brandFlourish\)/);
+});
+
+
+test('desktop back-to-game control keeps its localized label on one line', () => {
+  const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
+  assert.match(css, /@media \(min-width: 601px\)[\s\S]*?\.app-shell-return\s*\{[\s\S]*?white-space:\s*nowrap/);
 });

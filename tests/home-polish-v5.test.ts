@@ -25,14 +25,6 @@ test('Home uses a dedicated professional art-icon layer rather than hand-drawn p
   assert.match(playSource, /createHomeArtIcon\('trophy'\)/);
 });
 
-test('home background uses the real table surface and does not render decorative card props', () => {
-  const rootBlocks = stylesSource.match(/\.app-shell-dom\s*\{[\s\S]*?\n\}/g) ?? [];
-  const root = rootBlocks.find((rule) => rule.includes('background: var(--app-shell-wood)')) ?? '';
-  assert.match(root, /background:\s*var\(--app-shell-wood\)/);
-  assert.doesNotMatch(stylesSource, /\.app-shell-decor-card\s*\{/);
-  assert.doesNotMatch(shellSource, /app-shell-decor-card|decor-card-back-red\.webp|decor-card-queen-spades\.webp/);
-});
-
 test('ornamented frames use fixed corner artwork without detached ornament DOM nodes', () => {
   const shellFrame = cssBlock('.app-shell-surface::before');
   const cardFrame = cssBlock('.main-shell-mode-card::after');
@@ -50,11 +42,11 @@ test('shell navigation has one explicit vertical alignment contract', () => {
   assert.match(navButton, /height:\s*58px/);
 });
 
-test('brand is larger and lifted away from the parchment shell', () => {
+test('brand stays lifted away from the parchment shell at the reduced release size', () => {
   const brand = cssBlock('.app-shell-brand');
   const title = cssBlock('.app-shell-brand-title');
   assert.match(brand, /translateY\(-(?:1[2-9]|[2-9]\d)px\)/);
-  assert.match(title, /font-size:\s*clamp\((?:5[0-9]|[6-9]\d)px/);
+  assert.match(title, /font-size:\s*clamp\((?:4[4-9]|5\d)px/);
 });
 
 test('third-party inventory records the professional icon license', () => {

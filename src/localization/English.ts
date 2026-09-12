@@ -1,6 +1,5 @@
 export const ENGLISH: Readonly<Record<string,string>> = {
   'Пасьянс Каскад': 'Cascade: Solitaire Puzzle',
-  'КАСКАД': 'CASCADE',
   '{count} испытаний за неделю': '{count} weekly challenges',
   'Новые уровни ×{count}': 'Level ups ×{count}',
   '{count} монет': '{count} coins',

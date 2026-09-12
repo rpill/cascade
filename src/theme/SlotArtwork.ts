@@ -16,17 +16,12 @@ export function createSlotGlyphSvg(role: Exclude<SlotRole, 'tableau'>, palette: 
   const glyph = role === 'stock'
     ? `<g stroke="${color}" stroke-width="3" stroke-linejoin="round"><g fill="none"><rect x="87" y="99" width="42" height="58" rx="2"/><path d="M80 142h-7v61h70v-61h-7"/></g><path d="M104 166h8v15h9l-13 15-13-15h9z" fill="${color}" stroke="none"/></g>`
     : `<path d="${SUIT_PATHS[role]}" transform="translate(108 151)" fill="${color}"/>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="432" height="604" viewBox="0 0 216 302"><g opacity=".82">${glyph}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="432" height="604" viewBox="0 0 216 302">${glyph}</svg>`;
 }
 
+
 export function createSlotFrameSvg(palette: SlotPalette): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="432" height="604" viewBox="0 0 216 302">
-<defs>
-  <linearGradient id="well" x2="0" y2="1"><stop stop-color="${palette.recess}" stop-opacity=".34"/><stop offset="1" stop-color="${palette.recess}" stop-opacity=".17"/></linearGradient>
-  <linearGradient id="edge" x2="0" y2="1"><stop stop-color="${palette.edge}" stop-opacity=".62"/><stop offset=".5" stop-color="${palette.edge}" stop-opacity=".3"/><stop offset="1" stop-color="${palette.highlight}" stop-opacity=".52"/></linearGradient>
-</defs>
-<rect x="1" y="1" width="214" height="300" rx="7" fill="url(#well)" stroke="url(#edge)" stroke-width="2"/>
-<path d="M10 5H206Q211 5 211 10V290" fill="none" stroke="${palette.recess}" stroke-opacity=".4" stroke-width="2"/>
-<rect x="7" y="7" width="202" height="288" rx="5" fill="none" stroke="${palette.edge}" stroke-opacity=".13" stroke-width=".8"/>
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="432" height="604" viewBox="0 0 216 302" shape-rendering="geometricPrecision">
+<rect x="2" y="2" width="212" height="298" rx="7" fill="${palette.recess}" stroke="${palette.edge}" stroke-width="1.5"/>
 </svg>`;
 }

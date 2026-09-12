@@ -63,6 +63,23 @@ test('scorePopulation uses average-rank percentiles, v1 weights, and log1p solve
   assert.deepEqual(scored.map((record) => record.difficultyPercentiles.solverNodes), [0, 25, 50, 75, 100]);
 });
 
+
+
+test('scorePopulation ranks the composite score into a final population percentile', () => {
+  const proof = [foundation(), foundation(), foundation(), foundation()];
+  const records = [10, 100, 1_000, 10_000, 100_000].map((nodes, index) => ({
+    seed: 100 + index,
+    nodes,
+    initialStockCount: 24,
+    proof,
+  }));
+
+  const scored = scorePopulation(records);
+  assert.deepEqual(scored.map((record) => record.difficultyScore), [0, 25, 50, 75, 100]);
+  assert.deepEqual(scored.map((record) => record.difficultyCompositeScore), [35, 42.5, 50, 57.5, 65]);
+  assert.equal(scored.filter((record) => record.difficultyScore <= 95).length, 4);
+});
+
 test('scorePopulation gives tied metric values their average percentile rank', () => {
   const records = [
     { seed: 1, nodes: 10, initialStockCount: 24, proof: [foundation(), foundation(), foundation(), foundation()] },

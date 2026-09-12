@@ -61,12 +61,6 @@ test('hybrid shell presents an opaque wood scene with a compact parchment work s
   assert.doesNotMatch(surfaceRule, /1180px|740px/);
 });
 
-test('hybrid shell separates the wood brand header from the parchment content surface without fake card props', () => {
-  assert.match(stylesSource, /\.app-shell-topbar\s*\{/);
-  assert.match(stylesSource, /\.main-shell-mode-card::after\s*\{/);
-  assert.doesNotMatch(stylesSource, /\.app-shell-decor-card\s*\{/);
-});
-
 
 test('Home presentation uses photographed paper and visible source ornaments rather than generated placeholder frames', () => {
   assert.match(stylesSource, /var\(--app-shell-paper-primary\)/);

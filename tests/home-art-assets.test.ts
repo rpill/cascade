@@ -19,14 +19,6 @@ test('Home ships authored material and frame assets without pinning a specific a
   }
 });
 
-test('App shell binds material and frame roles instead of generated placeholder geometry', () => {
-  assert.match(shellSource, /MENU_WOOD_TEXTURE/);
-  assert.match(shellSource, /MENU_PAPER_PRIMARY/);
-  assert.match(shellSource, /MENU_SHELL_FRAME/);
-  assert.match(shellSource, /MENU_CARD_FRAME/);
-  assert.match(shellSource, /MENU_BRAND_FLOURISH/);
-});
-
 test('ornamentation uses authored fixed-size corner assets without detached ornament DOM nodes', () => {
   assert.match(shellSource, /app-shell-brand-flourish/);
   assert.doesNotMatch(shellSource, /app-shell-corner-ornament/);

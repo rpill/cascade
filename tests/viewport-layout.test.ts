@@ -134,3 +134,13 @@ test('compact landscape nearly fills the board height with the foundation rail w
   assert.ok(phone.boardBounds.y >= 10);
   assert.ok(phone.viewportHeight - bottom(phone.boardBounds) >= 8);
 });
+
+
+test('compact landscape exposes a finger-friendly tableau gap before overflow compression', () => {
+  for (const [width, height] of [[844, 390], [915, 412], [932, 430], [992, 472]] as const) {
+    const layout = calculateViewportLayout(width, height);
+    assert.equal(layout.profile, 'compact-landscape');
+    assert.ok(layout.tableauCardGap >= 18, `${width}x${height}: ${layout.tableauCardGap}`);
+    assert.ok(layout.tableauCardGap <= 28, `${width}x${height}: ${layout.tableauCardGap}`);
+  }
+});

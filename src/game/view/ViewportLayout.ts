@@ -212,9 +212,9 @@ export function calculateViewportLayout(
   );
   const tableauY = mainPlayY + cardHeight + rowGap;
   const tableauCardGap = clamp(
-    compact ? 8 : 20,
-    cardHeight * (compact ? 0.15 : 28 / 151),
-    compact ? 18 : 46,
+    compact ? 18 : 20,
+    cardHeight * (compact ? 0.25 : 28 / 151),
+    compact ? 28 : 46,
   );
   const wasteGap = clamp(
     compact ? 10 : 18,

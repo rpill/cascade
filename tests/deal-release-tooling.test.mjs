@@ -7,6 +7,7 @@ import path from 'node:path';
 import { buildVerifiedDealAsset } from '../tools/deals/catalog-format.mjs';
 import {
   emitReleaseCatalog,
+  quotasForStandardTotal,
   scanRange,
   selectProofSample,
   validateReleaseData,
@@ -30,6 +31,26 @@ const AUDIT = {
 function fakeRecord(seed) {
   return { seed, difficultyScore: seed % 90, proof: [{ kind: 'draw', cardIds: [`seed-${seed}`] }] };
 }
+
+
+
+test('25k Standard catalog uses a compact onboarding bucket and preserves non-onboarding proportions', () => {
+  assert.deepEqual(quotasForStandardTotal(25_000), {
+    onboarding: 500,
+    easy: 8_167,
+    medium: 9_528,
+    hard: 6_805,
+  });
+});
+
+test('40k Standard catalog keeps onboarding fixed at 500 and scales only normal tiers', () => {
+  assert.deepEqual(quotasForStandardTotal(40_000), {
+    onboarding: 500,
+    easy: 13_167,
+    medium: 15_361,
+    hard: 10_972,
+  });
+});
 
 test('proof sample selection is deterministic, unique, and covers all release groups', () => {
   let seed = 1;

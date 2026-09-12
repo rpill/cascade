@@ -134,11 +134,11 @@ export function scorePopulation(records) {
     averageRankPercentiles(enriched.map((record) => record.difficultyInputs[key])),
   ]));
 
-  return enriched.map((record, index) => {
+  const composite = enriched.map((record, index) => {
     const difficultyPercentiles = Object.fromEntries(
       METRIC_KEYS.map((key) => [key, percentileColumns[key][index]]),
     );
-    const difficultyScore = METRIC_KEYS.reduce(
+    const difficultyCompositeScore = METRIC_KEYS.reduce(
       (sum, key) => sum + difficultyPercentiles[key] * DIFFICULTY_WEIGHTS[key],
       0,
     );
@@ -146,9 +146,17 @@ export function scorePopulation(records) {
     return {
       ...record,
       difficultyPercentiles,
-      difficultyScore,
+      difficultyCompositeScore,
     };
   });
+  const difficultyScores = averageRankPercentiles(
+    composite.map((record) => record.difficultyCompositeScore),
+  );
+
+  return composite.map((record, index) => ({
+    ...record,
+    difficultyScore: difficultyScores[index],
+  }));
 }
 
 export function isOnboardingCandidate(record) {
@@ -165,6 +173,60 @@ export const STANDARD_QUOTAS = Object.freeze({
   medium: 17_500,
   hard: 12_500,
 });
+
+export const STANDARD_25K_QUOTAS = Object.freeze({
+  onboarding: 500,
+  easy: 8_167,
+  medium: 9_528,
+  hard: 6_805,
+});
+
+const STANDARD_TIERS = Object.freeze(['onboarding', 'easy', 'medium', 'hard']);
+
+export function standardQuotasForTotal(total) {
+  if (!Number.isSafeInteger(total) || total < 4) throw new RangeError(`standard-total must be >= 4, got ${String(total)}`);
+  if (total === 50_000) return { ...STANDARD_QUOTAS };
+
+  const onboarding = Math.min(500, total - 3);
+  const remaining = total - onboarding;
+  const base = { easy: STANDARD_QUOTAS.easy, medium: STANDARD_QUOTAS.medium, hard: STANDARD_QUOTAS.hard };
+  const baseTotal = Object.values(base).reduce((sum, value) => sum + value, 0);
+  const tiers = ['easy', 'medium', 'hard'];
+  const rows = tiers.map((tier, index) => {
+    const exact = base[tier] * remaining / baseTotal;
+    return { tier, index, exact, value: Math.floor(exact) };
+  });
+
+  let assigned = rows.reduce((sum, row) => sum + row.value, 0);
+  for (const row of rows) {
+    if (row.value === 0) {
+      row.value = 1;
+      assigned += 1;
+    }
+  }
+
+  rows.sort((left, right) =>
+    (right.exact - Math.floor(right.exact)) - (left.exact - Math.floor(left.exact)) || left.index - right.index);
+  while (assigned < remaining) {
+    for (const row of rows) {
+      if (assigned >= remaining) break;
+      row.value += 1;
+      assigned += 1;
+    }
+  }
+  while (assigned > remaining) {
+    for (const row of [...rows].reverse()) {
+      if (assigned <= remaining) break;
+      if (row.value > 1) {
+        row.value -= 1;
+        assigned -= 1;
+      }
+    }
+  }
+
+  const nonOnboarding = Object.fromEntries(rows.map((row) => [row.tier, row.value]));
+  return { onboarding, ...nonOnboarding };
+}
 
 function quotaValue(quotas, key) {
   const value = quotas[key];

@@ -18,21 +18,29 @@ export function getBoardSlots(layout: ViewportLayout): BoardSlot[] {
       kind: 'foundation' as const,
       x: point.x,
       y: point.y,
-      alpha: 0.32,
+      alpha: 0.48,
     })),
     {
       kind: 'stock' as const,
       x: layout.stock.x,
       y: layout.stock.y,
-      alpha: 0.32,
+      alpha: 0.48,
     },
     ...layout.tableauX.map((x) => ({
       kind: 'tableau' as const,
       x,
       y: layout.tableauY,
-      alpha: 0.16,
+      alpha: 0.30,
     })),
   ];
+}
+
+
+export function getSlotFrameAlpha(
+  layout: Pick<ViewportLayout, 'profile'>,
+  slot: Pick<BoardSlot, 'alpha'>,
+): number {
+  return layout.profile === 'compact-landscape' ? 1 : slot.alpha;
 }
 
 export function tableauCardY(
