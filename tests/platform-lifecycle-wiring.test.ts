@@ -57,3 +57,20 @@ test('new-deal confirmation is a local gameplay blocker until the dialog or tran
     /localInteractionBlocked: this\.rulesOpen \|\| this\.freshDealActivityBlocked/,
   );
 });
+
+
+test('fresh Standard deal waits for ad resume and a settled viewport before rebuilding the board', () => {
+  const requestFreshDeal = extractMethod(sceneSource, 'requestFreshDeal');
+  const adIndex = requestFreshDeal.indexOf('beforeFreshStandardDeal');
+  const settleIndex = requestFreshDeal.indexOf('waitForPlatformResumeAndViewport');
+  const startIndex = requestFreshDeal.indexOf('startNewInCurrentMode');
+  assert.notEqual(adIndex, -1);
+  assert.notEqual(settleIndex, -1);
+  assert.notEqual(startIndex, -1);
+  assert.ok(adIndex < settleIndex, 'viewport wait must happen after the interstitial closes');
+  assert.ok(settleIndex < startIndex, 'new deal must not be built against the ad-transition viewport');
+
+  const waitMethod = extractMethod(sceneSource, 'waitForPlatformResumeAndViewport');
+  assert.match(waitMethod, /this\.platformPaused/);
+  assert.match(waitMethod, /requestAnimationFrame/);
+});

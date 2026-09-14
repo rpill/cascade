@@ -179,6 +179,7 @@ export class GameScene extends Phaser.Scene {
   private platformScenePaused = false;
   private gameplayMarkupActive = false;
   private unsubscribePlatformPause: (() => void) | null = null;
+  private readonly platformResumeWaiters = new Set<() => void>();
   private leaderboardService: LeaderboardService | null = null;
   private metaState: MetaSave = createDefaultMetaSave();
   private verifiedDealCatalog!: VerifiedDealCatalog;
@@ -1081,6 +1082,7 @@ export class GameScene extends Phaser.Scene {
       try {
         if (currentDeal.mode === 'winnable') {
           await this.monetizationController?.beforeFreshStandardDeal();
+          await this.waitForPlatformResumeAndViewport();
         }
 
         if (this.sys.settings.status >= Phaser.Scenes.SHUTDOWN) return;
@@ -1668,8 +1670,42 @@ export class GameScene extends Phaser.Scene {
         this.checkpointActiveGame(this.gameState);
       }
 
+      if (!paused) {
+        this.releasePlatformResumeWaiters();
+      }
+
       this.reconcileGameplayActivity();
     });
+  }
+
+  private async waitForPlatformResumeAndViewport(): Promise<void> {
+    if (this.platformPaused) {
+      await new Promise<void>((resolve) => {
+        this.platformResumeWaiters.add(resolve);
+        // Avoid missing a resume that raced with waiter registration.
+        if (!this.platformPaused) {
+          this.platformResumeWaiters.delete(resolve);
+          resolve();
+        }
+      });
+    }
+
+    if (this.sys.settings.status >= Phaser.Scenes.SHUTDOWN) return;
+
+    // Yandex can invoke the ad onClose callback before the iframe has finished
+    // restoring its viewport. Waiting for the first post-resume frame gives the
+    // ResizeObserver/Phaser scale manager a chance to settle before a new board
+    // snapshots its layout metrics.
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+  }
+
+  private releasePlatformResumeWaiters(): void {
+    if (this.platformResumeWaiters.size === 0) return;
+    const waiters = [...this.platformResumeWaiters];
+    this.platformResumeWaiters.clear();
+    waiters.forEach((resolve) => resolve());
   }
 
   private pauseAttemptTimer(): void {
@@ -1776,6 +1812,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private shutdown(): void {
+    this.releasePlatformResumeWaiters();
     this.unsubscribeLanguage?.();
     this.unsubscribeLanguage = null;
     this.settingsView.destroy();
