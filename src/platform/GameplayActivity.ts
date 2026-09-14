@@ -2,6 +2,7 @@ export interface GameplayActivityInput {
   readonly attemptStarted: boolean;
   readonly attemptFinalized: boolean;
   readonly flowPlaying: boolean;
+  readonly menuPaused: boolean;
   readonly localInteractionBlocked: boolean;
   readonly documentVisible: boolean;
   readonly platformPaused: boolean;
@@ -27,7 +28,7 @@ export function deriveGameplayActivity(
 
   return {
     timerShouldRun: locallyPlayable && !input.platformPaused,
-    sceneShouldPause: input.platformPaused,
+    sceneShouldPause: input.platformPaused || input.menuPaused,
     markupAction: !locallyPlayable
       ? 'stop'
       : input.platformPaused

@@ -1735,6 +1735,7 @@ export class GameScene extends Phaser.Scene {
       attemptStarted: this.attemptStarted,
       attemptFinalized: this.attemptFinalized,
       flowPlaying: this.flow?.state === 'playing',
+      menuPaused: this.flow?.state === 'menu-paused',
       localInteractionBlocked: this.rulesOpen || this.freshDealActivityBlocked,
       documentVisible: document.visibilityState === 'visible',
       platformPaused: this.platformPaused,

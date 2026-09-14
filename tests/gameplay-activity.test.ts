@@ -9,6 +9,7 @@ const active = {
   attemptStarted: true,
   attemptFinalized: false,
   flowPlaying: true,
+  menuPaused: false,
   localInteractionBlocked: false,
   documentVisible: true,
   platformPaused: false,
@@ -22,13 +23,14 @@ test('active visible gameplay runs timer starts markup and keeps scene live', ()
   });
 });
 
-test('menu is a local blocker that stops timer and gameplay markup', () => {
+test('menu pauses the scene and stops timer and gameplay markup', () => {
   assert.deepEqual(deriveGameplayActivity({
     ...active,
     flowPlaying: false,
+    menuPaused: true,
   }), {
     timerShouldRun: false,
-    sceneShouldPause: false,
+    sceneShouldPause: true,
     markupAction: 'stop',
   });
 });
@@ -66,11 +68,25 @@ test('external platform pause freezes timer and scene without issuing a local ma
   });
 });
 
-test('menu remains stopped while the platform is also paused', () => {
+test('menu remains scene-paused while the platform is also paused', () => {
   assert.deepEqual(deriveGameplayActivity({
     ...active,
     flowPlaying: false,
+    menuPaused: true,
     platformPaused: true,
+  }), {
+    timerShouldRun: false,
+    sceneShouldPause: true,
+    markupAction: 'stop',
+  });
+});
+
+test('platform resume does not resume the scene while the menu is still open', () => {
+  assert.deepEqual(deriveGameplayActivity({
+    ...active,
+    flowPlaying: false,
+    menuPaused: true,
+    platformPaused: false,
   }), {
     timerShouldRun: false,
     sceneShouldPause: true,

@@ -74,3 +74,9 @@ test('fresh Standard deal waits for ad resume and a settled viewport before rebu
   assert.match(waitMethod, /this\.platformPaused/);
   assert.match(waitMethod, /requestAnimationFrame/);
 });
+
+test('menu-paused flow is included in the shared scene-pause decision', () => {
+  const reconcile = extractMethod(sceneSource, 'reconcileGameplayActivity');
+  assert.match(reconcile, /menuPaused: this\.flow\?\.state === 'menu-paused'/);
+  assert.match(reconcile, /decision\.sceneShouldPause/);
+});
