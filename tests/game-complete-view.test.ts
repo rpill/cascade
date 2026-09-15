@@ -1,36 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+const source = readFileSync(new URL('../src/game/view/GameCompleteView.ts', import.meta.url), 'utf8');
 
-const source = readFileSync(
-  new URL('../src/game/view/GameCompleteView.ts', import.meta.url),
-  'utf8',
-);
-
-test('ordinary completion view celebrates the win without loading the player with statistics', () => {
-  assert.match(source, /ПОБЕДА/);
-  assert.doesNotMatch(source, /game-complete-mode|getModeLabel|СТАНДАРТ|КЛАССИКА/);
-  assert.match(source, /elapsedMs/);
-  assert.match(source, /Новый рекорд/);
-  assert.doesNotMatch(source, /Победы:/);
-  assert.doesNotMatch(source, /winRate/);
-  assert.doesNotMatch(source, /Лучшее:/);
-  assert.match(source, /game-complete-xp-track/);
-  assert.match(source, /game-complete-level-reward/);
-  assert.match(source, /game-complete-confetti/);
-  assert.match(source, /game-complete-coin-icon/);
-  assert.match(source, /game-complete-coin-amount/);
-  assert.match(source, /is-celebrating/);
-  assert.match(source, /createVictoryProgressSequence/);
-  assert.match(source, /ЕЩЁ ПАРТИЯ/);
-  assert.match(source, /В МЕНЮ/);
-});
-
-
-test('ordinary completion celebrates each completed attempt only once across reward refreshes', () => {
-  assert.match(source, /completionId:\s*string/);
-  assert.match(source, /currentCompletionId/);
-  assert.match(source, /isNewCompletion/);
-  assert.match(source, /if \(isNewCompletion\)[^]*sound\?\.\('victory'\)/);
-  assert.match(source, /if \(isNewCompletion[^]*createVictoryProgressSequence/);
+test('ordinary completion is a Trifold-style Phaser WinOverlay and celebrates once per attempt', () => {
+  assert.match(source, /new WinOverlay/);
+  assert.match(source, /completionId/);
+  assert.match(source, /lastCelebratedCompletionId/);
+  assert.match(source, /actions\.sound\?\.\('victory'\)/);
+  assert.match(source, /primaryActionLabel:t\('НОВАЯ РАЗДАЧА'\)/);
+  assert.match(source, /secondaryActionLabel:t\('В МЕНЮ'\)/);
+  assert.doesNotMatch(source, /document\.createElement/);
 });

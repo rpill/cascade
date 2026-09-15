@@ -277,14 +277,14 @@ test('Yandex adapter uses direct leaderboard APIs and normalizes entries', async
       calls.push(`entries:${name}:${options.quantityTop}`);
       return {
         entries: [{
-          rank: 0,
+          rank: 1,
           score: 3210,
           player: { publicName: 'Ada', uniqueID: 'player-1' },
         }],
       };
     },
     getPlayerEntry: async () => ({
-      rank: 4,
+      rank: 5,
       score: 6000,
       player: { publicName: 'Me', uniqueID: 'me' },
     }),
@@ -324,7 +324,7 @@ test('protected leaderboard methods use availability checks while public entries
       return { entries: [] };
     },
     getPlayerEntry: async () => ({
-      rank: 0,
+      rank: 1,
       score: 1000,
       player: { publicName: 'Me', uniqueID: 'me' },
     }),

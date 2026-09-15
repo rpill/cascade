@@ -4,7 +4,7 @@ import { SFX_ASSETS, SfxController } from '../src/settings/SfxController.ts';
 
 test('SFX catalog contains the complete first-pass solitaire feedback set', () => {
   assert.deepEqual(Object.keys(SFX_ASSETS).sort(), [
-    'button','card-place','card-touch','coin-reward','deal','level-up','undo','victory',
+    'button','card-place','card-touch','coin-reward','deal','undo','victory',
   ]);
   for (const asset of Object.values(SFX_ASSETS)) {
     assert.ok(Array.isArray(asset.urls) && asset.urls.length > 0);

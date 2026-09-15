@@ -55,12 +55,11 @@ test('old MainMenuView is removed and mode cards start their selected mode immed
   assert.doesNotMatch(shellSource, /ЗАКРЫТЬ/);
 });
 
-test('Play destination exposes Game and Daily cards plus player progress', () => {
+test('legacy Play fallback exposes Game and Daily cards without obsolete player progression', () => {
   assert.match(playSource, /ИГРА/);
   assert.match(playSource, /ИСПЫТАНИЕ ДНЯ/);
   assert.doesNotMatch(playSource, /СТАНДАРТ|КЛАССИКА/);
   assert.match(playSource, /main-shell-mode-grid/);
-  assert.match(playSource, /main-shell-player-progress/);
-  assert.match(playSource, /updateProgression/);
+  assert.doesNotMatch(playSource, /main-shell-player-progress|updateProgression|playerLevel|playerXp|\bXP\b/);
   assert.doesNotMatch(playSource, /WEEKLY_MILESTONES|НЕДЕЛЯ \$\{|Пн|Вт|Ср|Чт|Пт|Сб|Вс/);
 });

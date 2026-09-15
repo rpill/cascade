@@ -50,7 +50,7 @@ test('new-deal confirmation is a local gameplay blocker until the dialog or tran
   assert.match(sceneSource, /freshDealActivityBlocked/);
   assert.match(
     sceneSource,
-    /freshDealActivityBlocked = true[\s\S]*newDealConfirmView\.confirm\(\)[\s\S]*freshDealActivityBlocked = false[\s\S]*reconcileGameplayActivity/,
+    /freshDealActivityBlocked = true[\s\S]*newDealConfirmOverlay\.confirm\(\)[\s\S]*freshDealActivityBlocked = false[\s\S]*reconcileGameplayActivity/,
   );
   assert.match(
     sceneSource,

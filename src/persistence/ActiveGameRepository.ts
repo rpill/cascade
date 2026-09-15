@@ -1,6 +1,6 @@
 import {
   normalizeActiveGameSave,
-  type ActiveGameSaveV1,
+  type ActiveGameSaveV2,
 } from './ActiveGameSave.ts';
 
 export interface ActiveGameStorageLike {
@@ -30,7 +30,7 @@ export class ActiveGameRepository {
     this.storage = storage === undefined ? resolveBrowserStorage() : storage;
   }
 
-  load(): ActiveGameSaveV1 | null {
+  load(): ActiveGameSaveV2 | null {
     if (this.storage === null) {
       return null;
     }
@@ -55,7 +55,7 @@ export class ActiveGameRepository {
     }
   }
 
-  save(save: ActiveGameSaveV1): void {
+  save(save: ActiveGameSaveV2): void {
     if (this.storage === null) {
       return;
     }

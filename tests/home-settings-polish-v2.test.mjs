@@ -34,10 +34,9 @@ test('Compact landscape and phone layouts keep two cards and larger tap targets'
   assert.match(responsive, /@media \(max-width:\s*600px\)[\s\S]*?\.main-shell-mode-emblem\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px/);
 });
 
-test('XP uses words instead of a slash and Daily statistics tab is localized as ЕЖЕДНЕВНЫЕ', () => {
-  assert.match(play, /t\('\{current\} из \{required\} XP'/);
-  assert.doesNotMatch(play, /`\$\{current\} \/ \$\{required\} XP`/);
-  assert.match(english, /'\{current\} из \{required\} XP':\s*'\{current\} of \{required\} XP'/);
+test('legacy Play fallback has no XP or Level product progression while Daily copy remains localized', () => {
+  assert.doesNotMatch(play, /\bXP\b|Уровень|updateProgression|playerXp|playerLevel/);
+  assert.doesNotMatch(english, /'\{current\} из \{required\} XP'|Новый уровень|Следующий уровень|Уровень \{/);
   assert.match(stats, /createModeTab\('ЕЖЕДНЕВНЫЕ', 'daily'\)/);
   assert.match(english, /'ЕЖЕДНЕВНЫЕ':\s*'DAILY'/);
   assert.match(play, /t\('\{current\} из 7'/);

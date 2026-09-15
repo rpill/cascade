@@ -26,7 +26,7 @@ export function beginDailyAttempt(
   dailyId: string,
   weekId: string,
 ): MetaSave {
-  const previous = state.daily.records[dailyId] ?? { completed: false, attempts: 0 };
+  const previous = state.daily.records[dailyId] ?? { completed: false, completedOnTime: false, attempts: 0 };
 
   return {
     ...state,
@@ -52,7 +52,7 @@ export function completeDailyAttempt(
   }
 
   const weekly = normalizeWeek(state, weekId);
-  const previous = state.daily.records[dailyId] ?? { completed: false, attempts: 0 };
+  const previous = state.daily.records[dailyId] ?? { completed: false, completedOnTime: false, attempts: 0 };
   const firstCompletion = !previous.completed;
   const previousBest = previous.bestTimeMs;
   const improvedBest = previousBest === undefined || elapsedMs < previousBest;

@@ -69,12 +69,11 @@ test('language subscribers ignore sound toggles and stop after unsubscribe', () 
   preferences.setSoundEnabled(true);
 });
 
-test('generated weekly and multi-level rewards translate on every language switch', () => {
+test('current reward labels translate on every language switch', () => {
   setLanguage('en');
-  assert.equal(translateRewardLabel('3 испытаний за неделю'), '3 weekly challenges');
-  assert.equal(translateRewardLabel('Новые уровни ×2'), 'Level ups ×2');
-  assert.equal(translateRewardLabel('Первая победа сегодня'), 'First win today');
+  assert.equal(translateRewardLabel('Победа'), 'Victory');
+  assert.equal(translateRewardLabel('Новый ранг мастерства'), 'New mastery rank');
   setLanguage('ru');
-  assert.equal(translateRewardLabel('3 испытаний за неделю'), '3 испытаний за неделю');
-  assert.equal(translateRewardLabel('Новые уровни ×2'), 'Новые уровни ×2');
+  assert.equal(translateRewardLabel('Победа'), 'Победа');
+  assert.equal(translateRewardLabel('Новый ранг мастерства'), 'Новый ранг мастерства');
 });

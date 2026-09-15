@@ -8,7 +8,7 @@ test('GameScene wires monetization controller and gates fresh Standard deals wit
   assert.match(sceneSource, /new MonetizationController/);
   assert.match(sceneSource, /await this\.monetizationController\.initialize\(\)/);
   assert.match(sceneSource, /beforeFreshStandardDeal/);
-  assert.match(sceneSource, /newDealConfirmView\.confirm/);
+  assert.match(sceneSource, /newDealConfirmOverlay\.confirm/);
   assert.match(sceneSource, /freshDealTransitionInFlight/);
   assert.match(sceneSource, /currentDeal\.mode === 'winnable'/);
   assert.match(sceneSource, /newDeal: \(\) => this\.startNewDeal\(\)/);

@@ -8,10 +8,10 @@ import {
   activeGameSaveToDeal,
   createActiveGameSave,
   normalizeActiveGameSave,
-  type ActiveGameSaveV1,
+  type ActiveGameSaveV2,
 } from '../src/persistence/ActiveGameSave.ts';
 
-function createValidSave(mode: 'original' | 'winnable' | 'daily' = 'winnable'): ActiveGameSaveV1 {
+function createValidSave(mode: 'original' | 'winnable' | 'daily' = 'winnable'): ActiveGameSaveV2 {
   const seed = 123456789n;
   const deal = createOriginalDeal(seed, mode);
   const snapshot = new SolitaireGame(deal).snapshot();
@@ -24,7 +24,9 @@ function createValidSave(mode: 'original' | 'winnable' | 'daily' = 'winnable'): 
     elapsedMs: 12_345,
     ...(mode === 'daily'
       ? { daily: { dailyId: '2026-09-04', algorithmVersion: 1 } }
-      : {}),
+      : mode === 'winnable'
+        ? { standard: { partition: 'easy' as const, difficulty: 'easy' as const } }
+        : {}),
     uiState: 'playing',
   });
 }
@@ -60,6 +62,21 @@ test('active game save survives JSON round-trip and converts back to a Deal', ()
   assert.deepEqual(deal.freeCell, normalized?.snapshot.freeCell);
 });
 
+test('active Standard save preserves the partition and gameplay difficulty', () => {
+  const save = createValidSave('winnable');
+  const normalized = normalizeActiveGameSave(clone(save));
+  assert.deepEqual(normalized?.standard, { partition: 'easy', difficulty: 'easy' });
+});
+
+test('active Standard save requires valid matching Standard metadata', () => {
+  const missing = clone(createValidSave('winnable')) as Partial<ActiveGameSaveV2>;
+  delete missing.standard;
+  const mismatched = clone(createValidSave('winnable'));
+  mismatched.standard = { partition: 'medium', difficulty: 'hard' };
+  assert.equal(normalizeActiveGameSave(missing), null);
+  assert.equal(normalizeActiveGameSave(mismatched), null);
+});
+
 test('stable attempt identity survives checkpoint normalization', () => {
   const raw = {...createValidSave(), attemptId:'attempt-42'};
   assert.equal((normalizeActiveGameSave(raw) as typeof raw | null)?.attemptId, 'attempt-42');
@@ -82,7 +99,7 @@ test('active game normalization rejects invalid top-level fields', () => {
   const valid = createValidSave();
 
   const cases: unknown[] = [
-    { ...clone(valid), version: 2 },
+    { ...clone(valid), version: 1 },
     { ...clone(valid), mode: 'arcade' },
     { ...clone(valid), seed: '0' },
     { ...clone(valid), seed: 'not-a-seed' },
@@ -167,7 +184,7 @@ test('active game normalization enforces Daily metadata only for Daily mode', ()
     algorithmVersion: 1,
   };
 
-  const dailyWithoutMetadata = clone(createValidSave('daily')) as Partial<ActiveGameSaveV1>;
+  const dailyWithoutMetadata = clone(createValidSave('daily')) as Partial<ActiveGameSaveV2>;
   delete dailyWithoutMetadata.daily;
 
   const badDailyId = clone(createValidSave('daily'));

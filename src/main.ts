@@ -1,15 +1,17 @@
 import Phaser from 'phaser';
 
 import './styles.css';
-import './game/view/ThemeCatalogView.css';
-import './game/view/SettingsView.css';
-import './game/view/PurchaseView.css';
-import './game/view/NewDealConfirmView.css';
-import './game/view/MenuResponsive.css';
 
 import { startWhenHostReady } from './bootstrap/GameBootstrap.ts';
 import { BootScene } from './game/scenes/BootScene.ts';
 import { GameScene } from './game/scenes/GameScene.ts';
+import { HomeScene } from './ui/scenes/HomeScene.ts';
+import { MasteryScene } from './ui/scenes/MasteryScene.ts';
+import { DailyScene } from './ui/scenes/DailyScene.ts';
+import { ThemesScene } from './ui/scenes/ThemesScene.ts';
+import { LeaderboardsScene } from './ui/scenes/LeaderboardsScene.ts';
+import { SettingsScene } from './ui/scenes/SettingsScene.ts';
+import { HowToPlayScene } from './ui/scenes/HowToPlayScene.ts';
 import { initializeYandexMetrica } from './analytics/YandexMetrica.ts';
 import { planHiDpiCanvas } from './render/HiDpiCanvas.ts';
 
@@ -36,9 +38,9 @@ void startWhenHostReady(
       parent: host,
       width: initial.backingWidth,
       height: initial.backingHeight,
-      backgroundColor: '#393937',
+      backgroundColor: '#082f27',
       disableContextMenu: true,
-      scene: [BootScene, GameScene],
+      scene: [BootScene, GameScene, HomeScene, DailyScene, MasteryScene, ThemesScene, LeaderboardsScene, SettingsScene, HowToPlayScene],
       input: { activePointers: 3 },
       scale: {
         mode: Phaser.Scale.NONE,

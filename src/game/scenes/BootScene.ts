@@ -2,8 +2,9 @@ import Phaser from 'phaser';
 
 import { SUITS, type Card, type Deal, type Suit } from '../model/types.ts';
 import { createDealForMode } from '../model/deal.ts';
+import { createCard } from '../model/cards.ts';
 import { createRandomDealSeed } from '../model/GameSession.ts';
-import { StandardDifficultyDirector, type StandardSelection } from '../model/StandardDifficultyDirector.ts';
+import { pickStandardDeal, type StandardDealSelection } from '../model/StandardDealPicker.ts';
 import { VerifiedDealCatalog } from '../model/VerifiedDealCatalog.ts';
 import { getTheme } from '../../theme/ThemeRegistry.ts';
 import { resolveThemeId } from '../../theme/ThemeSelection.ts';
@@ -13,6 +14,7 @@ import { getThemeAssets } from '../../theme/ThemeAssets.ts';
 import { prepareCardBack } from '../../theme/CardBackTexture.ts';
 import { preferences } from '../../settings/Preferences.ts';
 import { SFX_ASSETS, type SfxAssetGroup } from '../../settings/SfxController.ts';
+import { preloadUiAssets } from '../../ui/assets/UiAssets.ts';
 
 const SUIT_FILE: Record<Suit, string> = {
   clubs: 'club',
@@ -22,6 +24,11 @@ const SUIT_FILE: Record<Suit, string> = {
 };
 
 const CARD_ASSET_ROOT = './assets/cards';
+const HOW_TO_PLAY_CARDS = [
+  createCard('spades', 9),
+  createCard('hearts', 8),
+  createCard('clubs', 7),
+] as const;
 export const VERIFIED_DEALS_BINARY_KEY = 'verified-deals-binary';
 export const VERIFIED_DEALS_MANIFEST_KEY = 'verified-deals-manifest';
 export const VERIFIED_DEALS_REGISTRY_KEY = 'verified-deal-catalog';
@@ -77,6 +84,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
+    preloadUiAssets(this);
     const theme = getTheme(resolveThemeId(import.meta.env.DEV ? window.location.search : '', readStartupThemeId()));
     const firstRun = !preferences.howToPlaySeen;
     this.load.binary(VERIFIED_DEALS_BINARY_KEY, './assets/deals/verified-deals.bin');
@@ -86,6 +94,10 @@ export class BootScene extends Phaser.Scene {
 
     if (firstRun) {
       this.loadSfxGroup(SFX_ASSETS.deal);
+      HOW_TO_PLAY_CARDS.forEach((card) => {
+        const asset = getCardFaceAsset(card);
+        this.load.image(asset.key, asset.url);
+      });
     } else {
       Object.values(SFX_ASSETS).forEach(asset => this.loadSfxGroup(asset));
       this.loadAllCardFaces();
@@ -113,20 +125,19 @@ export class BootScene extends Phaser.Scene {
   }
 
   private loadFirstRunCriticalAssets(catalog: VerifiedDealCatalog): void {
-    const director = new StandardDifficultyDirector(
+    const selection: StandardDealSelection = pickStandardDeal({
       catalog,
-      () => Number(createRandomDealSeed() & 0xffff_ffffn),
-    );
-    const selection: StandardSelection = director.select({
-      wins: 0,
-      failureStreak: 0,
-      lastServedTier: '',
+      requestedDifficulty: 'easy',
+      onboardingWins: 0,
+      completedByPartition: { onboarding: [], easy: [], medium: [], hard: [] },
       recentSeeds: [],
+      randomIndex: (candidateCount) => Number(createRandomDealSeed() % BigInt(candidateCount)),
     });
     const deal = createDealForMode('winnable', selection.seed);
     this.registry.set(FIRST_RUN_STANDARD_SELECTION_REGISTRY_KEY, selection);
 
     getCriticalFirstRunCards(deal).forEach((card) => {
+      if (this.textures.exists(card.id)) return;
       const asset = getCardFaceAsset(card);
       this.load.image(asset.key, asset.url);
     });

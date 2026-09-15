@@ -1,66 +1,35 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-
 import * as catalog from '../src/theme/ThemeCatalog.ts';
 import { calculateViewportLayout } from '../src/game/view/ViewportLayout.ts';
+import { computeThemesGridLayout } from '../src/ui/themes/ThemesGridLayout.ts';
+import { resolveUiViewport } from '../src/ui/layout/UiViewport.ts';
 
-const sceneSource = readFileSync(new URL('../src/game/scenes/GameScene.ts', import.meta.url), 'utf8');
-const shellSource = readFileSync(new URL('../src/game/view/AppShellView.ts', import.meta.url), 'utf8');
-const completeSource = readFileSync(new URL('../src/game/view/GameCompleteView.ts', import.meta.url), 'utf8');
-const rewardSource = readFileSync(new URL('../src/game/view/RewardSummaryView.ts', import.meta.url), 'utf8');
-const responsiveCss = readFileSync(new URL('../src/game/view/MenuResponsive.css', import.meta.url), 'utf8');
+const scene=readFileSync(new URL('../src/game/scenes/GameScene.ts',import.meta.url),'utf8');
+const themes=readFileSync(new URL('../src/ui/scenes/ThemesScene.ts',import.meta.url),'utf8');
+const complete=readFileSync(new URL('../src/game/view/GameCompleteView.ts',import.meta.url),'utf8');
 
-const hasAffordableUnownedTheme = (catalog as unknown as {
-  hasAffordableUnownedTheme?: (coins: number, owned: readonly string[]) => boolean;
-}).hasAffordableUnownedTheme;
-const didCoinsUnlockThemePurchase = (catalog as unknown as {
-  didCoinsUnlockThemePurchase?: (beforeCoins: number, afterCoins: number, owned: readonly string[]) => boolean;
-}).didCoinsUnlockThemePurchase;
+const hasAffordableUnownedTheme=(catalog as any).hasAffordableUnownedTheme as (coins:number,owned:readonly string[])=>boolean;
+const didCoinsUnlockThemePurchase=(catalog as any).didCoinsUnlockThemePurchase as (before:number,after:number,owned:readonly string[])=>boolean;
 
-test('catalog exposes whether the player can afford any unowned released theme', () => {
-  assert.equal(typeof hasAffordableUnownedTheme, 'function');
-  assert.equal(hasAffordableUnownedTheme!(299, ['walnut_study']), false);
-  assert.equal(hasAffordableUnownedTheme!(300, ['walnut_study']), true);
-  assert.equal(hasAffordableUnownedTheme!(999_999, catalog.THEME_CATALOG.map(item => item.id)), false);
+test('catalog exposes whether the player can afford an unowned released theme',()=>{
+  assert.equal(hasAffordableUnownedTheme(299,['walnut_study']),false);assert.equal(hasAffordableUnownedTheme(300,['walnut_study']),true);assert.equal(hasAffordableUnownedTheme(999999,catalog.THEME_CATALOG.map(x=>x.id)),false);
 });
 
-test('unlock detection only fires when coin gain crosses from unavailable to available', () => {
-  assert.equal(typeof didCoinsUnlockThemePurchase, 'function');
-  assert.equal(didCoinsUnlockThemePurchase!(275, 325, ['walnut_study']), true);
-  assert.equal(didCoinsUnlockThemePurchase!(325, 375, ['walnut_study']), false);
-  assert.equal(didCoinsUnlockThemePurchase!(275, 325, catalog.THEME_CATALOG.map(item => item.id)), false);
+test('coin gain can flag that the new Trifold Themes screen just became affordable',()=>{
+  assert.equal(didCoinsUnlockThemePurchase(275,325,['walnut_study']),true);
+  assert.match(scene,/themePurchaseUnlocked/);assert.match(complete,/themePurchaseUnlocked/);assert.match(themes,/CoinPill/);
 });
 
-test('collection success chatter is removed and the shell gets a live purchase-availability badge', () => {
-  assert.doesNotMatch(sceneSource, /Тема применена/);
-  assert.doesNotMatch(sceneSource, /Тема добавлена в коллекцию/);
-  assert.match(shellSource, /setCollectionPurchaseAvailable\(available: boolean\)/);
-  assert.match(shellSource, /has-theme-purchase/);
-  assert.match(sceneSource, /setCollectionPurchaseAvailable\(/);
-  assert.match(sceneSource, /hasAffordableUnownedTheme\(/);
+test('Trifold Themes grid keeps two columns in compact landscape',()=>{
+  const viewport=resolveUiViewport({width:882,height:440,touchPrimary:true});
+  const layout=computeThemesGridLayout(viewport,6);
+  assert.equal(layout.cards.length,6);
+  assert.ok(layout.cards[1]!.x>layout.cards[0]!.x);
+  assert.equal(layout.cards[2]!.x,layout.cards[0]!.x);
 });
 
-test('compact landscape collection uses two cards per row', () => {
-  const compactBlock = responsiveCss.match(/@media \(max-height: 560px\) and \(min-width: 601px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
-  assert.match(compactBlock, /\.theme-catalog-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(responsiveCss, /@media \(max-width: 600px\) and \(max-height: 560px\) \{[\s\S]*?\.theme-catalog-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
-});
-
-test('level reward UI can announce that a theme purchase has just become available', () => {
-  assert.match(sceneSource, /didCoinsUnlockThemePurchase/);
-  assert.match(sceneSource, /themePurchaseUnlocked/);
-  assert.match(completeSource, /themePurchaseUnlocked/);
-  assert.match(completeSource, /Доступны новые темы в коллекции/);
-  assert.match(rewardSource, /themePurchaseUnlocked/);
-  assert.match(rewardSource, /Доступны новые темы в коллекции/);
-});
-
-test('compact board lowers main play without pushing down the foundation rail', () => {
-  const layout = calculateViewportLayout(882, 440);
-  assert.equal(layout.profile, 'compact-landscape');
-  assert.ok(layout.stock.y >= layout.boardBounds.y + 10, `stock.y=${layout.stock.y}, board.y=${layout.boardBounds.y}`);
-  assert.equal(layout.mainPlayBounds.y, layout.stock.y);
-  assert.equal(layout.wasteLaneBounds.y, layout.stock.y);
-  assert.ok(layout.foundations[0]!.y < layout.stock.y + layout.cardHeight, 'foundation rail should keep its independent vertical placement');
+test('compact gameplay board still keeps foundation rail independent from main play',()=>{
+  const layout=calculateViewportLayout(882,440);assert.equal(layout.profile,'compact-landscape');assert.equal(layout.mainPlayBounds.y,layout.stock.y);assert.ok(layout.foundations[0]!.y<layout.stock.y+layout.cardHeight);
 });

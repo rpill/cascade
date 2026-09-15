@@ -221,7 +221,7 @@ export class MetaSession {
       this.records.set(event.attemptId,best===undefined || event.elapsedMs<best);
       const result = completeRewardedAttempt(state, envelope.operation);
       next = result.state;
-      if (result.reward.lines.length > 0 || result.reward.xp > 0 || result.reward.coins > 0) {
+      if (result.reward.lines.length > 0 || result.reward.coins > 0) {
         this.rewards.set(envelope.operation.attemptId, result.reward);
       } else {
         this.rewards.delete(envelope.operation.attemptId);

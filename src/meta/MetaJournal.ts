@@ -37,8 +37,12 @@ function isMode(value: unknown): value is 'winnable' | 'original' | 'daily' {
   return value === 'winnable' || value === 'original' || value === 'daily';
 }
 
-function isStandardTier(value: unknown): value is 'onboarding' | 'easy' | 'medium' | 'hard' {
+function isStandardPartition(value: unknown): value is 'onboarding' | 'easy' | 'medium' | 'hard' {
   return value === 'onboarding' || value === 'easy' || value === 'medium' || value === 'hard';
+}
+
+function isStandardDifficulty(value: unknown): value is 'easy' | 'medium' | 'hard' {
+  return value === 'easy' || value === 'medium' || value === 'hard';
 }
 
 function isPositiveUint32SeedString(value: unknown): value is string {
@@ -62,12 +66,22 @@ function isMetaOperation(value: unknown): value is MetaOperation {
     return typeof value.themeId === 'string' && value.themeId.length > 0;
   }
 
+  if (value.kind === 'set-standard-difficulty') {
+    return isStandardDifficulty(value.difficulty);
+  }
+
   if (value.kind === 'standard-served') {
-    return isPositiveUint32SeedString(value.seed) && isStandardTier(value.tier);
+    return isPositiveUint32SeedString(value.seed)
+      && isStandardPartition(value.partition)
+      && isStandardDifficulty(value.difficulty);
   }
 
   if (value.kind === 'standard-failed') {
     return typeof value.attemptId === 'string' && value.attemptId.length > 0;
+  }
+
+  if (value.kind === 'rewarded-ad') {
+    return typeof value.dayId === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.dayId);
   }
 
   if (
@@ -81,13 +95,21 @@ function isMetaOperation(value: unknown): value is MetaOperation {
     return false;
   }
 
-  return value.kind === 'begin' || (
-    typeof value.elapsedMs === 'number'
-    && Number.isFinite(value.elapsedMs)
-    && value.elapsedMs > 0
-    && isNullableString(value.trustedDay)
-    && isNullableString(value.trustedWeek)
-  );
+  if (value.kind === 'begin') return true;
+  if (
+    typeof value.elapsedMs !== 'number'
+    || !Number.isFinite(value.elapsedMs)
+    || value.elapsedMs <= 0
+    || !isNullableString(value.trustedDay)
+    || !isNullableString(value.trustedWeek)
+  ) return false;
+
+  if (value.mode === 'winnable') {
+    return isPositiveUint32SeedString(value.standardSeed)
+      && isStandardPartition(value.standardPartition)
+      && isStandardDifficulty(value.standardDifficulty);
+  }
+  return true;
 }
 
 function parseJournal(serialized: string): PersistedJournal | null {

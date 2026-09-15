@@ -147,7 +147,7 @@ async function ensureYandexSdkLoaded(): Promise<void> {
 
 function toPlatformEntry(entry: YandexLeaderboardEntry): PlatformLeaderboardEntry {
   return {
-    rank: entry.rank + 1,
+    rank: entry.rank,
     score: entry.score,
     playerId: entry.player.uniqueID,
     publicName: entry.player.publicName,

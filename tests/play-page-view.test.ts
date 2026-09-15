@@ -20,12 +20,8 @@ test('Play destination renders only Game and Daily through one mode-card helper'
   assert.doesNotMatch(playSource, /createStandardCard|createDailyCard|createClassicCard/);
 });
 
-test('level and XP replace the weekly footer while weekly dots remain in the Daily card', () => {
-  assert.match(playSource, /updateProgression\(state: PlayerProgressionState\)/);
-  assert.match(playSource, /Уровень/);
-  assert.match(playSource, /xpIntoLevel/);
-  assert.match(playSource, /xpForNextLevel/);
-  assert.match(playSource, /role[^]*progressbar/);
+test('legacy Play fallback keeps Daily progress but contains no XP or Level progression', () => {
+  assert.doesNotMatch(playSource, /updateProgression|PlayerProgressionState|playerLevel|playerXp|xpIntoLevel|xpForNextLevel|\bXP\b|Уровень/);
   assert.match(playSource, /main-shell-daily-dots/);
   assert.doesNotMatch(playSource, /main-shell-weekly|main-shell-week-dot|На этой неделе/);
 });

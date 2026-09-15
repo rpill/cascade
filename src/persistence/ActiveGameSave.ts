@@ -8,11 +8,12 @@ import {
   type SolitaireSnapshot,
   type Suit,
 } from '../game/model/types.ts';
+import type { StandardDifficulty, StandardPartition } from '../meta/MetaSave.ts';
 
-export const ACTIVE_GAME_SAVE_VERSION = 1 as const;
+export const ACTIVE_GAME_SAVE_VERSION = 2 as const;
 
-export interface ActiveGameSaveV1 {
-  version: 1;
+export interface ActiveGameSaveV2 {
+  version: 2;
   attemptId?: string;
   mode: GameMode;
   seed: string;
@@ -22,6 +23,10 @@ export interface ActiveGameSaveV1 {
   daily?: {
     dailyId: string;
     algorithmVersion: number;
+  };
+  standard?: {
+    partition: StandardPartition;
+    difficulty: StandardDifficulty;
   };
   uiState: 'playing' | 'menu-paused';
 }
@@ -33,8 +38,9 @@ export interface ActiveGameCheckpointInput {
   snapshot: SolitaireSnapshot;
   attemptStarted: boolean;
   elapsedMs: number;
-  daily?: ActiveGameSaveV1['daily'];
-  uiState: ActiveGameSaveV1['uiState'];
+  daily?: ActiveGameSaveV2['daily'];
+  standard?: ActiveGameSaveV2['standard'];
+  uiState: ActiveGameSaveV2['uiState'];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -178,7 +184,7 @@ function normalizeSnapshot(value: unknown): SolitaireSnapshot | null {
 function normalizeDailyMetadata(
   mode: GameMode,
   value: unknown,
-): ActiveGameSaveV1['daily'] | null | undefined {
+): ActiveGameSaveV2['daily'] | null | undefined {
   if (mode !== 'daily') {
     return value === undefined ? undefined : null;
   }
@@ -202,7 +208,23 @@ function normalizeDailyMetadata(
   };
 }
 
-export function normalizeActiveGameSave(raw: unknown): ActiveGameSaveV1 | null {
+function normalizeStandardMetadata(
+  mode: GameMode,
+  value: unknown,
+): ActiveGameSaveV2['standard'] | null | undefined {
+  if (mode !== 'winnable') return value === undefined ? undefined : null;
+  if (!isRecord(value)) return null;
+  const partition = value.partition;
+  const difficulty = value.difficulty;
+  if (
+    partition !== 'onboarding' && partition !== 'easy' && partition !== 'medium' && partition !== 'hard'
+  ) return null;
+  if (difficulty !== 'easy' && difficulty !== 'medium' && difficulty !== 'hard') return null;
+  if (partition === 'onboarding' ? difficulty !== 'easy' : partition !== difficulty) return null;
+  return { partition, difficulty };
+}
+
+export function normalizeActiveGameSave(raw: unknown): ActiveGameSaveV2 | null {
   if (!isRecord(raw) || raw.version !== ACTIVE_GAME_SAVE_VERSION || !isGameMode(raw.mode)) {
     return null;
   }
@@ -210,6 +232,7 @@ export function normalizeActiveGameSave(raw: unknown): ActiveGameSaveV1 | null {
   const seed = normalizeSeed(raw.seed);
   const snapshot = normalizeSnapshot(raw.snapshot);
   const daily = normalizeDailyMetadata(raw.mode, raw.daily);
+  const standard = normalizeStandardMetadata(raw.mode, raw.standard);
 
   if (
     seed === null
@@ -220,6 +243,7 @@ export function normalizeActiveGameSave(raw: unknown): ActiveGameSaveV1 | null {
     || raw.elapsedMs < 0
     || (raw.uiState !== 'playing' && raw.uiState !== 'menu-paused')
     || daily === null
+    || standard === null
   ) {
     return null;
   }
@@ -233,13 +257,14 @@ export function normalizeActiveGameSave(raw: unknown): ActiveGameSaveV1 | null {
     attemptStarted: raw.attemptStarted,
     elapsedMs: raw.elapsedMs,
     ...(daily === undefined ? {} : { daily }),
+    ...(standard === undefined ? {} : { standard }),
     uiState: raw.uiState,
   };
 }
 
 export function createActiveGameSave(
   input: ActiveGameCheckpointInput,
-): ActiveGameSaveV1 {
+): ActiveGameSaveV2 {
   const normalized = normalizeActiveGameSave({
     version: ACTIVE_GAME_SAVE_VERSION,
     attemptId: input.attemptId,
@@ -249,6 +274,7 @@ export function createActiveGameSave(
     attemptStarted: input.attemptStarted,
     elapsedMs: input.elapsedMs,
     ...(input.daily === undefined ? {} : { daily: input.daily }),
+    ...(input.standard === undefined ? {} : { standard: input.standard }),
     uiState: input.uiState,
   });
 
@@ -259,7 +285,7 @@ export function createActiveGameSave(
   return normalized;
 }
 
-export function activeGameSaveToDeal(save: ActiveGameSaveV1): Deal {
+export function activeGameSaveToDeal(save: ActiveGameSaveV2): Deal {
   const foundations = Object.fromEntries(
     SUITS.map((suit) => [suit, [...save.snapshot.foundations[suit]]]),
   ) as Foundations;

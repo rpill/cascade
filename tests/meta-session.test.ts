@@ -26,6 +26,9 @@ function complete(attemptId: string): MetaOperation {
     elapsedMs: 4_000,
     trustedDay: '2026-09-08',
     trustedWeek: '2026-W37',
+    standardSeed: '123',
+    standardPartition: 'easy',
+    standardDifficulty: 'easy',
   };
 }
 
@@ -226,7 +229,7 @@ test('state changes notify observers for provisional dispatch, load, and save st
 
 test('completion reward is recalculated when provisional state replays over cloud', async () => {
   const remote = createDefaultMetaSave();
-  remote.progression.lastWinDay = '2026-09-08';
+  remote.standard.completed.easy = ['123'];
   const storage: PlayerStorage = {
     load: async () => cloudData(remote),
     save: async () => undefined,
@@ -234,13 +237,11 @@ test('completion reward is recalculated when provisional state replays over clou
   const session = new MetaSession(storage, new MetaJournal('player-1', new MemoryStorage()));
 
   session.dispatch(complete('rewarded-attempt'));
-  assert.ok(session.getReward('rewarded-attempt')?.lines.some(({ label }) =>
-    label === 'Первая победа сегодня'));
+  assert.ok(session.getReward('rewarded-attempt')?.lines.some(({ label }) => label === 'Победа'));
 
   await session.load();
 
-  assert.equal(session.getReward('rewarded-attempt')?.lines.some(({ label }) =>
-    label === 'Первая победа сегодня'), false);
+  assert.equal(session.getReward('rewarded-attempt'), undefined);
 });
 
 test('already receipted completion does not advertise a reward after load', async () => {

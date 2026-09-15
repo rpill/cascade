@@ -1,133 +1,44 @@
-import { t, LocalizationBindings } from '../../localization/Localization.ts';
 import type Phaser from 'phaser';
-import { RewardSummaryView, type RewardSummaryState } from './RewardSummaryView.ts';
+import { t } from '../../localization/Localization.ts';
 import type { SfxCue } from '../../settings/SfxController.ts';
+import type { MasteryRank } from '../../meta/MetaSave.ts';
+import type { ViewportLayout } from './ViewportLayout.ts';
+import { WinOverlay, type WinOverlayContent } from '../../ui/win/WinOverlay.ts';
+import type { RewardSummaryState } from './RewardSummaryView.ts';
 
 export interface DailyCompleteState {
-  readonly completionId: string;
-  readonly elapsedMs: number;
-  readonly bestTimeMs: number;
-  readonly improvedBest: boolean;
-  readonly weekCompleted: number;
-  readonly reward?: RewardSummaryState;
+  readonly completionId:string;
+  readonly elapsedMs:number;
+  readonly bestTimeMs:number;
+  readonly improvedBest:boolean;
+  readonly weekCompleted:number;
+  readonly reward?:RewardSummaryState;
 }
+export interface DailyCompleteActions { readonly retry:()=>void; readonly menu:()=>void; readonly sound?:(cue:SfxCue)=>void; }
 
-export interface DailyCompleteActions {
-  readonly retry: () => void;
-  readonly menu: () => void;
-  readonly sound?: (cue: SfxCue) => void;
+const RANK_LABELS:Readonly<Record<MasteryRank,string>>={novice:'Новичок',player:'Игрок',tactician:'Тактик',expert:'Эксперт',master:'Мастер',grandmaster:'Грандмастер'};
+function formatDuration(ms:number):string{const total=Math.floor(Math.max(0,ms)/1000);return `${Math.floor(total/60)}:${String(total%60).padStart(2,'0')}`;}
+function rewardLine(reward:RewardSummaryState|undefined):string|null{if(!reward)return null;if(reward.pending)return t('Награды начисляются…');return reward.coins>0?`+${reward.coins} ${t('монет')}`:t('Без повторной награды');}
+function detailLine(state:DailyCompleteState):string{
+  const rank=state.reward?.rankAdvancedTo;
+  const rankPart=rank&&!state.reward?.pending?` · ${t('Новый ранг: {rank}',{rank:t(RANK_LABELS[rank])})}`:'';
+  return `${t('Эта неделя: {value0} / 7',{value0:state.weekCompleted})}${rankPart}`;
 }
+function contentFor(state:DailyCompleteState):WinOverlayContent{return{
+  title:t('ИСПЫТАНИЕ ДНЯ ЗАВЕРШЕНО'),kicker:'Daily',
+  resultLine:state.improvedBest?`${formatDuration(state.elapsedMs)} · ${t('Новый рекорд')}`:`${t('Лучшее')}: ${formatDuration(state.bestTimeMs)}`,
+  rewardLine:rewardLine(state.reward),detailLine:detailLine(state),noticeLine:state.reward?.themePurchaseUnlocked?t('Доступны новые темы в коллекции'):null,
+  primaryActionLabel:t('ПОВТОРИТЬ'),secondaryActionLabel:t('В МЕНЮ'),rewardActionLabel:null,rewardActionEnabled:false,
+};}
 
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.floor(Math.max(0, ms) / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
+/** Daily variant of the shared Trifold-style Phaser victory overlay. */
 export class DailyCompleteView {
-  private readonly localization = new LocalizationBindings();
-  private readonly actions: DailyCompleteActions;
-  private lastCelebratedCompletionId: string | null = null;
-
-  refreshLocalization(): void {
-    this.localization.refresh();
-    this.rewardSummary.refreshLocalization();
+  private readonly overlay:WinOverlay;private state:DailyCompleteState|null=null;private layoutState:ViewportLayout|null=null;private lastCelebratedCompletionId:string|null=null;
+  constructor(scene:Phaser.Scene,private readonly actions:DailyCompleteActions){
+    const initial:DailyCompleteState={completionId:'',elapsedMs:0,bestTimeMs:0,improvedBest:false,weekCompleted:0};
+    this.overlay=new WinOverlay(scene,contentFor(initial),{newDeal:actions.retry,home:actions.menu},5000);this.overlay.setVisible(false);
   }
-
-  private readonly root: HTMLDivElement;
-  private readonly elapsed: HTMLParagraphElement;
-  private readonly best: HTMLParagraphElement;
-  private readonly weekly: HTMLParagraphElement;
-  private readonly rewardSummary: RewardSummaryView;
-
-  constructor(scene: Phaser.Scene, actions: DailyCompleteActions) {
-    this.actions = actions;
-    this.root = document.createElement('div');
-    this.root.className = 'daily-complete-dom';
-
-    const backdrop = document.createElement('div');
-    backdrop.className = 'daily-complete-backdrop';
-
-    const panel = document.createElement('section');
-    panel.className = 'daily-complete-panel';
-    this.localization.attribute(panel, 'aria-label', () => t('Результат испытания дня'));
-
-    const title = document.createElement('h2');
-    title.className = 'daily-complete-title';
-    this.localization.text(title, () => t('ИСПЫТАНИЕ ДНЯ ЗАВЕРШЕНО'));
-
-    const divider = document.createElement('div');
-    divider.className = 'daily-complete-divider';
-    divider.setAttribute('aria-hidden', 'true');
-
-    this.elapsed = document.createElement('p');
-    this.elapsed.className = 'daily-complete-stat';
-
-    this.best = document.createElement('p');
-    this.best.className = 'daily-complete-stat daily-complete-best';
-
-    this.weekly = document.createElement('p');
-    this.weekly.className = 'daily-complete-weekly';
-
-    const buttonRow = document.createElement('div');
-    buttonRow.className = 'daily-complete-actions';
-
-    const retryButton = document.createElement('button');
-    retryButton.type = 'button';
-    retryButton.className = 'daily-complete-button daily-complete-retry';
-    this.localization.text(retryButton, () => t('ПОВТОРИТЬ'));
-    retryButton.addEventListener('click', () => actions.retry());
-
-    const menuButton = document.createElement('button');
-    menuButton.type = 'button';
-    menuButton.className = 'daily-complete-button daily-complete-menu';
-    this.localization.text(menuButton, () => t('В МЕНЮ'));
-    menuButton.addEventListener('click', () => actions.menu());
-
-    buttonRow.append(retryButton, menuButton);
-    panel.append(
-      title,
-      divider,
-      this.elapsed,
-      this.best,
-      this.weekly,
-    );
-    this.rewardSummary = new RewardSummaryView(panel);
-    panel.append(buttonRow);
-    this.root.append(backdrop, panel);
-
-    const host = scene.game.canvas.parentElement;
-    if (host === null) {
-      throw new Error('Game canvas must have a parent element for the Daily completion view.');
-    }
-
-    host.append(this.root);
-    this.hide();
-  }
-
-  show(state: DailyCompleteState): void {
-    this.localization.text(this.elapsed, () => t("Время: {value0}", {value0: formatDuration(state.elapsedMs)}));
-    this.localization.text(this.best, () => state.improvedBest
-      ? t("Новый рекорд · {value0}", {value0: formatDuration(state.bestTimeMs)})
-      : t("Лучшее: {value0}", {value0: formatDuration(state.bestTimeMs)}));
-    this.localization.text(this.weekly, () => t("Эта неделя: {value0} / 7", {value0: state.weekCompleted}));
-    this.rewardSummary.update(state.reward);
-
-    this.root.hidden = false;
-    this.root.style.pointerEvents = 'auto';
-    if (state.completionId !== this.lastCelebratedCompletionId) {
-      this.lastCelebratedCompletionId = state.completionId;
-      this.actions.sound?.('victory');
-    }
-  }
-
-  hide(): void {
-    this.root.style.pointerEvents = 'none';
-    this.root.hidden = true;
-  }
-
-  destroy(): void {
-    this.root.remove();
-  }
+  refreshLocalization():void{if(this.state)this.overlay.setContent(contentFor(this.state));}
+  show(state:DailyCompleteState):void{this.state=state;this.overlay.setContent(contentFor(state));this.overlay.setVisible(true);if(this.layoutState)this.overlay.layout(this.layoutState);if(state.completionId!==this.lastCelebratedCompletionId){this.lastCelebratedCompletionId=state.completionId;this.actions.sound?.('victory');if(state.reward&&!state.reward.pending&&state.reward.coins>0)this.actions.sound?.('coin-reward');}}
+  layout(layout:ViewportLayout):void{this.layoutState=layout;this.overlay.layout(layout);} hide():void{this.overlay.setVisible(false);} destroy():void{this.overlay.destroy();}
 }

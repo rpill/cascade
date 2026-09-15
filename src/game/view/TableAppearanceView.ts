@@ -1,61 +1,41 @@
-import type Phaser from 'phaser';
-import { getBoardSlots, getSlotFrameAlpha } from './layout.ts';
+import Phaser from 'phaser';
+import { getBoardSlots } from './layout.ts';
 import type { ViewportLayout } from './ViewportLayout.ts';
-import { SUITS } from '../model/types.ts';
 import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
-import { getSlotFrameAsset, getSlotGlyphAsset } from '../../theme/ThemeAssets.ts';
-import type { SlotRole } from '../../theme/SlotArtwork.ts';
-import { TableSurfaceView } from './TableSurfaceView.ts';
 
-/** Owns table decoration only. It never reads or changes the deal. */
+const TRIFOLD_BASE_SLOT_EDGE = 0x8aa095;
+
+/**
+ * Canvas-only table decoration. Cascade keeps its own slot geometry while the
+ * table treatment mirrors Trifold's quiet base-table outlines.
+ */
 export class TableAppearanceView {
-  private readonly surface: TableSurfaceView;
-  private readonly slots: {
-    image: Phaser.GameObjects.Image;
-    glyph: Phaser.GameObjects.Image | null;
-    role: SlotRole;
-  }[];
+  private readonly slots: Phaser.GameObjects.Graphics;
 
-  constructor(scene: Phaser.Scene, theme: ThemeDefinition, layout: ViewportLayout) {
-    this.surface = new TableSurfaceView(scene, theme, layout);
-    let foundationIndex = 0;
-    this.slots = getBoardSlots(layout).map(slot => {
-      const role = slot.kind === 'foundation' ? SUITS[foundationIndex++] : slot.kind;
-      const glyph = getSlotGlyphAsset(theme, role);
-      return {
-        role,
-        image: scene.add.image(0, 0, getSlotFrameAsset(theme).key).setOrigin(0).setDepth(5),
-        glyph: glyph === null ? null : scene.add.image(0, 0, glyph.key).setOrigin(0).setDepth(6),
-      };
-    });
+  constructor(scene: Phaser.Scene, _theme: ThemeDefinition, layout: ViewportLayout) {
+    this.slots = scene.add.graphics().setDepth(5);
     this.relayout(layout);
   }
 
-  /** Assets must be loaded before replacing the visible bundle. */
-  setTheme(theme: ThemeDefinition, layout: ViewportLayout): void {
-    this.surface.setTheme(theme, layout);
-    this.slots.forEach(({ image, glyph, role }) => {
-      image.setTexture(getSlotFrameAsset(theme).key);
-      const asset = getSlotGlyphAsset(theme, role);
-      if (asset !== null) glyph?.setTexture(asset.key);
-    });
+  setTheme(_theme: ThemeDefinition, layout: ViewportLayout): void {
     this.relayout(layout);
   }
 
   relayout(layout: ViewportLayout): void {
-    this.surface.relayout(layout);
+    this.slots.clear();
+    const lineWidth = Math.max(1, layout.cardWidth * 0.015);
+    const radius = Math.max(4, layout.cardWidth * 0.06);
 
-    getBoardSlots(layout).forEach((slot, index) => {
-      this.slots[index].image.setPosition(slot.x, slot.y)
-        .setDisplaySize(layout.cardWidth, layout.cardHeight)
-        .setAlpha(getSlotFrameAlpha(layout, slot));
-      this.slots[index].glyph?.setPosition(slot.x, slot.y)
-        .setDisplaySize(layout.cardWidth, layout.cardHeight);
-    });
+    for (const slot of getBoardSlots(layout)) {
+      const alpha = slot.kind === 'foundation' ? 0.56
+        : slot.kind === 'tableau' ? 0.34
+          : 0.42;
+      this.slots.lineStyle(lineWidth, TRIFOLD_BASE_SLOT_EDGE, alpha);
+      this.slots.strokeRoundedRect(slot.x, slot.y, layout.cardWidth, layout.cardHeight, radius);
+    }
   }
 
   destroy(): void {
-    this.surface.destroy();
-    this.slots.forEach(({ image, glyph }) => { image.destroy(); glyph?.destroy(); });
+    this.slots.destroy();
   }
 }

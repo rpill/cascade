@@ -102,9 +102,9 @@ export class LeaderboardService {
     }
 
     const technicalName = getLeaderboardName(mode);
-    const normalize = mode === 'winnable'
-      ? normalizeStandardRow
-      : (entry: PlatformLeaderboardEntry) => normalizeDailyRow(entry, dailyId!);
+    const normalize = mode === 'daily'
+      ? (entry: PlatformLeaderboardEntry) => normalizeDailyRow(entry, dailyId!)
+      : normalizeStandardRow;
     let entries: LeaderboardRow[];
 
     try {
@@ -152,6 +152,27 @@ export class LeaderboardService {
       ) return 'unchanged';
 
       await this.submissions.enqueue(technicalName, localBestStreak);
+      return 'submitted';
+    } catch {
+      return 'skipped';
+    }
+  }
+
+  async syncMasteryScore(localScore: number): Promise<LeaderboardSyncResult> {
+    if (
+      !this.available
+      || !this.authorized
+      || !Number.isSafeInteger(localScore)
+      || localScore <= 0
+    ) return 'skipped';
+
+    const technicalName = getLeaderboardName('mastery');
+    try {
+      const server = await this.platform.leaderboards.getPlayerEntry(technicalName);
+      if (server !== null && Number.isSafeInteger(server.score) && server.score >= localScore) {
+        return 'unchanged';
+      }
+      await this.submissions.enqueue(technicalName, localScore);
       return 'submitted';
     } catch {
       return 'skipped';

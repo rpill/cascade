@@ -6,9 +6,6 @@ export const MAX_CARD_WIDTH = 180;
 
 const REFERENCE_HEIGHT = 768;
 const COMPACT_MAX_HEIGHT = 620;
-const STANDARD_HUD_HEIGHT = 56;
-const COMPACT_HUD_HEIGHT = 48;
-const COMPACT_TOP_HUD_HEIGHT = 8;
 
 export type LayoutProfile = 'standard' | 'compact-landscape';
 
@@ -52,7 +49,11 @@ export interface ViewportLayout {
   readonly tableauCardGap: number;
   readonly wasteGap: number;
   readonly bottomMargin: number;
+  readonly homeControl: LayoutBounds;
+  readonly newDealControl: LayoutBounds;
+  readonly undoControl: LayoutBounds;
 }
+
 
 export const ZERO_SAFE_AREA: SafeAreaInsets = {
   top: 0,
@@ -92,18 +93,20 @@ export function calculateViewportLayout(
     ? 'compact-landscape'
     : 'standard';
   const compact = profile === 'compact-landscape';
-  const hudHeight = compact ? COMPACT_TOP_HUD_HEIGHT : STANDARD_HUD_HEIGHT;
   const edgeMargin = clamp(
     compact ? 6 : 14,
-    safeWidth * (compact ? 0.012 : 0.018),
-    compact ? 12 : 32,
+    safeWidth * (compact ? 0.01 : 0.015),
+    compact ? 10 : 24,
   );
-  const boardGap = compact ? 4 : 8;
-  const compactLeftRail = 0;
-  const compactRightRail = compact ? clamp(140, safeWidth * 0.17, 176) : 0;
-  const boardX = insets.left + edgeMargin + compactLeftRail;
-  const boardY = insets.top + hudHeight + boardGap;
-  const boardRight = width - insets.right - edgeMargin - compactRightRail;
+  const railGap = compact ? 6 : 12;
+  const controlRailWidth = clamp(
+    compact ? 86 : 116,
+    safeWidth * 0.105,
+    compact ? 102 : 144,
+  );
+  const boardX = insets.left + edgeMargin;
+  const boardY = insets.top + edgeMargin;
+  const boardRight = width - insets.right - edgeMargin - controlRailWidth - railGap;
   const boardBottom = height - insets.bottom - edgeMargin;
   const boardWidth = Math.max(1, boardRight - boardX);
   const boardHeight = Math.max(1, boardBottom - boardY);
@@ -111,9 +114,7 @@ export function calculateViewportLayout(
   const minimumFoundationGap = compact ? 4 : 12;
   const minimumZoneGap = compact ? 8 : 28;
   const minimumColumnGap = compact ? 6 : 18;
-  const preferredScaleHeight = compact
-    ? safeHeight + (COMPACT_HUD_HEIGHT - COMPACT_TOP_HUD_HEIGHT) + 24
-    : safeHeight;
+  const preferredScaleHeight = compact ? safeHeight + 24 : safeHeight;
   const preferredCardWidth = Math.min(
     MAX_CARD_WIDTH,
     BASE_CARD_WIDTH * (preferredScaleHeight / REFERENCE_HEIGHT),
@@ -222,17 +223,25 @@ export function calculateViewportLayout(
     compact ? 24 : 40,
   );
   const bottomMargin = compact ? 8 : 18;
+  const railX = boardRight + railGap;
+  const controlHeight = compact ? 44 : 52;
+  const controlGap = compact ? 8 : 12;
+  const homeControl: LayoutBounds = { x: railX, y: boardY, width: controlRailWidth, height: controlHeight };
+  const newDealControl: LayoutBounds = { x: railX, y: boardY + controlHeight + controlGap, width: controlRailWidth, height: controlHeight };
+  const undoControl: LayoutBounds = { x: railX, y: boardY + (controlHeight + controlGap) * 2, width: controlRailWidth, height: controlHeight };
 
   return {
     viewportWidth: width,
     viewportHeight: height,
     profile,
     safeArea: insets,
+    // Legacy field retained for save/layout tests. Gameplay controls now live
+    // in the dedicated right rail below.
     hudBounds: {
-      x: insets.left,
+      x: boardX,
       y: insets.top,
-      width: safeWidth,
-      height: hudHeight,
+      width: boardWidth,
+      height: 0,
     },
     boardBounds: {
       x: boardX,
@@ -264,6 +273,9 @@ export function calculateViewportLayout(
     tableauCardGap,
     wasteGap,
     bottomMargin,
+    homeControl,
+    newDealControl,
+    undoControl,
   };
 }
 
@@ -320,5 +332,8 @@ export function scaleViewportLayout(
     tableauCardGap: scaleNumber(layout.tableauCardGap, scale),
     wasteGap: scaleNumber(layout.wasteGap, scale),
     bottomMargin: scaleNumber(layout.bottomMargin, scale),
+    homeControl: scaleBounds(layout.homeControl, scale),
+    newDealControl: scaleBounds(layout.newDealControl, scale),
+    undoControl: scaleBounds(layout.undoControl, scale),
   };
 }

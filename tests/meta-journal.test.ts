@@ -121,24 +121,27 @@ test('acknowledging a snapshot removes only included envelopes', () => {
 });
 
 
-test('journal restores valid hidden Standard difficulty operations', () => {
+test('journal restores explicit Standard product operations', () => {
   const storage = new MemoryStorage();
   const journal = new MetaJournal('player-difficulty', storage);
 
-  assert.ok(journal.append({ kind: 'standard-served', seed: '4294967295', tier: 'hard' }));
+  assert.ok(journal.append({ kind: 'set-standard-difficulty', difficulty: 'hard' }));
+  assert.ok(journal.append({ kind: 'standard-served', seed: '4294967295', partition: 'hard', difficulty: 'hard' }));
   assert.ok(journal.append({ kind: 'standard-failed', attemptId: 'attempt-standard-1' }));
 
   const restored = new MetaJournal('player-difficulty', storage);
   assert.deepEqual(restored.pending.map(({ operation }) => operation), [
-    { kind: 'standard-served', seed: '4294967295', tier: 'hard' },
+    { kind: 'set-standard-difficulty', difficulty: 'hard' },
+    { kind: 'standard-served', seed: '4294967295', partition: 'hard', difficulty: 'hard' },
     { kind: 'standard-failed', attemptId: 'attempt-standard-1' },
   ]);
 });
 
-test('journal rejects malformed hidden Standard difficulty operations', () => {
+test('journal rejects malformed Standard product operations', () => {
   const invalidOperations = [
-    { kind: 'standard-served', seed: '0', tier: 'easy' },
-    { kind: 'standard-served', seed: '12', tier: 'nightmare' },
+    { kind: 'set-standard-difficulty', difficulty: 'nightmare' },
+    { kind: 'standard-served', seed: '0', partition: 'easy', difficulty: 'easy' },
+    { kind: 'standard-served', seed: '12', partition: 'nightmare', difficulty: 'hard' },
     { kind: 'standard-failed', attemptId: '' },
   ];
 

@@ -1,10 +1,9 @@
 import Phaser from 'phaser';
 
 import { GameFlow } from '../model/GameFlow.ts';
-import { getContinuableMenuMode } from '../model/MenuPlayAction.ts';
 import { createRandomDealSeed, GameSession } from '../model/GameSession.ts';
 import { VerifiedDealCatalog } from '../model/VerifiedDealCatalog.ts';
-import { StandardDifficultyDirector, type StandardSelection } from '../model/StandardDifficultyDirector.ts';
+import { pickStandardDeal, type StandardDealSelection } from '../model/StandardDealPicker.ts';
 import { shouldRecordStandardFailure } from '../model/StandardAttemptPolicy.ts';
 import {
   FIRST_RUN_STANDARD_SELECTION_REGISTRY_KEY,
@@ -18,29 +17,9 @@ import type { Card, Deal, GameMode } from '../model/types.ts';
 import { BoardView } from '../view/BoardView.ts';
 import { DailyCompleteView } from '../view/DailyCompleteView.ts';
 import { GameCompleteView } from '../view/GameCompleteView.ts';
-import { GameControlsView } from '../view/GameControlsView.ts';
-import {
-  AppShellView,
-  type ShellDestination,
-} from '../view/AppShellView.ts';
-import {
-  PlayPageView,
-  type DailyMenuState,
-} from '../view/PlayPageView.ts';
-import { RulesView } from '../view/RulesView.ts';
-import {
-  StatisticsPageView,
-  type StatisticsPageLeaderboardState,
-  type StatisticsPageState,
-} from '../view/StatisticsPageView.ts';
 import { calculateViewportLayout, scaleViewportLayout } from '../view/ViewportLayout.ts';
 import { AttemptTimer } from '../../meta/AttemptTimer.ts';
-import {
-  getDailyId,
-  getDailySeed,
-  getIsoWeekDailyIds,
-  getIsoWeekId,
-} from '../../meta/DailyCalendar.ts';
+import { getDailyId, getDailySeed, getIsoWeekDailyIds, getIsoWeekId } from '../../meta/DailyCalendar.ts';
 import { getWeeklyProgress } from '../../meta/DailyProgress.ts';
 import { MetaSession } from '../../meta/MetaSession.ts';
 import { MetaJournal } from '../../meta/MetaJournal.ts';
@@ -53,50 +32,35 @@ import {
   stageProfileMergeTransfer,
 } from '../../meta/ProfileMerge.ts';
 import { applyMetaOperation, completeRewardedAttempt, hasCompletedAttempt, type MetaOperation, type CompletionEvent } from '../../meta/MetaOperations.ts';
-import { getLevelProgress } from '../../meta/Progression.ts';
 import type { RewardSummary } from '../../meta/Economy.ts';
-import {
-  THEME_CATALOG,
-  didCoinsUnlockThemePurchase,
-  hasAffordableUnownedTheme,
-} from '../../theme/ThemeCatalog.ts';
-import { ThemeCatalogView, type ThemeCatalogState } from '../view/ThemeCatalogView.ts';
-import {
-  type ModeCompletionResult,
-  type OrdinaryGameMode,
-} from '../../meta/GameStats.ts';
-import {
-  createDefaultMetaSave,
-  DAILY_ALGORITHM_VERSION,
-  type MetaSave,
-} from '../../meta/MetaSave.ts';
+import { THEME_CATALOG, didCoinsUnlockThemePurchase } from '../../theme/ThemeCatalog.ts';
+import { type ModeCompletionResult, type OrdinaryGameMode } from '../../meta/GameStats.ts';
+import { createDefaultMetaSave, DAILY_ALGORITHM_VERSION, type MetaSave, type StandardDifficulty } from '../../meta/MetaSave.ts';
 import { ActiveGameRepository } from '../../persistence/ActiveGameRepository.ts';
-import {
-  activeGameSaveToDeal,
-  createActiveGameSave,
-  type ActiveGameSaveV1,
-} from '../../persistence/ActiveGameSave.ts';
-import {
-  initializePlatform,
-} from '../../platform/yandex.ts';
+import { activeGameSaveToDeal, createActiveGameSave, type ActiveGameSaveV2 } from '../../persistence/ActiveGameSave.ts';
+import { initializePlatform } from '../../platform/yandex.ts';
 import type { PlatformServices } from '../../platform/services.ts';
 import { deriveGameplayActivity } from '../../platform/GameplayActivity.ts';
 import { LeaderboardService } from '../../leaderboards/LeaderboardService.ts';
-import { hasGlobalLeaderboard, type StatisticsMode } from '../../leaderboards/LeaderboardConfig.ts';
+import { encodeMasteryLeaderboardScore, type GlobalLeaderboardMode } from '../../leaderboards/LeaderboardConfig.ts';
 import { getTheme } from '../../theme/ThemeRegistry.ts';
 import { resolveOwnedThemeId, resolveThemeId } from '../../theme/ThemeSelection.ts';
 import { readStartupThemeId, writeStartupThemeId } from '../../theme/ThemeStartupCache.ts';
 import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
 import { loadTheme } from '../../theme/ThemeLoader.ts';
-import { SettingsView } from '../view/SettingsView.ts';
-import { PurchaseView } from '../view/PurchaseView.ts';
-import { NewDealConfirmView } from '../view/NewDealConfirmView.ts';
 import { MonetizationController } from '../../monetization/MonetizationController.ts';
 import { preferences } from '../../settings/Preferences.ts';
 import { AudioController } from '../../settings/AudioController.ts';
 import { SFX_ASSETS, SfxController } from '../../settings/SfxController.ts';
 import { getLanguage, subscribeLanguage, t } from '../../localization/Localization.ts';
 import { analytics } from '../../analytics/AnalyticsService.ts';
+import { productBridge } from '../../ui/bridge/CascadeProductBridge.ts';
+import { createRewardDoubleOffer, type RewardDoubleOffer } from '../../meta/economy/RewardDouble.ts';
+import { NewDealConfirmOverlay } from '../../ui/game/NewDealConfirmOverlay.ts';
+import { GameHud } from '../../ui/game/GameHud.ts';
+import { buildGameHudViewModel } from '../../ui/game/GameHudViewModel.ts';
+import { SceneBackdrop } from '../../ui/components/SceneBackdrop.ts';
+import { UI_TOKENS } from '../../ui/style/UiTokens.ts';
 
 interface DailyContext {
   readonly dailyId: string;
@@ -106,7 +70,7 @@ interface DailyContext {
 }
 
 interface StartDealOptions {
-  readonly restored?: ActiveGameSaveV1;
+  readonly restored?: ActiveGameSaveV2;
 }
 
 interface OrdinaryCompletionSnapshot {
@@ -114,57 +78,40 @@ interface OrdinaryCompletionSnapshot {
   readonly elapsedMs: number;
   readonly result: ModeCompletionResult;
   readonly reward: RewardSummary;
-  readonly totalXpBefore: number;
   readonly themePurchaseUnlocked: boolean;
   readonly event: CompletionEvent;
+  readonly rewardDoubleOffer: RewardDoubleOffer | null;
 }
 
 export class GameScene extends Phaser.Scene {
   private flow!: GameFlow;
   private readonly history = new GameHistory();
   private board: BoardView | null = null;
-  private gameControls: GameControlsView | null = null;
+  private gameHud: GameHud | null = null;
+  private backdrop: SceneBackdrop | null = null;
+  private hudRefreshTimer: Phaser.Time.TimerEvent | null = null;
   private gameState: SolitaireGame | null = null;
-  private appShell!: AppShellView;
-  private settingsView!: SettingsView;
-  private purchaseView!: PurchaseView;
-  private newDealConfirmView!: NewDealConfirmView;
+  private newDealConfirmOverlay!: NewDealConfirmOverlay;
   private monetizationController: MonetizationController | null = null;
   private freshDealTransitionInFlight = false;
   private freshDealActivityBlocked = false;
+  private serviceOverlayOpen = false;
   private audioController!: AudioController;
   private sfxController!: SfxController;
   private unsubscribeLanguage: (() => void) | null = null;
-  private catalogView!: ThemeCatalogView;
   private catalogBusyId: string | undefined;
-  private catalogMessage: string | undefined;
-  private playPage!: PlayPageView;
-  private rulesView!: RulesView;
   private rulesOpen = false;
   private rulesOnboarding = false;
   private rulesBlockedBoardSettle = false;
   private pendingFirstRunHowToPlay = false;
-  private shellDestination: ShellDestination = 'play';
-  private statisticsPage!: StatisticsPageView;
-  private statisticsOpen = false;
   private dailyCompleteView!: DailyCompleteView;
   private gameCompleteView!: GameCompleteView;
-  private leaderboardMode: StatisticsMode = 'winnable';
   private leaderboardAuthPending = false;
-  private leaderboardRequestId = 0;
   private unsubscribeAccountSelection: (() => void) | null = null;
-  private leaderboardViewState: StatisticsPageLeaderboardState = {
-    status: 'unavailable',
-    entries: [],
-    authorized: false,
-    playerEntry: null,
-    authPending: false,
-    authorizationAllowed: true,
-  };
 
   private activeGameRepository!: ActiveGameRepository;
-  private pendingActiveSave: ActiveGameSaveV1 | null = null;
-  private pendingDailyRestore: ActiveGameSaveV1 | null = null;
+  private pendingActiveSave: ActiveGameSaveV2 | null = null;
+  private pendingDailyRestore: ActiveGameSaveV2 | null = null;
   private metaSession!: MetaSession;
   private metaJournal!: MetaJournal;
   private metaScope = 'unbound';
@@ -180,6 +127,7 @@ export class GameScene extends Phaser.Scene {
   private attemptRestored = false;
   private attemptAbandonTracked = false;
   private lastOrdinaryCompletion: OrdinaryCompletionSnapshot | null = null;
+  private rewardDoubleClaiming = false;
 
   private platform: PlatformServices | null = null;
   private platformPaused = false;
@@ -191,7 +139,7 @@ export class GameScene extends Phaser.Scene {
   private leaderboardService: LeaderboardService | null = null;
   private metaState: MetaSave = createDefaultMetaSave();
   private verifiedDealCatalog!: VerifiedDealCatalog;
-  private standardDifficultyDirector!: StandardDifficultyDirector;
+  private activeStandardSelection: StandardDealSelection | null = null;
   private dailyContext: DailyContext | null = null;
   private activeTheme!: ThemeDefinition;
   private themeRequest = 0;
@@ -205,7 +153,6 @@ export class GameScene extends Phaser.Scene {
     this.windowFocused = document.hasFocus();
     this.audioController = new AudioController(this.sound);
     this.sfxController = new SfxController(this.sound);
-    this.game.canvas.parentElement?.addEventListener('click', this.handleButtonSfx);
     this.audioController.setSuspended(!this.windowFocused || document.visibilityState !== 'visible');
     this.activeTheme = getTheme(resolveThemeId(
       import.meta.env.DEV ? window.location.search : '',
@@ -224,6 +171,8 @@ export class GameScene extends Phaser.Scene {
       },
     }, this.metaJournal);
     this.input.dragDistanceThreshold = 7;
+    this.cameras.main.setBackgroundColor(UI_TOKENS.color.table);
+    this.backdrop = new SceneBackdrop(this, 'game', UI_TOKENS.color.table);
     this.applyViewportLayout();
     this.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this);
     this.verifiedDealCatalog = this.registry.get(VERIFIED_DEALS_REGISTRY_KEY) as VerifiedDealCatalog;
@@ -231,37 +180,7 @@ export class GameScene extends Phaser.Scene {
       throw new Error('Verified deal catalog is not registered.');
     }
     this.flow = new GameFlow(new GameSession({ catalog: this.verifiedDealCatalog }));
-    this.standardDifficultyDirector = new StandardDifficultyDirector(
-      this.verifiedDealCatalog,
-      () => Number(createRandomDealSeed() & 0xffff_ffffn),
-    );
-    this.appShell = new AppShellView(this, {
-      navigate: (destination) => this.navigateShell(destination),
-      cancel: () => this.closeMainMenu(),
-      settings: () => this.settingsView.show(),
-      purchases: () => this.purchaseView.show(),
-    });
-    this.settingsView = new SettingsView(this.game.canvas.parentElement!);
-    this.purchaseView = new PurchaseView(this.game.canvas.parentElement!, {
-      opened: () => analytics.event('shop_open', { source: 'menu' }),
-      rewarded: () => { void this.monetizationController?.watchRewarded(); },
-    });
-    this.newDealConfirmView = new NewDealConfirmView(this.game.canvas.parentElement!);
-    this.catalogView = new ThemeCatalogView(this.appShell.contentHost, {
-      buy: id => this.buyTheme(id), equip: id => { void this.equipOwnedTheme(id); },
-      retry: () => { void this.retryMeta(); },
-    });
-    this.playPage = new PlayPageView(this.appShell.contentHost, {
-      play: (mode) => this.playMenuMode(mode),
-      leaderboard: () => this.openStatisticsPage(true),
-    });
-    this.rulesView = new RulesView(this.game.canvas.parentElement!, {
-      close: () => this.closeRules(),
-    });
-    this.statisticsPage = new StatisticsPageView(this.appShell.contentHost, {
-      selectMode: (mode) => this.selectStatisticsMode(mode),
-      authorize: () => { void this.authorizeLeaderboard(); },
-    });
+    this.newDealConfirmOverlay = new NewDealConfirmOverlay(this);
     this.metaSession.onChange = () => this.refreshSessionState();
     this.dailyCompleteView = new DailyCompleteView(this, {
       retry: () => this.retryDaily(),
@@ -271,9 +190,13 @@ export class GameScene extends Phaser.Scene {
     this.gameCompleteView = new GameCompleteView(this, {
       newGame: () => this.startNewDeal(),
       menu: () => this.openMenuFromGameComplete(),
+      doubleCoins: () => { void this.claimStandardRewardDouble(); },
       sound: (cue) => this.sfxController.play(cue),
     });
     this.activeGameRepository = new ActiveGameRepository();
+    this.installProductBridge();
+    this.events.on('service-overlay-closed', this.handleServiceOverlayClosed, this);
+    this.hudRefreshTimer = this.time.addEvent({ delay: 250, loop: true, callback: () => this.refreshGameHud() });
     this.unsubscribeLanguage = subscribeLanguage(() => this.refreshLocalization());
     this.refreshLocalization();
     this.pendingActiveSave = this.activeGameRepository.load();
@@ -286,7 +209,7 @@ export class GameScene extends Phaser.Scene {
     if (firstRun) {
       this.startFirstRunHowToPlay();
     } else if (!restoredOrdinary) {
-      this.showShellPlay(false);
+      this.showProductHome(false);
     }
     this.refreshMenuMeta();
 
@@ -340,113 +263,22 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.refreshMenuMeta();
-    this.refreshOpenStatisticsLeaderboard();
-  }
-
-  private buildDailyMenuState(): DailyMenuState {
-    const context = this.currentDailyContext();
-
-    if (context === null) {
-      return {
-        available: false,
-        dailyId: null,
-        completed: false,
-        bestTimeMs: null,
-        weekId: null,
-        weekDailyIds: [],
-        completedDailyIds: [],
-      };
-    }
-
-    const record = this.metaState.daily.records[context.dailyId];
-    const completedDailyIds = this.metaState.weekly.weekId === context.weekId
-      ? this.metaState.weekly.completedDailyIds
-      : [];
-
-    return {
-      available: true,
-      dailyId: context.dailyId,
-      completed: record?.completed ?? false,
-      bestTimeMs: record?.bestTimeMs ?? null,
-      weekId: context.weekId,
-      weekDailyIds: context.weekDailyIds,
-      completedDailyIds,
-    };
-  }
-
-  private buildStatisticsPageState(): StatisticsPageState {
-    const { winnable, original } = this.metaState.stats;
-    const dailyContext = this.currentDailyContext();
-    const dailyRecord = dailyContext === null ? undefined : this.metaState.daily.records[dailyContext.dailyId];
-
-    return {
-      mode: this.leaderboardMode,
-      statistics: {
-        winnable: {
-          played: winnable.played,
-          wins: winnable.wins,
-          bestTimeMs: winnable.bestTimeMs ?? null,
-          bestWinStreak: this.metaState.standardWinStreak.best,
-        },
-        original: {
-          played: original.played,
-          wins: original.wins,
-          bestTimeMs: original.bestTimeMs ?? null,
-        },
-        daily: {
-          played: dailyRecord?.attempts ?? 0,
-          wins: dailyRecord?.completed ? 1 : 0,
-          completed: dailyRecord?.completed ?? false,
-          bestTimeMs: dailyRecord?.bestTimeMs ?? null,
-          dailyId: dailyContext?.dailyId ?? null,
-        },
-      },
-      leaderboard: this.buildLeaderboardViewState(),
-    };
   }
 
   private refreshMenuMeta(): void {
-    const metaReady = this.metaSession.status === 'ready';
-    this.appShell.setCoins(metaReady ? this.metaState.progression.coins : null);
-    this.appShell.setCollectionPurchaseAvailable(metaReady && hasAffordableUnownedTheme(
-      this.metaState.progression.coins,
-      this.metaState.collection.ownedThemes,
-    ));
-    this.playPage.updateProgression({...getLevelProgress(this.metaState.progression.totalXp),ready:this.metaSession.status === 'ready'});
-    this.catalogView.update(this.buildCatalogState());
-    this.playPage.updateDailyState(this.buildDailyMenuState());
-    this.playPage.updateLeaderboardsAvailable(
-      this.leaderboardService?.available ?? false,
-    );
-    this.statisticsPage.update(this.buildStatisticsPageState());
-  }
-
-  private refreshOpenStatisticsLeaderboard(): void {
-    if (!this.statisticsOpen || !hasGlobalLeaderboard(this.leaderboardMode)) return;
-
-    const service = this.leaderboardService;
-    if (service === null || !service.available) return;
-
-    this.renderLeaderboardState({
-      status: 'loading', entries: [], playerEntry: null, message: undefined,
-    });
-    void this.loadLeaderboard(this.leaderboardMode);
+    productBridge.notify();
+    this.refreshGameHud();
   }
 
   private refreshLocalization(): void {
     document.documentElement.lang = getLanguage();
     document.title = t('Пасьянс Каскад');
     this.game.canvas.parentElement?.setAttribute('aria-label', t('Пасьянс Каскад'));
-    this.appShell.refreshLocalization();
-    this.playPage.refreshLocalization();
-    this.catalogView.refreshLocalization();
-    this.purchaseView.refreshLocalization();
-    this.newDealConfirmView.refreshLocalization();
-    this.rulesView.refreshLocalization();
-    this.statisticsPage.refreshLocalization();
+    this.newDealConfirmOverlay.refreshLocalization();
     this.dailyCompleteView.refreshLocalization();
     this.gameCompleteView.refreshLocalization();
-    this.gameControls?.refreshLocalization();
+    this.refreshGameHud();
+    productBridge.notify();
   }
 
   private refreshSessionState(): void {
@@ -497,7 +329,7 @@ export class GameScene extends Phaser.Scene {
         // The one exception is an explicit guest -> authorized merge, where the
         // current local board remains the board the player is actively continuing.
         this.board?.destroy(); this.board=null;
-        this.gameControls?.destroy(); this.gameControls=null;
+        this.gameHud?.destroy(); this.gameHud=null;
         this.gameState=null;
         this.flow=new GameFlow(new GameSession({catalog:this.verifiedDealCatalog}));
         this.resetAttempt();
@@ -505,7 +337,7 @@ export class GameScene extends Phaser.Scene {
         this.pendingActiveSave=null;
         this.pendingDailyRestore=null;
         this.gameCompleteView.hide(); this.dailyCompleteView.hide();
-        this.showShellPlay(false);
+        this.showProductHome(false);
       }
       this.metaScope = scope;
       try { localStorage.setItem('cascadeMetaScope',scope); } catch { /* journal exposes durability */ }
@@ -564,50 +396,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   private refreshMonetizationState(): void {
-    if (this.monetizationController) {
-      this.purchaseView.update(this.monetizationController.state);
-    }
-  }
-
-  private async retryMeta(): Promise<void> {
-    this.catalogMessage = undefined;
-    if (this.metaSession.status === 'ready') {
-      await this.metaSession.flush();
-      if (!this.metaSession.saveError) await this.applyPendingProfileMerge();
-    } else {
-      await this.loadMetaProfile();
-      await this.initializeMonetization();
-    }
-    const completion=this.lastOrdinaryCompletion;
-    if (completion && !hasCompletedAttempt(this.metaState,completion.event.attemptId)) this.dispatchMeta(completion.event);
-    if (this.lastDailyEvent && !hasCompletedAttempt(this.metaState,this.lastDailyEvent.attemptId)) this.dispatchMeta(this.lastDailyEvent);
-    this.refreshSessionState();
+    productBridge.notify();
   }
 
   private dispatchMeta(event: MetaOperation): boolean {
     const accepted = this.metaSession.dispatch(event);
-    if (!accepted) this.catalogMessage = 'Не удалось сохранить прогресс. Освободите место и повторите.';
     this.refreshSessionState();
     if (accepted && this.metaSession.status === 'ready') void this.metaSession.flush();
     return accepted;
-  }
-
-  private buildCatalogState(): ThemeCatalogState {
-    return {
-      items:THEME_CATALOG.map(item=>({...item,owned:this.metaState.collection.ownedThemes.includes(item.id),equipped:this.metaState.equipped.theme===item.id})),
-      coins:this.metaState.progression.coins,
-      ready:this.metaSession.status==='ready' && !this.profileScopeError,loading:this.metaSession.status==='loading' && !this.profileScopeError,
-      error:this.profileScopeError || this.metaSession.status==='error' ? 'Не удалось загрузить профиль. Повторите попытку.' : this.metaSession.saveError ? 'Прогресс ещё не сохранён. Повторите сохранение.' : undefined,
-      busyId:this.catalogBusyId,
-      message:this.catalogMessage ?? (!this.metaSession.durable ? 'Хранилище недоступно: прогресс сохранится только в этой вкладке.' : undefined),
-    };
   }
 
   private buyTheme(id:string): void {
     if (this.metaSession.status!=='ready' || this.catalogBusyId) return;
     const next = applyMetaOperation(this.metaState,{kind:'purchase',themeId:id});
     if (next === this.metaState) return;
-    this.catalogMessage = undefined;
     if (this.dispatchMeta({kind:'purchase',themeId:id})) {
       const theme = THEME_CATALOG.find((item) => item.id === id);
       analytics.goal('theme_buy', {
@@ -623,7 +425,6 @@ export class GameScene extends Phaser.Scene {
   private async equipOwnedTheme(id:string): Promise<void> {
     if (this.metaSession.status!=='ready' || !this.metaState.collection.ownedThemes.includes(id)) return;
     this.catalogBusyId=id;
-    this.catalogMessage=undefined;
     this.refreshMenuMeta();
     const previous = this.metaState.equipped.theme;
     const applied = await this.setTheme(id);
@@ -635,35 +436,37 @@ export class GameScene extends Phaser.Scene {
         writeStartupThemeId(id);
         analytics.event('theme_equip', { theme_id: id });
       }
-    } else this.catalogMessage='Не удалось загрузить тему. Попробуйте ещё раз.';
+    }
     this.catalogBusyId=undefined;
     this.refreshMenuMeta();
   }
 
-  private rewardUnlocksThemePurchase(
-    totalXpBefore: number,
-    coinsBefore: number,
-    reward: RewardSummary,
-  ): boolean {
-    const levelBefore = getLevelProgress(totalXpBefore).level;
-    const levelAfter = getLevelProgress(totalXpBefore + reward.xp).level;
-    const levelRewardCoins = Math.max(0, levelAfter - levelBefore) * 50;
-    if (levelRewardCoins <= 0) return false;
-    const appliedLevelCoins = Math.min(Math.max(0, reward.coins), levelRewardCoins);
-    const coinsBeforeLevelReward = coinsBefore + Math.max(0, reward.coins - appliedLevelCoins);
-    const coinsAfterReward = coinsBefore + Math.max(0, reward.coins);
+  private rewardUnlocksThemePurchase(coinsBefore: number, coinsAfter: number): boolean {
     return didCoinsUnlockThemePurchase(
-      coinsBeforeLevelReward,
-      coinsAfterReward,
+      coinsBefore,
+      coinsAfter,
       this.metaState.collection.ownedThemes,
     );
   }
 
+  private dailyContextForId(dailyId: string): DailyContext|null {
+    if (this.metaSession.status !== 'ready') return null;
+    const parsed = Date.parse(`${dailyId}T00:00:00Z`);
+    if (!Number.isFinite(parsed)) return null;
+    const now = this.platform?.trustedClock.nowMs() ?? Date.now();
+    const todayId = getDailyId(now);
+    if (dailyId > todayId) return null;
+    const ageDays = Math.floor((Date.parse(`${todayId}T00:00:00Z`) - parsed) / 86_400_000);
+    if (ageDays < 0 || ageDays > 90) return null;
+    try {
+      return { dailyId, weekId:getIsoWeekId(parsed), weekDailyIds:getIsoWeekDailyIds(parsed), seed:getDailySeed(dailyId,this.verifiedDealCatalog) };
+    } catch { return null; }
+  }
+
   private currentDailyContext(): DailyContext|null {
     const now=this.platform?.trustedClock.nowMs() ?? null;
-    if (now===null || this.metaSession.status!=='ready') return null;
-    const dailyId=getDailyId(now);
-    return {dailyId,weekId:getIsoWeekId(now),weekDailyIds:getIsoWeekDailyIds(now),seed:getDailySeed(dailyId,this.verifiedDealCatalog)};
+    if(now===null || this.metaSession.status!=='ready') return null;
+    return this.dailyContextForId(getDailyId(now));
   }
 
   private completionEvent(mode:GameMode,elapsedMs:number): CompletionEvent {
@@ -671,6 +474,11 @@ export class GameScene extends Phaser.Scene {
     return {kind:'complete',mode,attemptId:this.attemptId,elapsedMs:Math.max(1,elapsedMs),
       trustedDay:now===null ? null : getDailyId(now),trustedWeek:now===null ? null : getIsoWeekId(now),
       ...(mode==='daily' && this.dailyContext ? {dailyId:this.dailyContext.dailyId,weekId:this.dailyContext.weekId} : {}),
+      ...(mode==='winnable' && this.activeStandardSelection ? {
+        standardSeed:this.activeStandardSelection.seed.toString(),
+        standardPartition:this.activeStandardSelection.partition,
+        standardDifficulty:this.activeStandardSelection.difficulty,
+      } : {}),
     };
   }
 
@@ -687,19 +495,20 @@ export class GameScene extends Phaser.Scene {
     }
 
     const deal = this.flow.resume(activeGameSaveToDeal(save), save.uiState);
+    this.activeStandardSelection = save.mode === 'winnable' && save.standard
+      ? { seed: BigInt(save.seed), partition: save.standard.partition, difficulty: save.standard.difficulty, isReplayPoolFallback: false }
+      : null;
     this.pendingActiveSave = null;
     this.startDeal(deal, { restored: save });
 
     if (save.uiState === 'menu-paused') {
-      this.showShellPlay(this.flow.canCancelMenu);
-    } else {
-      this.appShell.hide();
+      this.showProductHome(this.flow.canCancelMenu);
     }
 
     return true;
   }
 
-  private tryRestoreDailySession(save: ActiveGameSaveV1): boolean {
+  private tryRestoreDailySession(save: ActiveGameSaveV2): boolean {
     const context = this.dailyContext;
 
     if (context === null || save.mode !== 'daily') {
@@ -725,9 +534,7 @@ export class GameScene extends Phaser.Scene {
     this.startDeal(deal, { restored: save });
 
     if (save.uiState === 'menu-paused') {
-      this.showShellPlay(this.flow.canCancelMenu);
-    } else {
-      this.appShell.hide();
+      this.showProductHome(this.flow.canCancelMenu);
     }
 
     return true;
@@ -744,7 +551,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.activeTheme = theme;
     this.board?.setTheme(theme);
-    this.gameControls?.setTheme(theme);
+    this.refreshGameHud();
     return true;
   }
 
@@ -798,16 +605,16 @@ export class GameScene extends Phaser.Scene {
       sound: (cue) => this.sfxController.play(cue),
     }, layout, this.activeTheme);
 
-    this.gameControls?.destroy();
-    this.gameControls = new GameControlsView(this, {
+    this.gameHud?.destroy();
+    this.gameHud = new GameHud(this, this.makeGameHudViewModel(), {
+      home: () => this.openMainMenu(),
+      newDeal: () => this.startNewDeal(),
       undo: () => this.undoLastAction(),
       hint: () => this.showHint(),
-      restart: () => this.restartDeal(),
-      newDeal: () => this.startNewDeal(),
-      home: () => this.openMainMenu(),
-    }, this.activeTheme);
-    this.gameControls.setMode(gameState.mode);
-    this.gameControls.setDaily(gameState.mode === 'daily');
+      settings: () => this.openSettingsFromGame(),
+      sound: () => this.sfxController.play('button'),
+    });
+    this.gameHud.layout(layout);
 
     if (restored !== undefined) {
       this.attemptStarted = restored.attemptStarted;
@@ -830,11 +637,11 @@ export class GameScene extends Phaser.Scene {
 
   private onBoardSettled(gameState: SolitaireGame): void {
     if (gameState !== this.gameState) return;
-    this.gameControls?.setUndoEnabled(this.history.canUndo);
+    this.refreshGameHud();
     if (this.pendingFirstRunHowToPlay) {
       this.pendingFirstRunHowToPlay = false;
       this.rulesBlockedBoardSettle = true;
-      this.openRulesOverlay(true);
+      this.openProductHowToPlay(true);
       return;
     }
     if (this.rulesOpen) {
@@ -842,7 +649,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     this.rulesBlockedBoardSettle = false;
-    this.gameControls?.setHintEnabled(this.board?.hasMoveHints() ?? false);
+    this.refreshGameHud();
     const mode = gameState.mode;
     const isDaily = mode === 'daily';
     const context = this.dailyContext;
@@ -904,10 +711,19 @@ export class GameScene extends Phaser.Scene {
     this.reconcileGameplayActivity();
     const event=this.completionEvent(mode,elapsedMs);
     const beforeBest=this.metaState.stats[mode].bestTimeMs;
-    const totalXpBefore=this.metaState.progression.totalXp;
     const coinsBefore=this.metaState.progression.coins;
     const result=completeRewardedAttempt(this.metaState,event);
-    const themePurchaseUnlocked=this.rewardUnlocksThemePurchase(totalXpBefore,coinsBefore,result.reward);
+    const standardBaseCoins = mode === 'winnable'
+      ? (result.reward.lines.find((line) => line.label === 'Победа')?.coins ?? 0)
+      : 0;
+    const rewardDoubleOffer = mode === 'winnable' && event.standardSeed
+      ? createRewardDoubleOffer({
+          seed: event.standardSeed,
+          baseCoinsGranted: standardBaseCoins,
+          firstCompletion: standardBaseCoins > 0,
+        })
+      : null;
+    const themePurchaseUnlocked=this.rewardUnlocksThemePurchase(coinsBefore,result.state.progression.coins);
     const recorded=this.dispatchMeta(event);
     analytics.goal('game_win', {
       mode,
@@ -920,9 +736,9 @@ export class GameScene extends Phaser.Scene {
       elapsedMs,
       result: completion,
       reward:{...result.reward,pending:this.metaSession.status!=='ready' || !recorded},
-      totalXpBefore,
       themePurchaseUnlocked,
       event,
+      rewardDoubleOffer,
     };
     this.showOrdinaryCompletion();
     if (recorded) this.activeGameRepository.clear();
@@ -930,6 +746,7 @@ export class GameScene extends Phaser.Scene {
 
     if (recorded && mode === 'winnable') {
       void this.leaderboardService?.syncStandardStreak(this.metaState.standardWinStreak.best);
+      void this.leaderboardService?.syncMasteryScore(encodeMasteryLeaderboardScore(this.metaState));
     }
   }
 
@@ -939,24 +756,59 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    const offer = completion.rewardDoubleOffer;
+    const rewardActionAvailable = offer !== null
+      && this.platform?.ads.available === true
+      && !this.metaState.claimedRewardKeys.includes(offer.key);
     this.gameCompleteView.show({
       completionId: completion.event.attemptId,
       mode: completion.mode,
       elapsedMs: completion.elapsedMs,
       improvedBest: completion.result.improvedBest,
-      totalXpBefore: completion.totalXpBefore,
       reward:{...(this.metaSession.getReward(completion.event.attemptId) ?? completion.reward),
         pending:this.metaSession.status!=='ready' || !hasCompletedAttempt(this.metaState,completion.event.attemptId),
         themePurchaseUnlocked:completion.themePurchaseUnlocked},
+      rewardActionLabel: rewardActionAvailable
+        ? t(this.rewardDoubleClaiming ? 'Загрузка…' : '×2 МОНЕТЫ')
+        : null,
+      rewardActionEnabled: rewardActionAvailable && !this.rewardDoubleClaiming,
     });
+  }
+
+  private async claimStandardRewardDouble(): Promise<void> {
+    if (this.rewardDoubleClaiming) return;
+    const completion = this.lastOrdinaryCompletion;
+    const offer = completion?.rewardDoubleOffer ?? null;
+    const platform = this.platform;
+    if (completion === null || offer === null || platform === null || !platform.ads.available) return;
+    if (this.metaState.claimedRewardKeys.includes(offer.key)) return;
+
+    this.rewardDoubleClaiming = true;
+    this.showOrdinaryCompletion();
+    analytics.event('rewarded_click', { source: 'standard_win_double', bonus_coins: offer.bonusCoins });
+    try {
+      const rewarded = await platform.ads.showRewarded();
+      if (!rewarded) {
+        analytics.event('rewarded_no_reward', { source: 'standard_win_double' });
+        return;
+      }
+      const accepted = this.dispatchMeta({ kind: 'reward-double', key: offer.key, bonusCoins: offer.bonusCoins });
+      if (accepted) {
+        analytics.goal('rewarded_reward', { source: 'standard_win_double', coins: offer.bonusCoins });
+        this.sfxController.play('coin-reward');
+      }
+    } catch {
+      analytics.event('rewarded_error', { source: 'standard_win_double' });
+    } finally {
+      this.rewardDoubleClaiming = false;
+      this.showOrdinaryCompletion();
+    }
   }
 
   private showHint(): void {
     if (this.rulesOpen) return;
     const result = this.board?.playHint();
-    if (result === 'none' && this.history.canUndo) {
-      this.gameControls?.emphasizeUndo();
-    }
+    if (result !== 'busy') this.refreshGameHud();
   }
 
   private checkpointActiveGame(gameState: SolitaireGame): void {
@@ -999,6 +851,12 @@ export class GameScene extends Phaser.Scene {
       snapshot: gameState.snapshot(),
       attemptStarted: this.attemptStarted,
       elapsedMs: this.getElapsedForCheckpoint(),
+      ...(gameState.mode === 'winnable' && this.activeStandardSelection ? {
+        standard: {
+          partition: this.activeStandardSelection.partition,
+          difficulty: this.activeStandardSelection.difficulty,
+        },
+      } : {}),
       uiState,
     });
 
@@ -1029,13 +887,12 @@ export class GameScene extends Phaser.Scene {
     const elapsedMs = this.attemptTimer.finish(performance.now());
     this.reconcileGameplayActivity();
     const previousBest=this.metaState.daily.records[context.dailyId]?.bestTimeMs;
-    const totalXpBefore=this.metaState.progression.totalXp;
     const coinsBefore=this.metaState.progression.coins;
     const event=this.completionEvent('daily',elapsedMs);
     this.lastDailyEvent=event;
     this.lastDailyImprovedBest=previousBest===undefined || elapsedMs<previousBest;
     const result=completeRewardedAttempt(this.metaState,event);
-    this.lastDailyThemePurchaseUnlocked=this.rewardUnlocksThemePurchase(totalXpBefore,coinsBefore,result.reward);
+    this.lastDailyThemePurchaseUnlocked=this.rewardUnlocksThemePurchase(coinsBefore,result.state.progression.coins);
     const recorded=this.dispatchMeta(event);
     const durationSec = this.analyticsDurationSec(elapsedMs);
     analytics.goal('game_win', { mode: 'daily', duration_sec: durationSec });
@@ -1050,13 +907,13 @@ export class GameScene extends Phaser.Scene {
         context.dailyId,
         this.metaState.daily.records[context.dailyId]?.bestTimeMs,
       );
+      void this.leaderboardService?.syncMasteryScore(encodeMasteryLeaderboardScore(this.metaState));
     }
     this.pendingDailyRestore = null;
     this.refreshMenuMeta();
 
     if (this.flow.state === 'menu-paused') {
       this.flow.cancelMenu();
-      this.appShell.hide();
     }
 
     this.showDailyCompletion();
@@ -1084,6 +941,7 @@ export class GameScene extends Phaser.Scene {
     this.attemptAbandonTracked = false;
     this.attemptTimer.reset();
     this.lastOrdinaryCompletion = null;
+    this.rewardDoubleClaiming = false;
     this.lastDailyReward = undefined;
     this.lastDailyEvent = null;
     this.lastDailyThemePurchaseUnlocked = false;
@@ -1122,7 +980,7 @@ export class GameScene extends Phaser.Scene {
 
     try {
       if (confirmAbandon && !this.gameState?.isWon) {
-        const confirmed = await this.newDealConfirmView.confirm();
+        const confirmed = await this.newDealConfirmOverlay.confirm();
         if (!confirmed || this.sys.settings.status >= Phaser.Scenes.SHUTDOWN) return;
         if (this.flow.currentDeal !== currentDeal || this.flow.state !== 'playing') return;
       }
@@ -1142,7 +1000,7 @@ export class GameScene extends Phaser.Scene {
         if (currentDeal.mode === 'winnable') {
           this.recordStandardFailureIfReplacing('winnable', null);
           const selection = this.selectStandardDeal();
-          this.dispatchMeta({kind:'standard-served',seed:selection.seed.toString(),tier:selection.tier});
+          this.dispatchMeta({kind:'standard-served',seed:selection.seed.toString(),partition:selection.partition,difficulty:selection.difficulty});
           deal = this.flow.startNewInCurrentMode(selection.seed);
         } else {
           deal = this.flow.startNewInCurrentMode();
@@ -1162,6 +1020,179 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private installProductBridge(): void {
+    productBridge.install({
+      snapshot: () => ({
+        state: this.metaState,
+        activeMode: this.gameState !== null && !this.gameState.isWon && this.flow.state === 'menu-paused'
+          ? this.gameState.mode
+          : null,
+        activeDifficulty: this.gameState?.mode === 'winnable' && !this.gameState.isWon
+          ? this.activeStandardSelection?.difficulty ?? null
+          : null,
+        currentDailyId: this.currentDailyContext()?.dailyId ?? null,
+        activeDailyId: this.gameState?.mode === 'daily' && !this.gameState.isWon && this.flow.state === 'menu-paused'
+          ? this.dailyContext?.dailyId ?? null
+          : null,
+        leaderboardsEnabled: this.leaderboardService?.available ?? false,
+        themesTotal: THEME_CATALOG.length,
+      }),
+      resumeGame: () => this.closeMainMenu(),
+      startStandard: (difficulty) => this.startStandardFromProductHome(difficulty),
+      setStandardDifficulty: (difficulty) => this.setStandardDifficulty(difficulty),
+      startDaily: (dailyId) => this.startDailyFromProductUi(dailyId),
+      themesSnapshot: () => ({
+        cards: THEME_CATALOG.map((item) => ({
+          ...item,
+          owned: this.metaState.collection.ownedThemes.includes(item.id),
+          equipped: this.metaState.equipped.theme === item.id,
+        })),
+        coins: this.metaState.progression.coins,
+        ready: this.metaSession.status === 'ready' && !this.profileScopeError,
+        busyId: this.catalogBusyId ?? null,
+        rewardedAvailable: this.monetizationController?.state.rewardedAvailable ?? false,
+        rewardedBusy: this.monetizationController?.state.rewardedBusy ?? false,
+        rewardedRemaining: this.monetizationController?.state.rewardedRemaining ?? 0,
+      }),
+      buyTheme: (themeId) => this.buyTheme(themeId),
+      equipTheme: (themeId) => this.equipOwnedTheme(themeId),
+      rewardedCoins: async () => { await this.monetizationController?.watchRewarded(); productBridge.notify(); },
+      leaderboardSnapshot: () => ({
+        available: this.leaderboardService?.available ?? false,
+        authorized: this.leaderboardService?.authorized ?? false,
+        authorizationAllowed: this.canAuthorizeLeaderboard(),
+        authPending: this.leaderboardAuthPending,
+      }),
+      loadLeaderboard: (mode) => this.loadProductLeaderboard(mode),
+      authorizeLeaderboard: () => this.authorizeProductLeaderboard(),
+      settingsSnapshot: () => ({ soundEnabled: preferences.soundEnabled, language: preferences.language }),
+      setSoundEnabled: (enabled) => preferences.setSoundEnabled(enabled),
+      setLanguage: (language) => preferences.setLanguage(language),
+      closeHowToPlay: (onboarding) => this.finishProductHowToPlay(onboarding),
+    });
+  }
+
+  private showProductHome(canCancel: boolean): void {
+    for (const key of ['DailyScene','MasteryScene','ThemesScene','LeaderboardsScene','SettingsScene','HowToPlayScene']) {
+      if (this.scene.isActive(key) || this.scene.isPaused(key)) this.scene.stop(key);
+    }
+    if (canCancel) this.board?.setUiPaused(true);
+    if (!this.scene.isActive('HomeScene')) this.scene.launch('HomeScene');
+    else this.scene.bringToTop('HomeScene');
+    productBridge.notify();
+  }
+
+  private stopProductUiScenes(): void {
+    for (const key of ['HomeScene','DailyScene','MasteryScene','ThemesScene','LeaderboardsScene','SettingsScene','HowToPlayScene']) {
+      if (this.scene.isActive(key) || this.scene.isPaused(key)) this.scene.stop(key);
+    }
+  }
+
+  private startStandardFromProductHome(difficulty: StandardDifficulty): void {
+    this.setStandardDifficulty(difficulty);
+    if (this.flow.state === 'menu-paused' && this.flow.currentDeal?.mode === 'winnable') {
+      this.stopProductUiScenes();
+      this.closeMainMenu();
+      void this.requestFreshDeal(false);
+      return;
+    }
+    if (this.flow.state === 'menu-paused' || this.flow.state === 'menu-required') {
+      this.stopProductUiScenes();
+      this.startMenuMode('winnable');
+    }
+  }
+
+  private startDailyFromProductUi(dailyId?: string): void {
+    const context = dailyId ? this.dailyContextForId(dailyId) : this.currentDailyContext();
+    if (context === null || this.flow.state === 'playing') return;
+    this.stopProductUiScenes();
+    this.dailyContext = context;
+    this.startMenuMode('daily');
+  }
+
+  private async loadProductLeaderboard(mode: GlobalLeaderboardMode) {
+    const service = this.leaderboardService;
+    if (service === null || !service.available) {
+      return { status:'unavailable', authorized:service?.authorized ?? false, entries:[], playerEntry:null } as const;
+    }
+    const dailyId = mode === 'daily' ? this.currentDailyContext()?.dailyId : undefined;
+    if (mode === 'daily' && !dailyId) {
+      return { status:'error', authorized:service.authorized, entries:[], playerEntry:null } as const;
+    }
+    return service.load(mode, dailyId);
+  }
+
+  private async authorizeProductLeaderboard(): Promise<boolean> {
+    const service = this.leaderboardService;
+    if (service === null || service.authorized || this.leaderboardAuthPending || !this.canAuthorizeLeaderboard()) {
+      return service?.authorized ?? false;
+    }
+    this.leaderboardAuthPending = true;
+    productBridge.notify();
+    const wasAuthorized = service.authorized;
+    if (!wasAuthorized && this.gameState !== null && !this.gameState.isWon) this.checkpointActiveGame(this.gameState);
+    if (!wasAuthorized && !stageProfileMergeTransfer(this.metaScope, this.metaState)) {
+      this.leaderboardAuthPending = false;
+      productBridge.notify();
+      return false;
+    }
+    const authorized = await service.requestAuthorization();
+    if (!authorized) {
+      if (!wasAuthorized) clearProfileMergeTransfer();
+      this.leaderboardAuthPending = false;
+      productBridge.notify();
+      return false;
+    }
+    if (!wasAuthorized) {
+      await this.loadMetaProfile();
+      await this.initializeMonetization();
+    }
+    await this.syncHistoricalLeaderboards();
+    this.leaderboardAuthPending = false;
+    productBridge.notify();
+    return this.leaderboardService?.authorized ?? true;
+  }
+
+  private makeGameHudViewModel() {
+    const mode = this.gameState?.mode ?? this.flow.currentDeal?.mode ?? 'winnable';
+    const modeLabel = mode === 'daily' ? 'Daily' : mode === 'original' ? t('Классика') : undefined;
+    const activeMs = this.attemptStarted && this.attemptTimer.running
+      ? this.attemptTimer.elapsed(performance.now())
+      : 0;
+    return buildGameHudViewModel({
+      difficulty: this.activeStandardSelection?.difficulty ?? this.metaState.standard.selectedDifficulty,
+      modeLabel,
+      moves: this.history.moveCount,
+      activeMs,
+      canUndo: this.history.canUndo,
+      coins: this.metaState.progression.coins,
+      hintEligible: this.board?.hasMoveHints() ?? false,
+      newDealEnabled: mode !== 'daily',
+    }, getLanguage());
+  }
+
+  private refreshGameHud(): void {
+    if (this.gameHud === null || this.gameState === null) return;
+    this.gameHud.setState(this.makeGameHudViewModel());
+  }
+
+  private openSettingsFromGame(): void {
+    if (this.gameState === null || this.serviceOverlayOpen || this.scene.isActive('SettingsScene')) return;
+    this.serviceOverlayOpen = true;
+    this.board?.setUiPaused(true);
+    this.reconcileGameplayActivity();
+    this.scene.launch('SettingsScene', { returnScene: 'GameScene' });
+    this.scene.pause();
+  }
+
+  private handleServiceOverlayClosed(): void {
+    if (!this.serviceOverlayOpen) return;
+    this.serviceOverlayOpen = false;
+    this.board?.setUiPaused(false);
+    this.reconcileGameplayActivity();
+    this.refreshGameHud();
+  }
+
   private openMainMenu(): void {
     if (!this.flow.openMainMenu()) {
       return;
@@ -1172,80 +1203,29 @@ export class GameScene extends Phaser.Scene {
       this.checkpointActiveGame(this.gameState);
     }
 
-    this.showShellPlay(this.flow.canCancelMenu);
+    this.showProductHome(this.flow.canCancelMenu);
   }
 
-  private showShellPlay(canCancel: boolean): void {
-    this.catalogView.hide();
-    if (canCancel) {
-      this.board?.setUiPaused(true);
-    }
-
-    this.playPage.setSelectedMode(this.flow.selectedMode);
-    this.playPage.setContinueMode(this.getContinuableMenuMode());
-    this.playPage.updateDailyState(this.buildDailyMenuState());
-    this.playPage.updateLeaderboardsAvailable(
-      this.leaderboardService?.available ?? false,
-    );
-    this.rulesView.hide();
-    this.rulesOpen = false;
-    this.rulesOnboarding = false;
-    this.closeStatisticsPage();
-    this.shellDestination = 'play';
-    this.playPage.show();
-    this.appShell.show({ canCancel, destination: 'play' });
-  }
-
-  private navigateShell(destination: ShellDestination): void {
-    if (destination === 'rules') {
-      this.openRulesOverlay(false);
-      return;
-    }
-
-    this.catalogView.hide();
-    if (destination === 'collection') {
-      this.closeStatisticsPage();
-      this.playPage.hide();
-      this.shellDestination=destination;
-      this.appShell.setDestination(destination);
-      this.catalogView.show(this.buildCatalogState());
-      return;
-    }
-    if (destination === 'play') {
-      this.closeStatisticsPage();
-      this.playPage.show();
-      this.shellDestination = 'play';
-      this.appShell.setDestination('play');
-      return;
-    }
-
-    if (destination === 'statistics') {
-      this.openStatisticsPage(false);
-    }
-  }
-
-  private openRulesOverlay(onboarding: boolean): void {
+  private openProductHowToPlay(onboarding: boolean): void {
     if (this.rulesOpen) return;
     this.rulesOpen = true;
     this.rulesOnboarding = onboarding;
     if (onboarding) analytics.event('tutorial_start');
     this.board?.setUiPaused(true);
     this.reconcileGameplayActivity();
-    this.rulesView.show({ onboarding });
+    if (this.scene.isActive('HowToPlayScene')) this.scene.stop('HowToPlayScene');
+    this.scene.launch('HowToPlayScene', { onboarding, returnToGame: true });
   }
 
-  private closeRules(): void {
-    if (!this.rulesOpen) return;
-
-    const onboarding = this.rulesOnboarding;
+  private finishProductHowToPlay(onboarding: boolean): void {
+    if (this.scene.isActive('HowToPlayScene')) this.scene.stop('HowToPlayScene');
+    const wasOnboarding = this.rulesOnboarding || onboarding;
     this.rulesOpen = false;
     this.rulesOnboarding = false;
-    this.rulesView.hide();
-    if (onboarding) {
+    if (wasOnboarding) {
       preferences.markHowToPlaySeen();
       analytics.goal('tutorial_complete');
     }
-
     if (this.flow.state === 'playing') {
       this.board?.setUiPaused(false);
       this.reconcileGameplayActivity();
@@ -1256,174 +1236,9 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private openStatisticsPage(focusLeaderboard = false): void {
-    this.playPage.hide();
-    this.statisticsOpen = true;
-    this.shellDestination = 'statistics';
-    this.appShell.setDestination('statistics');
-
-    if (!hasGlobalLeaderboard(this.leaderboardMode)) {
-      this.leaderboardViewState = this.buildLeaderboardViewState({
-        status: 'disabled', entries: [], playerEntry: null, message: undefined,
-      });
-      this.statisticsPage.show(this.buildStatisticsPageState(), false);
-      return;
-    }
-
-    const service = this.leaderboardService;
-    if (service === null || !service.available) {
-      this.leaderboardViewState = this.buildLeaderboardViewState({
-        status: 'unavailable', entries: [], playerEntry: null, message: undefined,
-      });
-      this.statisticsPage.show(this.buildStatisticsPageState(), focusLeaderboard);
-      return;
-    }
-
-    this.leaderboardViewState = this.buildLeaderboardViewState({
-      status: 'loading', entries: [], playerEntry: null, message: undefined,
-    });
-    this.statisticsPage.show(this.buildStatisticsPageState(), focusLeaderboard);
-    void this.loadLeaderboard(this.leaderboardMode);
-  }
-
-  private closeStatisticsPage(): void {
-    if (!this.statisticsOpen) return;
-    this.statisticsOpen = false;
-    this.leaderboardAuthPending = false;
-    this.leaderboardRequestId += 1;
-    this.statisticsPage.hide();
-  }
-
-  private buildLeaderboardViewState(
-    overrides: Partial<StatisticsPageLeaderboardState> = {},
-  ): StatisticsPageLeaderboardState {
-    return {
-      ...this.leaderboardViewState,
-      authorized: this.leaderboardService?.authorized ?? false,
-      authPending: this.leaderboardAuthPending,
-      authorizationAllowed: this.canAuthorizeLeaderboard(),
-      ...overrides,
-    };
-  }
-
-  private renderLeaderboardState(
-    overrides: Partial<StatisticsPageLeaderboardState> = {},
-  ): void {
-    this.leaderboardViewState = this.buildLeaderboardViewState(overrides);
-    this.statisticsPage.update(this.buildStatisticsPageState());
-  }
-
-  private selectStatisticsMode(mode: StatisticsMode): void {
-    if (!this.statisticsOpen || mode === this.leaderboardMode) return;
-
-    this.leaderboardMode = mode;
-    this.leaderboardRequestId += 1;
-    if (!hasGlobalLeaderboard(mode)) {
-      this.renderLeaderboardState({
-        status: 'disabled', entries: [], playerEntry: null, message: undefined,
-      });
-      return;
-    }
-
-    const service = this.leaderboardService;
-    this.renderLeaderboardState({
-      status: service !== null && service.available ? 'loading' : 'unavailable',
-      entries: [], playerEntry: null, message: undefined,
-    });
-
-    if (service !== null && service.available) void this.loadLeaderboard(mode);
-  }
-
-  private async loadLeaderboard(mode: StatisticsMode): Promise<void> {
-    if (!hasGlobalLeaderboard(mode)) return;
-    const service = this.leaderboardService;
-    if (service === null || !service.available) {
-      if (this.statisticsOpen && mode === this.leaderboardMode) {
-        this.renderLeaderboardState({ status: 'unavailable', entries: [], playerEntry: null });
-      }
-      return;
-    }
-
-    const dailyId = mode === 'daily' ? this.currentDailyContext()?.dailyId : undefined;
-    if (mode === 'daily' && dailyId === undefined) {
-      if (this.statisticsOpen && mode === this.leaderboardMode) {
-        this.renderLeaderboardState({
-          status: 'unavailable', entries: [], playerEntry: null,
-          message: 'Серверное время недоступно',
-        });
-      }
-      return;
-    }
-
-    const requestId = ++this.leaderboardRequestId;
-    const result = await service.load(mode, dailyId);
-    if (requestId !== this.leaderboardRequestId || !this.statisticsOpen || mode !== this.leaderboardMode) return;
-
-    this.renderLeaderboardState({
-      status: result.status,
-      entries: result.entries,
-      authorized: result.authorized,
-      playerEntry: result.playerEntry,
-      authPending: false,
-      message: undefined,
-    });
-  }
-
   private canAuthorizeLeaderboard(): boolean {
-    return this.metaSession.status==='ready' && !this.metaSession.saveError && !this.metaSession.saving
-      && this.metaJournal.pending.length===0;
-  }
-
-  private async authorizeLeaderboard(): Promise<void> {
-    const service = this.leaderboardService;
-    if (
-      service === null
-      || !hasGlobalLeaderboard(this.leaderboardMode)
-      || this.leaderboardAuthPending
-      || !this.canAuthorizeLeaderboard()
-    ) return;
-
-    this.leaderboardAuthPending = true;
-    this.renderLeaderboardState({ authPending: true, message: undefined });
-
-    const wasAuthorized = service.authorized;
-    if (!wasAuthorized && this.gameState !== null && !this.gameState.isWon) {
-      this.checkpointActiveGame(this.gameState);
-    }
-    if (!wasAuthorized && !stageProfileMergeTransfer(this.metaScope, this.metaState)) {
-      this.leaderboardAuthPending = false;
-      this.renderLeaderboardState({ authPending: false, message: 'Не удалось подготовить перенос прогресса. Повторите попытку.' });
-      return;
-    }
-
-    const authorized = await service.requestAuthorization();
-    this.leaderboardAuthPending = false;
-    if (!authorized) {
-      if (!wasAuthorized) clearProfileMergeTransfer();
-      if (this.statisticsOpen) this.renderLeaderboardState({ authPending: false, message: 'Вход не выполнен' });
-      return;
-    }
-
-    if (!wasAuthorized) {
-      await this.loadMetaProfile();
-      await this.initializeMonetization();
-      if (this.metaSession.status !== 'ready' || this.metaSession.saveError) {
-        if (this.statisticsOpen) {
-          this.renderLeaderboardState({ authPending: false, message: 'Не удалось сохранить прогресс. Повторите попытку.' });
-        }
-        return;
-      }
-    }
-
-    if (!this.statisticsOpen) return;
-    await this.syncHistoricalLeaderboards();
-    if (this.statisticsOpen && hasGlobalLeaderboard(this.leaderboardMode)) {
-      await this.loadLeaderboard(this.leaderboardMode);
-    }
-
-    if (this.shellDestination === 'collection') {
-      this.navigateShell('play');
-    }
+    return this.metaSession.status === 'ready' && !this.metaSession.saveError && !this.metaSession.saving
+      && this.metaJournal.pending.length === 0;
   }
 
   private async syncHistoricalLeaderboards(): Promise<void> {
@@ -1441,71 +1256,49 @@ export class GameScene extends Phaser.Scene {
     if (dailyContext !== null && dailyBest !== undefined) {
       tasks.push(service.syncDailyBest(dailyContext.dailyId, dailyBest));
     }
+    tasks.push(service.syncMasteryScore(encodeMasteryLeaderboardScore(this.metaState)));
     await Promise.all(tasks);
   }
 
-  private handleButtonSfx = (event: Event): void => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const button = target.closest('button');
-    if (button instanceof HTMLButtonElement && !button.disabled) {
-      this.sfxController.play('button');
-    }
-  };
-
   private handleEscape = (): void => {
-    if (this.settingsView.isOpen) {
-      this.settingsView.hide();
-      return;
-    }
     if (this.rulesOpen) {
-      this.closeRules();
+      this.finishProductHowToPlay(false);
       return;
     }
-
-    if (this.statisticsOpen) {
-      this.navigateShell('play');
-      return;
-    }
-
     this.closeMainMenu();
   };
 
   private closeMainMenu(): void {
-    this.catalogView.hide();
-    if (this.rulesOpen) {
-      this.closeRules();
-    }
-
-    this.closeStatisticsPage();
-
-    if (this.flow.state !== 'menu-paused') {
-      return;
-    }
+    this.stopProductUiScenes();
+    if (this.flow.state !== 'menu-paused') return;
 
     this.input.resetPointers();
-
     if (this.flow.cancelMenu()) {
-      this.appShell.hide();
       this.reconcileGameplayActivity();
-      if (this.gameState !== null) {
-        this.checkpointActiveGame(this.gameState);
-      }
-
+      if (this.gameState !== null) this.checkpointActiveGame(this.gameState);
       window.requestAnimationFrame(() => {
         this.input.resetPointers();
         this.board?.setUiPaused(false);
+        this.refreshGameHud();
       });
     }
   }
 
-  private selectStandardDeal(): StandardSelection {
-    return this.standardDifficultyDirector.select({
-      wins: this.metaState.stats.winnable.wins,
-      failureStreak: this.metaState.standardDifficulty.failureStreak,
-      lastServedTier: this.metaState.standardDifficulty.lastServedTier,
-      recentSeeds: this.metaState.standardDifficulty.recentSeeds,
+  private selectStandardDeal(): StandardDealSelection {
+    const selection = pickStandardDeal({
+      catalog: this.verifiedDealCatalog,
+      requestedDifficulty: this.metaState.standard.selectedDifficulty,
+      onboardingWins: this.metaState.standard.onboardingWins,
+      completedByPartition: this.metaState.standard.completed,
+      recentSeeds: this.metaState.standard.recentSeeds,
+      randomIndex: (candidateCount) => Number(createRandomDealSeed() % BigInt(candidateCount)),
     });
+    this.activeStandardSelection = selection;
+    return selection;
+  }
+
+  private setStandardDifficulty(difficulty: StandardDifficulty): void {
+    this.dispatchMeta({ kind: 'set-standard-difficulty', difficulty });
   }
 
   private analyticsDurationSec(elapsedMs: number): number {
@@ -1554,11 +1347,12 @@ export class GameScene extends Phaser.Scene {
     if (mode === 'winnable') {
       this.recordStandardFailureIfReplacing('winnable', null);
       const selection = this.selectStandardDeal();
-      this.dispatchMeta({kind:'standard-served',seed:selection.seed.toString(),tier:selection.tier});
+      this.dispatchMeta({kind:'standard-served',seed:selection.seed.toString(),partition:selection.partition,difficulty:selection.difficulty});
       this.flow.selectMenuMode(mode);
       return this.flow.playSelectedMode(selection.seed);
     }
 
+    this.activeStandardSelection = null;
     const replacementSeed = mode === 'daily' ? this.dailyContext?.seed ?? null : null;
     this.recordStandardFailureIfReplacing(mode, replacementSeed);
     this.flow.selectMenuMode(mode);
@@ -1569,37 +1363,20 @@ export class GameScene extends Phaser.Scene {
       : this.flow.playSelectedMode();
   }
 
-  private getContinuableMenuMode(): GameMode | null {
-    return getContinuableMenuMode(
-      this.flow.state,
-      this.flow.currentDeal?.mode ?? null,
-      this.gameState?.isWon ?? true,
-    );
-  }
-
-  private playMenuMode(mode: GameMode): void {
-    if (this.flow.state === 'playing') return;
-    if (mode === this.getContinuableMenuMode()) {
-      this.closeMainMenu();
-      return;
-    }
-    if (mode === 'daily') this.dailyContext = this.currentDailyContext();
-    if (mode === 'daily' && this.dailyContext === null) return;
-    this.startMenuMode(mode);
-  }
-
   private startFirstRunHowToPlay(): void {
     const preselected = this.registry.get(
       FIRST_RUN_STANDARD_SELECTION_REGISTRY_KEY,
-    ) as StandardSelection | undefined;
+    ) as StandardDealSelection | undefined;
     let deal: Deal;
 
     if (preselected !== undefined) {
       this.registry.remove(FIRST_RUN_STANDARD_SELECTION_REGISTRY_KEY);
+      this.activeStandardSelection = preselected;
       this.dispatchMeta({
         kind: 'standard-served',
         seed: preselected.seed.toString(),
-        tier: preselected.tier,
+        partition: preselected.partition,
+        difficulty: preselected.difficulty,
       });
       this.flow.selectMenuMode('winnable');
       deal = this.flow.playSelectedMode(preselected.seed);
@@ -1607,7 +1384,6 @@ export class GameScene extends Phaser.Scene {
       deal = this.startSelectedMode('winnable');
     }
 
-    this.appShell.hide();
     this.dailyCompleteView.hide();
     this.gameCompleteView.hide();
     this.board?.destroy();
@@ -1697,9 +1473,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private startMenuMode(mode: GameMode): void {
-    this.closeStatisticsPage();
+    this.stopProductUiScenes();
     const deal = this.startSelectedMode(mode);
-    this.appShell.hide();
     this.dailyCompleteView.hide();
     this.gameCompleteView.hide();
     this.board?.destroy();
@@ -1807,7 +1582,7 @@ export class GameScene extends Phaser.Scene {
       attemptFinalized: this.attemptFinalized,
       flowPlaying: this.flow?.state === 'playing',
       menuPaused: this.flow?.state === 'menu-paused',
-      localInteractionBlocked: this.rulesOpen || this.freshDealActivityBlocked,
+      localInteractionBlocked: this.rulesOpen || this.serviceOverlayOpen || this.freshDealActivityBlocked,
       documentVisible: document.visibilityState === 'visible',
       platformPaused: this.platformPaused,
     });
@@ -1878,58 +1653,61 @@ export class GameScene extends Phaser.Scene {
       .setSize(this.scale.width, this.scale.height)
       .setZoom(1)
       .setScroll(0, 0)
-      .setBackgroundColor('#393937');
+      .setBackgroundColor(UI_TOKENS.color.table);
 
+    this.backdrop?.layout(this.scale.width, this.scale.height);
     this.board?.relayout(layout);
+    this.gameHud?.layout(layout);
+    this.newDealConfirmOverlay?.relayout();
+    this.gameCompleteView?.layout(layout);
+    this.dailyCompleteView?.layout(layout);
   }
 
   private shutdown(): void {
+    productBridge.uninstall();
+    this.stopProductUiScenes();
     this.releasePlatformResumeWaiters();
     this.unsubscribeLanguage?.();
     this.unsubscribeLanguage = null;
-    this.settingsView.destroy();
-    this.newDealConfirmView.destroy();
-    this.purchaseView.destroy();
+    this.events.off('service-overlay-closed', this.handleServiceOverlayClosed, this);
+    this.hudRefreshTimer?.remove(false);
+    this.hudRefreshTimer = null;
+    this.newDealConfirmOverlay.destroy();
     if (this.monetizationController) this.monetizationController.onChange = undefined;
     this.monetizationController = null;
     this.freshDealTransitionInFlight = false;
     this.freshDealActivityBlocked = false;
+    this.serviceOverlayOpen = false;
     this.audioController.destroy();
     this.themeRequest += 1;
     this.setGameplayMarkupActive(false);
     this.unsubscribePlatformPause?.();
     this.unsubscribePlatformPause = null;
 
-    if (this.platformScenePaused) {
-      this.platformScenePaused = false;
-    }
+    if (this.platformScenePaused) this.platformScenePaused = false;
 
     this.scale.off(Phaser.Scale.Events.RESIZE, this.handleResize, this);
     this.input.keyboard?.off('keydown-R', this.restartDeal, this);
     this.input.keyboard?.off('keydown-Z', this.undoLastAction, this);
     this.input.keyboard?.off('keydown-N', this.startNewDeal, this);
     this.input.keyboard?.off('keydown-ESC', this.handleEscape, this);
-    this.game.canvas.parentElement?.removeEventListener('click', this.handleButtonSfx);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     window.removeEventListener('blur', this.handleWindowBlur);
     window.removeEventListener('focus', this.handleWindowFocus);
     window.removeEventListener('pagehide', this.handlePageHide);
     this.unsubscribeAccountSelection?.();
     this.unsubscribeAccountSelection = null;
-    this.statisticsOpen = false;
-    this.leaderboardRequestId += 1;
     this.attemptTimer.reset();
-    this.statisticsPage.destroy();
-    this.metaSession.onChange=undefined;
-    this.catalogView.destroy();
+    this.metaSession.onChange = undefined;
     this.gameCompleteView.destroy();
     this.dailyCompleteView.destroy();
-    this.rulesView.destroy();
-    this.playPage.destroy();
-    this.appShell.destroy();
-    this.gameControls?.destroy();
-    this.gameControls = null;
+    this.gameHud?.destroy();
+    this.gameHud = null;
+    this.backdrop?.destroy();
+    this.backdrop = null;
     this.board?.destroy();
+    this.board = null;
     this.gameState = null;
   }
+
 }

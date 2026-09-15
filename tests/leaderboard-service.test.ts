@@ -235,3 +235,18 @@ test('syncDailyBest skips invalid, unauthorized and unavailable submissions', as
   assert.equal(await new LeaderboardService(fakePlatform({ authorized: true })).syncDailyBest('2026-09-10', 0), 'skipped');
   assert.equal(await new LeaderboardService(fakePlatform({ available: false, authorized: true })).syncDailyBest('2026-09-10', 60_000), 'skipped');
 });
+
+test('Mastery load and sync use the Trifold-style mastery score', async () => {
+  const writes:Array<[string,number]>=[];
+  const service=new LeaderboardService(fakePlatform({
+    authorized:true,
+    getEntries:async(name)=>{assert.equal(name,'cascademastery');return [{rank:1,score:4_000_000_010,playerId:'a',publicName:'Ada'}];},
+    getPlayerEntry:async()=>null,
+    setScore:async(name,score)=>{writes.push([name,score]);},
+  }));
+  assert.deepEqual(await service.load('mastery'),{
+    status:'ready',authorized:true,entries:[{rank:1,value:4_000_000_010,publicName:'Ada'}],playerEntry:null,
+  });
+  assert.equal(await service.syncMasteryScore(4_000_000_010),'submitted');
+  assert.deepEqual(writes,[['cascademastery',4_000_000_010]]);
+});

@@ -1,18 +1,48 @@
 import type { OrdinaryGameMode } from '../meta/GameStats.ts';
+import type { MasteryRank, MetaSave } from '../meta/MetaSave.ts';
 
 export type StatisticsMode = OrdinaryGameMode | 'daily';
-export type GlobalLeaderboardMode = 'winnable' | 'daily';
+export type GlobalLeaderboardMode = 'winnable' | 'daily' | 'mastery';
 
 export const STANDARD_LEADERBOARD_NAME = 'standardwinstreak';
 export const DAILY_LEADERBOARD_NAME = 'dailyfastest';
+export const MASTERY_LEADERBOARD_NAME = 'cascademastery';
 
 export const LEADERBOARD_NAMES = {
   winnable: STANDARD_LEADERBOARD_NAME,
   daily: DAILY_LEADERBOARD_NAME,
+  mastery: MASTERY_LEADERBOARD_NAME,
 } as const satisfies Record<GlobalLeaderboardMode, string>;
 
 const DAY_MS = 86_400_000;
 const DAILY_SCORE_SCALE = 1_000_000_000;
+const MASTERY_SCORE_SCALE = 1_000_000_000;
+const MASTERY_RANKS: readonly MasteryRank[] = ['novice','player','tactician','expert','master','grandmaster'];
+
+export function lifetimeMasteryPoints(profile: MetaSave): number {
+  return new Set(profile.futurePrestige.mediumSeeds).size
+    + new Set(profile.futurePrestige.hardSeeds).size * 3
+    + new Set(profile.futurePrestige.onTimeDailyDates).size * 5;
+}
+
+export function encodeMasteryLeaderboardScore(profile: MetaSave): number {
+  const ordinal = MASTERY_RANKS.indexOf(profile.mastery.rank) + 1;
+  const points = lifetimeMasteryPoints(profile);
+  if (ordinal <= 0 || !Number.isSafeInteger(points) || points < 0 || points >= MASTERY_SCORE_SCALE) {
+    throw new Error('Mastery leaderboard score is outside the supported range.');
+  }
+  return ordinal * MASTERY_SCORE_SCALE + points;
+}
+
+export function decodeMasteryLeaderboardScore(score: number): { readonly rank: MasteryRank; readonly points: number } | null {
+  if (!Number.isSafeInteger(score) || score <= 0) return null;
+  const ordinal = Math.floor(score / MASTERY_SCORE_SCALE);
+  const points = score - ordinal * MASTERY_SCORE_SCALE;
+  const rank = MASTERY_RANKS[ordinal - 1];
+  if (rank === undefined || points < 0 || points >= MASTERY_SCORE_SCALE) return null;
+  return { rank, points };
+}
+
 
 function parseDailyId(dailyId: string): number | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dailyId);
@@ -37,7 +67,7 @@ function formatDailyId(dayNumber: number): string | null {
   return date.toISOString().slice(0, 10);
 }
 
-export function hasGlobalLeaderboard(mode: StatisticsMode): mode is GlobalLeaderboardMode {
+export function hasGlobalLeaderboard(mode: StatisticsMode): mode is Extract<StatisticsMode, GlobalLeaderboardMode> {
   return mode === 'winnable' || mode === 'daily';
 }
 

@@ -8,6 +8,10 @@ export class GameHistory {
     return this.snapshots.length > 0;
   }
 
+  get moveCount(): number {
+    return this.snapshots.length;
+  }
+
   execute<T>(
     game: SolitaireGame,
     action: () => T,

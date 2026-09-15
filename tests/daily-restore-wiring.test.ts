@@ -23,7 +23,7 @@ function assertOrdered(source: string, first: string, second: string): void {
 }
 
 test('Daily checkpoints are deferred until trusted platform identity is available', () => {
-  assert.match(scene, /pendingDailyRestore:\s*ActiveGameSaveV1 \| null/);
+  assert.match(scene, /pendingDailyRestore:\s*ActiveGameSaveV2 \| null/);
   assert.match(
     scene,
     /activeGameRepository\.load\(\)[^]*pendingDailyRestore[^]*initializeMeta\(\)/,
@@ -46,7 +46,8 @@ test('Daily restore validates id algorithm version and deterministic seed', () =
     scene,
     /tryRestoreDailySession[^]*activeGameRepository\.clear\(\)/,
   );
-  assert.doesNotMatch(scene, /Date\.now\(|new Date\(/);
+  const restore = extractMethod(scene, 'tryRestoreDailySession');
+  assert.doesNotMatch(restore, /Date\.now\(|new Date\(/);
 });
 
 test('validated Daily restore resumes exact saved board and shared timer state without starting another attempt', () => {
