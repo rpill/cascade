@@ -25,6 +25,7 @@ export const ENGLISH: Readonly<Record<string,string>> = {
   'Все': 'All',
   'Вход не выполнен': 'Sign-in was not completed',
   'Вход…': 'Signing in…',
+  'Вход станет доступен после сохранения текущего прогресса.': 'Sign-in will be available after your current progress is saved.',
   'Выберите оформление игрового стола': 'Choose a look for your table',
   'Выключен': 'Off',
   'Глубокий синий стол, золотые детали и морской орнамент.': 'A deep blue table with gold details and nautical ornaments.',
@@ -114,6 +115,7 @@ export const ENGLISH: Readonly<Record<string,string>> = {
   'Не удалось загрузить таблицу лидеров': 'Could not load the leaderboard',
   'Не удалось загрузить тему. Попробуйте ещё раз.': 'Could not load the theme. Please try again.',
   'Не удалось сохранить прогресс. Освободите место и повторите.': 'Could not save progress. Free up storage and try again.',
+  'Не удалось сохранить прогресс. Повторите попытку.': 'Could not save progress. Please try again.',
   'Не хватает {count}': 'Need {count} more',
   'Не хватает ': 'Need ',
   'Новая раздача': 'New deal',
@@ -229,4 +231,5 @@ export const ENGLISH: Readonly<Record<string,string>> = {
   'Серия: {count}': 'Streak: {count}',
   'Завершите текущую партию, чтобы войти и сохранить результат.': 'Finish your current game to sign in and save your result.',
   'Войдите с Яндекс ID, чтобы сохранить результат и увидеть своё место в таблице.': 'Sign in with Yandex ID to save your result and see your rank.',
+  'Не удалось подготовить перенос прогресса. Повторите попытку.': 'Could not prepare progress transfer. Please try again.',
 };

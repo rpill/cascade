@@ -260,3 +260,35 @@ test('already receipted completion does not advertise a reward after load', asyn
 
   assert.equal(session.getReward('already-saved-attempt'), undefined);
 });
+
+test('replaceAndFlush persists a merged snapshot even when the journal is empty and retries a failed write', async () => {
+  let failWrites = false;
+  let data: Record<string, unknown> = { cascadeMeta: createDefaultMetaSave() };
+  const storage: PlayerStorage = {
+    load: async () => structuredClone(data),
+    save: async (next) => {
+      if (failWrites) throw new Error('offline');
+      data = structuredClone(next);
+    },
+  };
+  const journal = new MetaJournal('merge-retry', new MemoryStorage());
+  const session = new MetaSession(storage, journal);
+  assert.equal(await session.load(), true);
+
+  const replaceAndFlush = (session as unknown as {
+    replaceAndFlush?: (state: ReturnType<typeof createDefaultMetaSave>) => Promise<boolean>;
+  }).replaceAndFlush;
+  assert.equal(typeof replaceAndFlush, 'function');
+
+  const merged = structuredClone(session.state);
+  merged.progression.coins = 321;
+  failWrites = true;
+  assert.equal(await replaceAndFlush!.call(session, merged), false);
+  assert.equal(session.state.progression.coins, 321);
+  assert.equal(session.saveError, true);
+
+  failWrites = false;
+  assert.equal(await session.flush(), true);
+  assert.equal(session.saveError, false);
+  assert.equal((data.cascadeMeta as ReturnType<typeof createDefaultMetaSave>).progression.coins, 321);
+});

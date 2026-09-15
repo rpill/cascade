@@ -33,6 +33,7 @@ export class MetaSession {
   private lastSaveFailed = false;
   private loadInFlight: Promise<boolean> | null = null;
   private flushInFlight: Promise<boolean> | null = null;
+  private forcedSnapshotPending = false;
   private readonly rewards = new Map<string, RewardSummary>();
   private readonly records = new Map<string, boolean>();
   private readonly storage: PlayerStorage;
@@ -140,6 +141,14 @@ export class MetaSession {
     return this.flushInFlight;
   }
 
+  replaceAndFlush(state: MetaSave): Promise<boolean> {
+    if (this.currentStatus !== 'ready') return Promise.resolve(false);
+    this.currentState = normalizeMetaSave(state);
+    this.forcedSnapshotPending = true;
+    this.notify();
+    return this.flush();
+  }
+
   private async performLoad(): Promise<boolean> {
     this.currentStatus = 'loading';
     this.notify();
@@ -177,11 +186,13 @@ export class MetaSession {
   private async performFlush(): Promise<boolean> {
     while (true) {
       const included = this.journal.pending;
-      if (included.length === 0) {
+      const forceSnapshot = this.forcedSnapshotPending;
+      if (included.length === 0 && !forceSnapshot) {
         this.setSaveError(false);
         return true;
       }
-      const snapshot = structuredClone(this.currentState);
+      const stateAtSave = this.currentState;
+      const snapshot = structuredClone(stateAtSave);
 
       try {
         await (this.storage.saveStrict?.({ [META_KEY]: snapshot }, true)
@@ -191,7 +202,10 @@ export class MetaSession {
         return false;
       }
 
-      if (!this.journal.acknowledge(included)) {
+      if (forceSnapshot && this.currentState === stateAtSave) {
+        this.forcedSnapshotPending = false;
+      }
+      if (included.length > 0 && !this.journal.acknowledge(included)) {
         this.setSaveError(true);
         return false;
       }

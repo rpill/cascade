@@ -308,7 +308,7 @@ export class StatisticsPageView {
     this.playerResult.hidden = true;
     this.authBlock.hidden = false;
     if (!state.authorizationAllowed) {
-      this.localization.text(this.authCopy, () => t('Завершите текущую партию, чтобы войти и сохранить результат.'));
+      this.localization.text(this.authCopy, () => t('Вход станет доступен после сохранения текущего прогресса.'));
     } else if (state.message !== undefined) {
       this.localization.text(this.authCopy, () => t(state.message ?? ''));
     } else {

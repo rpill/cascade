@@ -32,7 +32,8 @@ test('statistics page owns leaderboard ready, empty, unavailable, error and iden
   assert.match(source, /status === 'error'/);
   assert.match(source, /entries\.length === 0/);
   assert.match(source, /Войдите с Яндекс ID/);
-  assert.match(source, /Завершите текущую партию/);
+  assert.match(source, /Вход станет доступен после сохранения текущего прогресса/);
+  assert.doesNotMatch(source, /Завершите текущую партию, чтобы войти/);
   assert.match(source, /Ваш результат/);
 });
 

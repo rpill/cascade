@@ -32,6 +32,18 @@ test('authorized bootstrap syncs Standard streak and current Daily best only', (
   assert.doesNotMatch(sync, /original|classicbesttime|syncBest/);
 });
 
+test('late platform bootstrap reloads an already-open Statistics leaderboard without a tab switch', () => {
+  const initialize = extractMethod(sceneSource, 'initializeMeta');
+  assert.match(initialize, /this\.refreshOpenStatisticsLeaderboard\(\)/);
+
+  const refresh = extractMethod(sceneSource, 'refreshOpenStatisticsLeaderboard');
+  assert.match(refresh, /this\.statisticsOpen/);
+  assert.match(refresh, /hasGlobalLeaderboard\(this\.leaderboardMode\)/);
+  assert.match(refresh, /this\.leaderboardService/);
+  assert.match(refresh, /status: 'loading'/);
+  assert.match(refresh, /this\.loadLeaderboard\(this\.leaderboardMode\)/);
+});
+
 test('Standard win syncs best streak while Classic completion never submits best time', () => {
   const ordinary = extractMethod(sceneSource, 'finishOrdinaryAttempt');
   assert.match(ordinary, /recorded && mode === 'winnable'/);

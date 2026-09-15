@@ -44,6 +44,14 @@ import {
 import { getWeeklyProgress } from '../../meta/DailyProgress.ts';
 import { MetaSession } from '../../meta/MetaSession.ts';
 import { MetaJournal } from '../../meta/MetaJournal.ts';
+import {
+  clearProfileMergeTransfer,
+  hasMergedProfileScope,
+  mergeMetaProfiles,
+  readProfileMergeTransfer,
+  shouldPreserveActiveGameForProfileMerge,
+  stageProfileMergeTransfer,
+} from '../../meta/ProfileMerge.ts';
 import { applyMetaOperation, completeRewardedAttempt, hasCompletedAttempt, type MetaOperation, type CompletionEvent } from '../../meta/MetaOperations.ts';
 import { getLevelProgress } from '../../meta/Progression.ts';
 import type { RewardSummary } from '../../meta/Economy.ts';
@@ -332,6 +340,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.refreshMenuMeta();
+    this.refreshOpenStatisticsLeaderboard();
   }
 
   private buildDailyMenuState(): DailyMenuState {
@@ -412,6 +421,18 @@ export class GameScene extends Phaser.Scene {
     this.statisticsPage.update(this.buildStatisticsPageState());
   }
 
+  private refreshOpenStatisticsLeaderboard(): void {
+    if (!this.statisticsOpen || !hasGlobalLeaderboard(this.leaderboardMode)) return;
+
+    const service = this.leaderboardService;
+    if (service === null || !service.available) return;
+
+    this.renderLeaderboardState({
+      status: 'loading', entries: [], playerEntry: null, message: undefined,
+    });
+    void this.loadLeaderboard(this.leaderboardMode);
+  }
+
   private refreshLocalization(): void {
     document.documentElement.lang = getLanguage();
     document.title = t('Пасьянс Каскад');
@@ -449,6 +470,12 @@ export class GameScene extends Phaser.Scene {
     catch { this.profileScopeError=true; this.refreshMenuMeta(); return; }
     if (scope !== this.metaScope) {
       const previousJournal = this.metaJournal;
+      const pendingProfileMerge = readProfileMergeTransfer();
+      const preserveActiveGame = shouldPreserveActiveGameForProfileMerge(
+        this.metaScope,
+        this.platform.auth.isAuthorized(),
+        pendingProfileMerge,
+      );
       const transfer = this.metaScope === 'unbound'
         ? previousJournal.pending.map(item=>item.operation) : [];
       const nextJournal=new MetaJournal(scope);
@@ -465,8 +492,10 @@ export class GameScene extends Phaser.Scene {
       this.metaSession = nextSession;
       this.metaSession.onChange = () => this.refreshSessionState();
       if (this.metaScope === 'unbound') previousJournal.acknowledge(previousJournal.pending);
-      else {
-        // A restored board and its pending rewards belong to the previously selected profile.
+      else if (!preserveActiveGame) {
+        // Account/profile changes must not leak a board from another profile.
+        // The one exception is an explicit guest -> authorized merge, where the
+        // current local board remains the board the player is actively continuing.
         this.board?.destroy(); this.board=null;
         this.gameControls?.destroy(); this.gameControls=null;
         this.gameState=null;
@@ -482,6 +511,9 @@ export class GameScene extends Phaser.Scene {
       try { localStorage.setItem('cascadeMetaScope',scope); } catch { /* journal exposes durability */ }
     }
     const loaded = await this.metaSession.load();
+    if (loaded) {
+      await this.applyPendingProfileMerge();
+    }
     if (loaded && import.meta.env.DEV) {
       this.metaSession.setDevelopmentCoinFloor(999_999);
     }
@@ -504,6 +536,22 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private async applyPendingProfileMerge(): Promise<boolean> {
+    if (!this.platform?.auth.isAuthorized()) return true;
+    const transfer = readProfileMergeTransfer();
+    if (transfer === null) return true;
+
+    if (hasMergedProfileScope(this.metaSession.state, transfer.sourceScope)) {
+      clearProfileMergeTransfer();
+      return true;
+    }
+
+    const merged = mergeMetaProfiles(this.metaSession.state, transfer.state, transfer.sourceScope);
+    const saved = await this.metaSession.replaceAndFlush(merged);
+    if (saved) clearProfileMergeTransfer();
+    return saved;
+  }
+
   private async initializeMonetization(): Promise<void> {
     if (!this.platform) return;
     if (this.monetizationController) this.monetizationController.onChange = undefined;
@@ -523,8 +571,10 @@ export class GameScene extends Phaser.Scene {
 
   private async retryMeta(): Promise<void> {
     this.catalogMessage = undefined;
-    if (this.metaSession.status === 'ready') await this.metaSession.flush();
-    else {
+    if (this.metaSession.status === 'ready') {
+      await this.metaSession.flush();
+      if (!this.metaSession.saveError) await this.applyPendingProfileMerge();
+    } else {
       await this.loadMetaProfile();
       await this.initializeMonetization();
     }
@@ -1320,8 +1370,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private canAuthorizeLeaderboard(): boolean {
-    return this.metaSession.status==='ready' && !this.metaSession.saveError && this.metaJournal.pending.length===0
-      && (this.gameState === null || this.gameState.isWon);
+    return this.metaSession.status==='ready' && !this.metaSession.saveError && !this.metaSession.saving
+      && this.metaJournal.pending.length===0;
   }
 
   private async authorizeLeaderboard(): Promise<void> {
@@ -1336,15 +1386,36 @@ export class GameScene extends Phaser.Scene {
     this.leaderboardAuthPending = true;
     this.renderLeaderboardState({ authPending: true, message: undefined });
 
-    const authorized = await service.requestAuthorization();
-    this.leaderboardAuthPending = false;
-    if (!this.statisticsOpen) return;
-
-    if (!authorized) {
-      this.renderLeaderboardState({ authPending: false, message: 'Вход не выполнен' });
+    const wasAuthorized = service.authorized;
+    if (!wasAuthorized && this.gameState !== null && !this.gameState.isWon) {
+      this.checkpointActiveGame(this.gameState);
+    }
+    if (!wasAuthorized && !stageProfileMergeTransfer(this.metaScope, this.metaState)) {
+      this.leaderboardAuthPending = false;
+      this.renderLeaderboardState({ authPending: false, message: 'Не удалось подготовить перенос прогресса. Повторите попытку.' });
       return;
     }
 
+    const authorized = await service.requestAuthorization();
+    this.leaderboardAuthPending = false;
+    if (!authorized) {
+      if (!wasAuthorized) clearProfileMergeTransfer();
+      if (this.statisticsOpen) this.renderLeaderboardState({ authPending: false, message: 'Вход не выполнен' });
+      return;
+    }
+
+    if (!wasAuthorized) {
+      await this.loadMetaProfile();
+      await this.initializeMonetization();
+      if (this.metaSession.status !== 'ready' || this.metaSession.saveError) {
+        if (this.statisticsOpen) {
+          this.renderLeaderboardState({ authPending: false, message: 'Не удалось сохранить прогресс. Повторите попытку.' });
+        }
+        return;
+      }
+    }
+
+    if (!this.statisticsOpen) return;
     await this.syncHistoricalLeaderboards();
     if (this.statisticsOpen && hasGlobalLeaderboard(this.leaderboardMode)) {
       await this.loadLeaderboard(this.leaderboardMode);
