@@ -18,15 +18,14 @@ export const CASCADE_UI_ART_KEYS = {
 } as const;
 
 export const CASCADE_UI_ART_FILES = {
-  // Phase 1 uses the proven Trifold composition assets behind semantic Cascade keys.
-  // Final European/botanical art can replace these files without touching layout code.
-  homeBackdrop: './assets/ui/art/jade-landscape.webp',
-  homeHero: './assets/ui/art/paper-landscape.webp',
-  paperPanel: './assets/ui/art/paper-landscape.webp',
+  // European salon artwork; text surfaces are drawn natively by UiSurface.
+  homeBackdrop: './assets/ui/art/salon-background.webp',
+  homeHero: './assets/ui/art/salon-lake.webp',
+  paperPanel: './assets/ui/art/paper-grain.webp',
   material: './assets/ui/art/material.webp',
   grain: './assets/ui/art/table-grain.webp',
   paperGrain: './assets/ui/art/paper-grain.webp',
-  calendar: './assets/ui/art/daily-calendar.svg',
+  calendar: './assets/ui/art/salon-calendar.webp',
   themeFan: './assets/ui/art/theme-fan.svg',
   rank: {
     novice: './assets/ui/art/rank-novice.svg',

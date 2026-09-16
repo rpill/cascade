@@ -196,12 +196,22 @@ export class HomeScene extends BaseUiScene {
   }
 
   private layoutBrand(bounds: UiRect, viewport: ResolvedUiViewport): void {
-    const cx=bounds.x+bounds.width*0.48,cy=bounds.y+bounds.height*0.34,r=Math.max(4,bounds.width*0.012);
-    this.brandGraphics?.clear().lineStyle(Math.max(1,viewport.minTouchTarget/44),UI_TOKENS.color.gold,0.85)
+    if (viewport.profile === 'mobile-landscape') {
+      const css = viewport.minTouchTarget / 44;
+      this.brandGraphics?.clear();
+      this.brandTitle?.setOrigin(0, 0.5).setLetterSpacing(2 * css).setFontSize(Math.min(31 * css, bounds.width * 0.125)).setPosition(bounds.x + 4 * css, bounds.y + bounds.height / 2);
+      this.brandSubtitle?.setVisible(false);
+      return;
+    }
+    this.brandTitle?.setOrigin(0.5);
+    this.brandSubtitle?.setVisible(true);
+    const cx=bounds.x+bounds.width*0.48,cy=bounds.y+bounds.height*0.23,r=Math.max(4,bounds.width*0.012);
+    this.brandGraphics?.clear().fillStyle(0x08291f,0.88).fillRoundedRect(bounds.x,bounds.y+bounds.height*0.11,bounds.width*0.96,bounds.height*0.22,12)
+      .lineStyle(Math.max(1,viewport.minTouchTarget/44),UI_TOKENS.color.gold,0.85)
       .lineBetween(bounds.x+bounds.width*0.12,cy,cx-r*3,cy).lineBetween(cx+r*3,cy,bounds.x+bounds.width*0.84,cy);
     for(const dx of [-r*1.5,0,r*1.5]) this.brandGraphics?.beginPath().moveTo(cx+dx,cy-r).lineTo(cx+dx+r,cy).lineTo(cx+dx,cy+r).lineTo(cx+dx-r,cy).closePath().strokePath();
     const titleSize=bounds.width*0.135;
-    this.brandTitle?.setLetterSpacing(titleSize*0.08).setFontSize(titleSize).setPosition(cx,bounds.y+bounds.height*0.29);
-    this.brandSubtitle?.setFontSize(Math.max(11*viewport.minTouchTarget/44,titleSize*0.23)).setPosition(cx,bounds.y+bounds.height*0.385);
+    this.brandTitle?.setLetterSpacing(titleSize*0.06).setFontSize(titleSize).setPosition(cx,bounds.y+bounds.height*0.18);
+    this.brandSubtitle?.setFontSize(Math.max(11*viewport.minTouchTarget/44,titleSize*0.23)).setPosition(cx,bounds.y+bounds.height*0.275);
   }
 }

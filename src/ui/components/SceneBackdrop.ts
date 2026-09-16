@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { UI_ART_KEYS } from '../assets/UiAssets.ts';
 import { coverCrop } from '../assets/ArtworkLayout.ts';
+import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
 
 /** Art never participates in input or gameplay geometry. */
 export class SceneBackdrop {
@@ -8,11 +9,16 @@ export class SceneBackdrop {
   private readonly wash: Phaser.GameObjects.Rectangle;
   private readonly grain: Phaser.GameObjects.TileSprite;
   private readonly border: Phaser.GameObjects.Graphics;
-  constructor(scene: Phaser.Scene, private readonly mode: 'home' | 'menu' | 'game' = 'menu', tint = 0x123b34) {
+  constructor(scene: Phaser.Scene, private readonly mode: 'home' | 'menu' | 'game' = 'menu', tint = 0x0a2922) {
     this.image = scene.add.image(0, 0, UI_ART_KEYS.jade).setOrigin(0).setDepth(-100);
-    this.wash = scene.add.rectangle(0, 0, 1, 1, tint, mode === 'home' ? 0 : mode === 'game' ? 0.86 : 0.48).setOrigin(0).setDepth(-99);
-    this.grain = scene.add.tileSprite(0, 0, 1, 1, UI_ART_KEYS.grain).setTint(tint).setAlpha(mode === 'game' ? 0.55 : 0.12).setOrigin(0).setDepth(-98);
+    this.wash = scene.add.rectangle(0, 0, 1, 1, tint, mode === 'home' ? 0.10 : mode === 'game' ? 0 : 0.78).setOrigin(0).setDepth(-99);
+    this.grain = scene.add.tileSprite(0, 0, 1, 1, UI_ART_KEYS.grain).setTint(tint).setAlpha(0.025).setOrigin(0).setDepth(-98);
     this.border = scene.add.graphics().setDepth(-97);
+  }
+  setTheme(theme: ThemeDefinition): void {
+    if (this.mode !== 'game' || !this.image.scene.textures.exists(theme.boardSurface.key)) return;
+    this.image.setTexture(theme.boardSurface.key).clearTint();
+    this.layout(this.image.scene.scale.width, this.image.scene.scale.height);
   }
   layout(width: number, height: number): void {
     const frame = this.image.frame;

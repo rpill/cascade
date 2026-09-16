@@ -37,14 +37,19 @@ export function computeHomeLayout(viewport: ResolvedUiViewport): HomeLayout {
     ? Math.max(24, Math.round(width * 0.016))
     : Math.max(10, Math.round(width * 0.012));
   const usableWidth = Math.max(1, width - safeMargin * 2 - gap);
-  const brandWeight = profile === 'desktop' ? 38 : 35;
-  const dashboardWeight = profile === 'desktop' ? 55 : 65;
+  const brandWeight = 31;
+  const dashboardWeight = 69;
   const weightTotal = brandWeight + dashboardWeight;
   const brandWidth = usableWidth * brandWeight / weightTotal;
   const dashboardWidth = usableWidth - brandWidth;
-  const brand = rect(safeMargin, safeMargin, brandWidth, height - safeMargin * 2);
-  const dashboardHeight = profile === 'desktop' ? Math.min(height - safeMargin * 2, height * 0.80) : height - safeMargin * 2;
-  const dashboard = rect(brand.x + brand.width + gap, (height - dashboardHeight) / 2, dashboardWidth, dashboardHeight);
+  const mobile = profile === 'mobile-landscape';
+  const brand = mobile
+    ? rect(safeMargin, safeMargin, Math.min(width * 0.38, 350), 44)
+    : rect(safeMargin, safeMargin, brandWidth, height - safeMargin * 2);
+  const dashboardHeight = mobile ? height - safeMargin * 2 : Math.min(height - safeMargin * 2, height * 0.82);
+  const dashboard = mobile
+    ? rect(safeMargin, safeMargin, width - safeMargin * 2, dashboardHeight)
+    : rect(brand.x + brand.width + gap, (height - dashboardHeight) / 2, dashboardWidth, dashboardHeight);
 
   const innerGap = profile === 'desktop'
     ? Math.max(16, Math.round(height * 0.018))

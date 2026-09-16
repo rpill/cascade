@@ -24,16 +24,17 @@ for (const env of [
   });
 }
 
-test('desktop home keeps approximately 38/55 brand-dashboard split', () => {
+test('desktop home reserves a quiet brand column and generous dashboard', () => {
   const layout = computeHomeLayout(resolveUiViewport({ width: 1920, height: 1080, touchPrimary: false }));
-  assert.ok(layout.brand.width / 1920 > 0.34 && layout.brand.width / 1920 < 0.42);
-  assert.ok(layout.dashboard.width / 1920 > 0.50 && layout.dashboard.width / 1920 < 0.58);
+  assert.ok(layout.brand.width / 1920 > 0.27 && layout.brand.width / 1920 < 0.34);
+  assert.ok(layout.dashboard.width / 1920 > 0.60 && layout.dashboard.width / 1920 < 0.69);
 });
 
-test('mobile home keeps approximately 35/65 brand-dashboard split', () => {
+test('landscape home moves its brand into the header and gives the dashboard full width', () => {
   const layout = computeHomeLayout(resolveUiViewport({ width: 1280, height: 720, touchPrimary: true }));
-  assert.ok(layout.brand.width / 1280 > 0.31 && layout.brand.width / 1280 < 0.39);
-  assert.ok(layout.dashboard.width / 1280 > 0.59 && layout.dashboard.width / 1280 < 0.68);
+  assert.ok(layout.dashboard.width / 1280 > 0.92);
+  assert.ok(layout.brand.y + layout.brand.height <= layout.continuePrimary.y);
+  assert.ok(layout.brand.x + layout.brand.width < layout.coinPill.x);
 });
 
 test('mobile Home service controls stay at CSS-scale touch size instead of inverse-scaling to huge buttons', () => {

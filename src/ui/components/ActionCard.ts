@@ -46,7 +46,7 @@ export class ActionCard {
     this.viewport = viewport;
     this.state = state;
     this.onPress = onPress;
-    this.surface = new UiSurface(scene, depth, Boolean(state.artwork), 0.72, state.artwork === 'landscape' ? CASCADE_UI_ART_KEYS.homeHero : undefined);
+    this.surface = new UiSurface(scene, depth, Boolean(state.artwork), 1, state.artwork === 'landscape' ? CASCADE_UI_ART_KEYS.homeHero : undefined);
     this.motif = state.artwork && state.artwork !== 'landscape'
       ? scene.add.image(0, 0, state.artworkKey ?? (state.artwork === 'daily' ? CASCADE_UI_ART_KEYS.calendar : state.artwork === 'themes' ? CASCADE_UI_ART_KEYS.themeFan : CASCADE_UI_ART_KEYS.rank.novice)).setDepth(depth + 0.1) : null;
     this.calendarDay = state.artwork === 'daily' ? scene.add.text(0, 0, String(new Date().getDate()), { fontFamily: 'Georgia, serif', color: '#643f29' }).setOrigin(0.5).setAngle(6).setDepth(depth + 0.12) : null;
@@ -111,7 +111,7 @@ export class ActionCard {
     const css = this.viewport.minTouchTarget / 44;
     const decorated = Boolean(this.state.artwork);
     const tile = decorated && this.state.artwork !== 'landscape';
-    const side = tile;
+    const side = decorated;
     const titleSize = Math.max(15 * css, Math.min(bounds.height * (decorated ? 0.28 : 0.30), (decorated ? 36 : 24) * this.viewport.uiScale));
     const subtitleSize = Math.max(11 * css, Math.min(17 * this.viewport.uiScale, titleSize * 0.53));
     this.surface.layout(bounds, this.state.emphasis === 'highlight' ? 'gold' : 'paper', decorated);
@@ -122,7 +122,7 @@ export class ActionCard {
       bounds.x + bounds.width * (side ? 0.08 : 0.5),
       bounds.y + bounds.height * (tile ? 0.16 : hasSubtitle ? 0.40 : 0.50),
     );
-    const available = bounds.width * 0.84;
+    const available = bounds.width * (this.state.artwork === 'landscape' ? 0.73 : 0.84);
     if (this.title.width > available) this.title.setFontSize(titleSize * available / this.title.width);
     this.subtitle.setOrigin(side ? 0 : 0.5, 0.5).setFontSize(subtitleSize).setWordWrapWidth(available).setAlpha(alpha).setVisible(this.visible && hasSubtitle).setPosition(
       bounds.x + bounds.width * (side ? 0.08 : 0.5),
@@ -142,10 +142,10 @@ export class ActionCard {
     const textBottom = hasSubtitle ? this.subtitle.y + this.subtitle.height / 2 : this.title.y + this.title.height / 2;
     const motifTop = Math.max(bounds.y + bounds.height * 0.38, textBottom + 5 * css);
     const motifBottom = bounds.y + bounds.height * 0.94;
-    const motifSize = Math.max(1, Math.min(motifBottom - motifTop, bounds.height * 0.56, bounds.width * 0.64));
+    const motifSize = Math.max(1, Math.min(motifBottom - motifTop, bounds.height * 0.60, bounds.width * 0.70));
     const motifY = (motifTop + motifBottom) / 2;
-    this.motif?.setPosition(bounds.x + bounds.width * 0.49, motifY).setDisplaySize(motifSize, motifSize);
-    this.calendarDay?.setFontSize(motifSize * 0.23).setPosition(bounds.x + bounds.width * 0.49, motifY + motifSize * 0.055);
+    this.motif?.setPosition(bounds.x + bounds.width * 0.46, motifY).setDisplaySize(motifSize, motifSize);
+    this.calendarDay?.setFontSize(motifSize * 0.24).setPosition(bounds.x + bounds.width * 0.46, motifY + motifSize * 0.10);
     const arrowCap = tile ? (this.viewport.profile === 'mobile-landscape' ? 32 : 44) : 48;
     const arrowDiameter = Math.min(bounds.height * (tile ? 0.27 : 0.28), arrowCap * css);
     const arrowSize = arrowDiameter * 0.44;

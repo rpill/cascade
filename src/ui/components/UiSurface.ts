@@ -1,74 +1,78 @@
 import * as Phaser from 'phaser';
 import type { UiRect } from '../layout/HomeLayout.ts';
-import { UI_ART_KEYS } from '../assets/UiAssets.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
 import { coverCrop } from '../assets/ArtworkLayout.ts';
+import { CASCADE_UI_ART_KEYS } from '../assets/CascadeUiArt.ts';
 
 export type SurfaceTone = 'paper' | 'jade' | 'gold';
 
-/** One neutral nine-slice shared by panels and buttons. No state-specific textures. */
+/** Resolution-independent chrome; illustration belongs only to the hero. */
 export class UiSurface {
   readonly object: Phaser.GameObjects.Container;
-  private readonly body: Phaser.GameObjects.NineSlice | null;
-  private readonly canvasBody: Phaser.GameObjects.Graphics | null;
-  private bodyWidth = 1;
-  private bodyHeight = 1;
-  private bodyRadius = 1;
+  private readonly body: Phaser.GameObjects.Graphics;
   private readonly frame: Phaser.GameObjects.Graphics;
-  private readonly grain: Phaser.GameObjects.TileSprite;
   private readonly landscape: Phaser.GameObjects.Image | null;
+  private width = 1;
+  private height = 1;
+  private radius = 8;
+  private ornate = false;
   private tone: SurfaceTone = 'paper';
 
-  constructor(scene: Phaser.Scene, depth = 0, decorated = false, private readonly artworkAlpha = 0.72, artworkKey: string = UI_ART_KEYS.paper) {
-    // Phaser's NineSlice only renders in WebGL; AUTO can fall back to Canvas.
-    this.body = scene.game.renderer.type === Phaser.WEBGL
-      ? scene.add.nineslice(0, 0, UI_ART_KEYS.material, undefined, 192, 192, 16, 16, 16, 16).setOrigin(0) : null;
-    this.canvasBody = this.body ? null : scene.add.graphics();
-    this.grain = scene.add.tileSprite(0, 0, 1, 1, UI_ART_KEYS.paperGrain).setOrigin(0).setAlpha(0.15).setBlendMode(Phaser.BlendModes.MULTIPLY);
-    this.landscape = decorated && scene.textures.exists(artworkKey) ? scene.add.image(0, 0, artworkKey).setOrigin(0) : null;
+  constructor(scene: Phaser.Scene, depth = 0, decorated = false, private readonly artworkAlpha = 1, artworkKey?: string) {
+    this.body = scene.add.graphics();
+    this.landscape = decorated && artworkKey === CASCADE_UI_ART_KEYS.homeHero && scene.textures.exists(artworkKey)
+      ? scene.add.image(0, 0, artworkKey).setOrigin(0) : null;
     this.frame = scene.add.graphics();
-    this.object = scene.add.container(0, 0, [this.body ?? this.canvasBody!, this.grain, ...(this.landscape ? [this.landscape] : []), this.frame]).setDepth(depth);
+    this.object = scene.add.container(0, 0, [this.body, ...(this.landscape ? [this.landscape] : []), this.frame]).setDepth(depth);
   }
 
   layout(bounds: UiRect, tone: SurfaceTone = 'paper', ornate = false): void {
-    this.tone = tone;
+    this.tone = tone; this.ornate = ornate;
+    this.width = bounds.width; this.height = bounds.height;
+    this.radius = Math.min(12, Math.max(5, bounds.height * 0.045));
     this.object.setPosition(bounds.x, bounds.y);
-    const { width: w, height: h } = bounds;
-    const scale = Math.min(1.5, h / 96, w / 96);
-    this.body?.setSize(w / scale, h / scale).setScale(scale);
-    this.bodyWidth = w;
-    this.bodyHeight = h;
-    this.bodyRadius = 12 * scale;
-    this.grain.setPosition(10 * scale, 10 * scale).setSize(Math.max(1, w - 20 * scale), Math.max(1, h - 20 * scale));
-    this.feedback('normal');
     if (this.landscape) {
-      const inset = 7 * scale;
-      const crop = coverCrop(this.landscape.frame.realWidth, this.landscape.frame.realHeight, w - inset * 2, h - inset * 2, 0.5, w / h > 2 ? 0.72 : 0.5);
-      const artScale = (w - inset * 2) / crop.width;
+      const inset = 5;
+      const crop = coverCrop(this.landscape.frame.realWidth, this.landscape.frame.realHeight, this.width - inset * 2, this.height - inset * 2, 0.5, 0.48);
+      const scale = (this.width - inset * 2) / crop.width;
       this.landscape.setCrop(crop.x, crop.y, crop.width, crop.height)
-        .setPosition(inset - crop.x * artScale, inset - crop.y * artScale).setScale(artScale).setAlpha(tone === 'paper' ? this.artworkAlpha : 0.05);
+        .setPosition(inset - crop.x * scale, inset - crop.y * scale).setScale(scale).setAlpha(this.artworkAlpha);
     }
-    const radius = 12 * scale;
-    this.frame.clear().lineStyle(Math.max(0.7, scale * 0.7), UI_TOKENS.color.gold, 0.82)
-      .strokeRoundedRect(0.5, 0.5, w - 1, h - 1, radius);
-    this.frame.lineStyle(Math.max(0.5, scale * 0.45), tone === 'jade' ? UI_TOKENS.color.gold : 0xfff5dc, 0.25)
-      .strokeRoundedRect(3 * scale, 3 * scale, w - 6 * scale, h - 6 * scale, radius * 0.8);
-    if (ornate && w > 180 && h > 85) {
-      const size = Math.min(22 * scale, h * 0.16);
-      for (const [x, y, sx, sy] of [[8, 8, 1, 1], [w - 8, 8, -1, 1], [8, h - 8, 1, -1], [w - 8, h - 8, -1, -1]]) {
-        this.frame.lineStyle(Math.max(0.8, scale), UI_TOKENS.color.gold, 0.6).beginPath()
-          .moveTo(x!, y! + sy! * size).lineTo(x!, y!).lineTo(x! + sx! * size, y!)
-          .moveTo(x! + sx! * size * 0.6, y! + sy! * 4).lineTo(x! + sx! * 4, y! + sy! * 4).lineTo(x! + sx! * 4, y! + sy! * size * 0.6).strokePath();
-      }
-    }
+    this.feedback('normal');
   }
 
   feedback(state: 'normal' | 'hover' | 'pressed' | 'disabled'): void {
-    const colors = { paper: [0xf7ecd6, 0xfff6e3, 0xddcfb4], jade: [0x123d32, 0x1b5142, 0x0a2923], gold: [0xc5a05a, 0xddb970, 0xa78549] };
-    const color = colors[this.tone][state === 'hover' ? 1 : state === 'pressed' ? 2 : 0]!;
-    this.body?.setTint(color);
-    this.canvasBody?.clear().fillStyle(color).fillRoundedRect(0, 0, this.bodyWidth, this.bodyHeight, this.bodyRadius);
-    this.object.setAlpha(state === 'disabled' ? 0.48 : 1);
+    const w = this.width, h = this.height, r = this.radius;
+    const colors = {
+      paper: [0xf7efdc, 0xfff9e9, 0xeaddc2],
+      jade: [0x153e34, 0x205346, 0x0c2923],
+      gold: [0xd2af67, 0xe5c783, 0xb9914d],
+    };
+    const fill = colors[this.tone][state === 'hover' ? 1 : state === 'pressed' ? 2 : 0]!;
+    this.body.clear().fillStyle(0x020c09, 0.22).fillRoundedRect(0, 4, w, h, r)
+      .fillStyle(fill, 1).fillRoundedRect(0, 0, w, h, r);
+    this.frame.clear()
+      .lineStyle(1, state === 'hover' ? UI_TOKENS.color.goldLight : UI_TOKENS.color.gold, this.tone === 'paper' ? 0.9 : 0.65)
+      .strokeRoundedRect(0.5, 0.5, w - 1, h - 1, r)
+      .lineStyle(1, this.tone === 'jade' ? 0x71a58a : 0xffffff, 0.28)
+      .lineBetween(r, 2, w - r, 2);
+    if (this.ornate && w > 100 && h > 70) {
+      const inset = 5;
+      this.frame.lineStyle(0.7, UI_TOKENS.color.gold, 0.35)
+        .strokeRoundedRect(inset, inset, w - inset * 2, h - inset * 2, Math.max(2, r - 3));
+      const size = Math.min(21, h * 0.1);
+      for (const [x, y, sx, sy] of [[10, 10, 1, 1], [w - 10, 10, -1, 1], [10, h - 10, 1, -1], [w - 10, h - 10, -1, -1]]) {
+        this.frame.lineStyle(1, UI_TOKENS.color.gold, 0.65).beginPath()
+          .moveTo(x!, y! + sy! * size).lineTo(x!, y!).lineTo(x! + sx! * size, y!).strokePath();
+        this.frame.fillStyle(UI_TOKENS.color.gold, 0.65);
+        for (let i = 0; i < 3; i++) {
+          const d = 4 + i * 5;
+          this.frame.fillEllipse(x! + sx! * d, y! + sy! * d * 0.48, 5, 2.5);
+          this.frame.fillEllipse(x! + sx! * d * 0.48, y! + sy! * d, 2.5, 5);
+        }
+      }
+    }
+    this.object.setAlpha(state === 'disabled' ? 0.58 : 1);
   }
   setDepth(depth: number): void { this.object.setDepth(depth); }
   setAlpha(alpha: number): void { this.object.setAlpha(alpha); }

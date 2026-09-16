@@ -180,6 +180,7 @@ export class GameScene extends Phaser.Scene {
     this.input.dragDistanceThreshold = 7;
     this.cameras.main.setBackgroundColor(UI_TOKENS.color.table);
     this.backdrop = new SceneBackdrop(this, 'game', UI_TOKENS.color.table);
+    this.backdrop.setTheme(this.activeTheme);
     this.applyViewportLayout();
     this.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this);
     this.verifiedDealCatalog = this.registry.get(VERIFIED_DEALS_REGISTRY_KEY) as VerifiedDealCatalog;
@@ -568,6 +569,7 @@ export class GameScene extends Phaser.Scene {
       return false;
     }
     this.activeTheme = theme;
+    this.backdrop?.setTheme(theme);
     this.board?.setTheme(theme);
     this.refreshGameHud();
     return true;

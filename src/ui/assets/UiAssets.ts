@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { CASCADE_UI_ART_FILES, CASCADE_UI_ART_KEYS } from './CascadeUiArt.ts';
+import { THEME_CATALOG } from '../../theme/ThemeCatalog.ts';
 
 const ICON_ROOT = './assets/ui/icons';
 
@@ -36,7 +37,11 @@ export function preloadUiAssets(scene: Phaser.Scene): void {
     const key = CASCADE_UI_ART_KEYS.rank[rank];
     if (!scene.textures.exists(key)) scene.load.svg(key, CASCADE_UI_ART_FILES.rank[rank], { width: 384, height: 384 });
   }
-  if (!scene.textures.exists(CASCADE_UI_ART_KEYS.calendar)) scene.load.svg(CASCADE_UI_ART_KEYS.calendar, CASCADE_UI_ART_FILES.calendar, { width: 384, height: 384 });
+  if (!scene.textures.exists(CASCADE_UI_ART_KEYS.calendar)) scene.load.image(CASCADE_UI_ART_KEYS.calendar, CASCADE_UI_ART_FILES.calendar);
+  for (const theme of THEME_CATALOG) {
+    if (!scene.textures.exists(`ui.theme.preview.${theme.id}`)) scene.load.image(`ui.theme.preview.${theme.id}`, theme.previewUrl);
+    if (!scene.textures.exists(`ui.theme.back.${theme.id}`)) scene.load.image(`ui.theme.back.${theme.id}`, theme.cardBackUrl);
+  }
   if (!scene.textures.exists(CASCADE_UI_ART_KEYS.themeFan)) scene.load.svg(CASCADE_UI_ART_KEYS.themeFan, CASCADE_UI_ART_FILES.themeFan, { width: 384, height: 384 });
   const raster = [
     [CASCADE_UI_ART_KEYS.homeBackdrop, CASCADE_UI_ART_FILES.homeBackdrop],
