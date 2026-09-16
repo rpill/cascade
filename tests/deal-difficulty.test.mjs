@@ -122,6 +122,36 @@ test('onboarding filter and Standard partitioning are deterministic and disjoint
   assert.equal(allSeeds.includes(99), false, 'top >95 difficulty tail is excluded');
 });
 
+
+test('Hard samples evenly across the full remaining eligible difficulty tail', () => {
+  const make = (seed, score) => ({
+    seed,
+    difficultyScore: score,
+    difficultyPercentiles: {
+      solverNodes: score,
+      rearrangementMoves: score,
+      freeCellTouches: score,
+      stockInterleaves: score,
+      decisionActions: score,
+      earlyProgressActions: score,
+    },
+  });
+  const records = [
+    make(1, 1),
+    make(2, 10), make(3, 20),
+    make(4, 30), make(5, 40),
+    make(6, 50), make(7, 60), make(8, 70), make(9, 80), make(10, 90), make(11, 95),
+    make(12, 96),
+  ];
+
+  const partitions = partitionStandard(records, { onboarding: 1, easy: 2, medium: 2, hard: 3 });
+  assert.deepEqual(partitions.easy.map((record) => record.seed), [2, 3]);
+  assert.deepEqual(partitions.medium.map((record) => record.seed), [4, 5]);
+  assert.deepEqual(partitions.hard.map((record) => record.seed), [6, 8, 11]);
+  assert.equal(partitions.hard.at(-1)?.difficultyScore, 95, 'Hard should reach the upper eligible boundary');
+  assert.equal(partitions.hard.some((record) => record.seed === 12), false, 'score >95 must remain excluded');
+});
+
 test('partitionStandard refuses to weaken quotas when too few eligible candidates exist', () => {
   const record = {
     seed: 1,

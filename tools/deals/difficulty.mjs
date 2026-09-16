@@ -268,13 +268,22 @@ export function partitionStandard(records, quotas = STANDARD_QUOTAS) {
     cursor += count;
     return slice;
   };
-
-  const partitions = {
-    onboarding,
-    easy: take(required.easy),
-    medium: take(required.medium),
-    hard: take(required.hard),
+  const sampleEvenly = (candidates, count) => {
+    if (count === 0) return [];
+    if (candidates.length < count) {
+      throw new Error(`Cannot fill Hard quota: need ${count}, have ${candidates.length}`);
+    }
+    if (count === 1) return [candidates[candidates.length - 1]];
+    return Array.from({ length: count }, (_, index) => {
+      const candidateIndex = Math.floor(index * (candidates.length - 1) / (count - 1));
+      return candidates[candidateIndex];
+    });
   };
+
+  const easy = take(required.easy);
+  const medium = take(required.medium);
+  const hard = sampleEvenly(remaining.slice(cursor), required.hard);
+  const partitions = { onboarding, easy, medium, hard };
 
   const allSeeds = Object.values(partitions).flat().map((record) => record.seed);
   if (new Set(allSeeds).size !== allSeeds.length) throw new Error('Standard partition contains duplicate seeds');

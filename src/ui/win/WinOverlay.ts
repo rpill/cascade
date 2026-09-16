@@ -314,7 +314,7 @@ export class WinOverlay {
     const x = (layout.viewportWidth - width) / 2;
     const y = (layout.viewportHeight - height) / 2;
     const buttonHeight = compact
-      ? Math.max(48, height * 0.105)
+      ? Math.max(42, Math.min(46, height * 0.095))
       : Math.max(52, Math.min(layout.hudBounds.height, 62));
     const gap = compact ? 8 : 14;
     const innerX = x + width * (compact ? 0.035 : 0.045);
@@ -326,22 +326,27 @@ export class WinOverlay {
 
     this.kicker.setPosition(x + width / 2, y + height * 0.04)
       .setFontSize(compact ? Math.max(10, height * 0.025) : Math.max(9, Math.min(13, height * 0.024)));
-    this.title.setPosition(x + width / 2, y + height * 0.105)
-      .setFontSize(compact ? Math.max(36, height * 0.105) : Math.max(30, Math.min(60, height * 0.11)))
+    this.title.setPosition(x + width / 2, y + height * (compact ? 0.095 : 0.105))
+      .setFontSize(compact ? Math.max(30, Math.min(35, height * 0.078)) : Math.max(30, Math.min(60, height * 0.11)))
       .setWordWrapWidth(width * 0.86, true)
       .setLineSpacing(-4);
-    this.result.setPosition(x + width / 2, y + height * 0.175)
-      .setFontSize(compact ? Math.max(16, height * 0.047) : Math.max(14, Math.min(24, height * 0.05)))
+    this.result.setPosition(x + width / 2, y + height * (compact ? 0.17 : 0.175))
+      .setFontSize(compact ? Math.max(13, Math.min(16, height * 0.034)) : Math.max(14, Math.min(24, height * 0.05)))
       .setWordWrapWidth(width * 0.90, true);
-    this.notice.setPosition(x + width / 2, y + height * 0.218)
-      .setFontSize(compact ? Math.max(12, height * 0.032) : Math.max(10, Math.min(18, height * 0.034)))
+    this.notice.setPosition(x + width / 2, y + height * (compact ? 0.215 : 0.218))
+      .setFontSize(compact ? Math.max(10, Math.min(12, height * 0.026)) : Math.max(10, Math.min(18, height * 0.034)))
       .setWordWrapWidth(width * 0.86, true);
-    this.detail.setPosition(x + width / 2, y + height * 0.242)
-      .setFontSize(compact ? Math.max(11, height * 0.028) : Math.max(9, Math.min(16, height * 0.03)))
+    this.detail.setPosition(x + width / 2, y + height * (compact ? 0.25 : 0.242))
+      .setFontSize(compact ? Math.max(10, Math.min(12, height * 0.024)) : Math.max(9, Math.min(16, height * 0.03)))
       .setWordWrapWidth(width * 0.86, true);
 
     const buttonsY = y + height - buttonHeight - Math.max(gap * 0.8, height * 0.028);
-    const panelsTop = y + height * (compact ? 0.225 : 0.25);
+    const compactPanelsTopRatio = this.content.detailLine
+      ? 0.285
+      : this.content.noticeLine
+        ? 0.265
+        : 0.235;
+    const panelsTop = y + height * (compact ? compactPanelsTopRatio : 0.25);
     const panelsBottom = buttonsY - Math.max(gap * 0.8, height * 0.016);
     const panelsHeight = Math.max(80, panelsBottom - panelsTop);
     const panelGap = compact ? 8 : 16;
@@ -434,20 +439,22 @@ export class WinOverlay {
     const left = bounds.x + pad;
     const right = bounds.x + bounds.width - pad;
     const centerX = bounds.x + bounds.width / 2;
-    const titleSize = compact ? Math.max(16, bounds.height * 0.10) : Math.max(15, Math.min(27, bounds.height * 0.115));
-    const rowSize = compact ? Math.max(13, bounds.height * 0.072) : Math.max(13, Math.min(22, bounds.height * 0.09));
-    const totalSize = compact ? Math.max(20, bounds.height * 0.105) : Math.max(22, Math.min(38, bounds.height * 0.15));
-    const iconSize = compact ? Math.max(18, bounds.height * 0.085) : Math.max(16, Math.min(26, bounds.height * 0.10));
-    const titleY = bounds.y + bounds.height * 0.095;
-    const baseY = bounds.y + bounds.height * (rewards.rankCoins > 0 ? 0.255 : 0.30);
-    const rankY = bounds.y + bounds.height * 0.375;
-    const dividerY = bounds.y + bounds.height * 0.49;
-    const totalY = bounds.y + bounds.height * 0.59;
+    const titleSize = compact ? Math.max(15, Math.min(18, bounds.height * 0.07)) : Math.max(15, Math.min(27, bounds.height * 0.115));
+    const rowSize = compact ? Math.max(13, Math.min(16, bounds.height * 0.06)) : Math.max(13, Math.min(22, bounds.height * 0.09));
+    const totalSize = compact ? Math.max(19, Math.min(24, bounds.height * 0.085)) : Math.max(22, Math.min(38, bounds.height * 0.15));
+    const iconSize = compact ? Math.max(15, Math.min(19, bounds.height * 0.065)) : Math.max(16, Math.min(26, bounds.height * 0.10));
+    const titleY = bounds.y + bounds.height * (compact ? 0.09 : 0.095);
+    const baseY = bounds.y + bounds.height * (compact
+      ? (rewards.rankCoins > 0 ? 0.25 : 0.29)
+      : (rewards.rankCoins > 0 ? 0.255 : 0.30));
+    const rankY = bounds.y + bounds.height * (compact ? 0.36 : 0.375);
+    const dividerY = bounds.y + bounds.height * (compact ? 0.47 : 0.49);
+    const totalY = bounds.y + bounds.height * (compact ? 0.58 : 0.59);
     const helperActive = Boolean(rewards.helperLine);
     const helperBoxWidth = bounds.width * 0.86;
-    const helperBoxHeight = bounds.height * 0.27;
+    const helperBoxHeight = bounds.height * (compact ? 0.24 : 0.27);
     const helperBoxX = bounds.x + (bounds.width - helperBoxWidth) / 2;
-    const helperBoxY = bounds.y + bounds.height * 0.675;
+    const helperBoxY = bounds.y + bounds.height * (compact ? 0.69 : 0.675);
 
     this.rewardTitle.setPosition(centerX, titleY).setFontSize(titleSize);
     this.rewardBaseIcon.setDisplaySize(iconSize, iconSize).setPosition(left + iconSize / 2, baseY);
@@ -466,13 +473,13 @@ export class WinOverlay {
 
     if (helperActive) {
       const iconInset = Math.max(12, helperBoxHeight * 0.18);
-      const hintIconSize = compact ? Math.max(22, helperBoxHeight * 0.38) : Math.max(22, Math.min(36, helperBoxHeight * 0.44));
+      const hintIconSize = compact ? Math.max(18, Math.min(24, helperBoxHeight * 0.34)) : Math.max(22, Math.min(36, helperBoxHeight * 0.44));
       this.rewardHelperBox.setVisible(true);
       this.rewardHelperBox.layout({ x: helperBoxX, y: helperBoxY, width: helperBoxWidth, height: helperBoxHeight }, 'gold', false);
       this.rewardHintIcon.setVisible(true).setDisplaySize(hintIconSize, hintIconSize).setPosition(helperBoxX + iconInset + hintIconSize / 2, helperBoxY + helperBoxHeight / 2);
       this.rewardHint.setVisible(true)
         .setPosition(helperBoxX + iconInset * 1.9 + hintIconSize, helperBoxY + helperBoxHeight / 2)
-        .setFontSize(compact ? Math.max(12, helperBoxHeight * 0.22) : Math.max(11, Math.min(17, bounds.height * 0.064)))
+        .setFontSize(compact ? Math.max(10, Math.min(13, helperBoxHeight * 0.19)) : Math.max(11, Math.min(17, bounds.height * 0.064)))
         .setWordWrapWidth(helperBoxWidth - iconInset * 3.2 - hintIconSize, true);
     } else {
       this.rewardHelperBox.setVisible(false);
@@ -486,17 +493,17 @@ export class WinOverlay {
     if (!mastery) return;
     const centerX = bounds.x + bounds.width / 2;
     const titleY = bounds.y + bounds.height * 0.095;
-    const badgeSize = Math.min(bounds.width * 0.26, bounds.height * (compact ? 0.36 : 0.40));
+    const badgeSize = Math.min(bounds.width * (compact ? 0.22 : 0.26), bounds.height * (compact ? 0.28 : 0.40));
     const badgeX = bounds.x + bounds.width * 0.24;
-    const badgeY = bounds.y + bounds.height * 0.34;
+    const badgeY = bounds.y + bounds.height * (compact ? 0.33 : 0.34);
     const textX = bounds.x + bounds.width * 0.42;
-    const textTop = bounds.y + bounds.height * 0.21;
+    const textTop = bounds.y + bounds.height * (compact ? 0.22 : 0.21);
     const textWidth = bounds.width * 0.50;
-    const titleSize = compact ? Math.max(16, bounds.height * 0.10) : Math.max(15, Math.min(27, bounds.height * 0.115));
-    const rankSize = compact ? Math.max(22, bounds.height * 0.13) : Math.max(18, Math.min(34, bounds.height * 0.155));
-    const captionSize = compact ? Math.max(13, bounds.height * 0.067) : Math.max(11, Math.min(17, bounds.height * 0.075));
-    const progressLabelY = bounds.y + bounds.height * 0.565;
-    const meterY = bounds.y + bounds.height * 0.655;
+    const titleSize = compact ? Math.max(15, Math.min(18, bounds.height * 0.07)) : Math.max(15, Math.min(27, bounds.height * 0.115));
+    const rankSize = compact ? Math.max(18, Math.min(24, bounds.height * 0.095)) : Math.max(18, Math.min(34, bounds.height * 0.155));
+    const captionSize = compact ? Math.max(11, Math.min(13, bounds.height * 0.052)) : Math.max(11, Math.min(17, bounds.height * 0.075));
+    const progressLabelY = bounds.y + bounds.height * (compact ? 0.61 : 0.565);
+    const meterY = bounds.y + bounds.height * (compact ? 0.70 : 0.655);
     const rewardY = bounds.y + bounds.height * 0.83;
     const meterLeft = bounds.x + bounds.width * 0.08;
     const meterWidth = bounds.width * 0.68;
@@ -516,7 +523,7 @@ export class WinOverlay {
     };
     this.masteryMeter.layout(this.masteryMeterBounds);
     this.masteryMeter.setVisible(true);
-    this.masteryReward.setPosition(centerX, rewardY).setFontSize(compact ? Math.max(12, bounds.height * 0.055) : Math.max(9, Math.min(14, bounds.height * 0.065)))
+    this.masteryReward.setPosition(centerX, rewardY).setFontSize(compact ? Math.max(10, Math.min(12, bounds.height * 0.048)) : Math.max(9, Math.min(14, bounds.height * 0.065)))
       .setWordWrapWidth(bounds.width * 0.82, true);
   }
 
@@ -616,7 +623,7 @@ export class WinOverlay {
     const compact = this.lastLayout?.profile === 'compact-landscape';
     button.label.setAlpha(alpha)
       .setPosition(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
-      .setFontSize(compact ? Math.max(15, bounds.height * 0.42) : Math.max(12, Math.min(20, bounds.height * 0.38)))
+      .setFontSize(compact ? Math.max(13, Math.min(16, bounds.height * 0.34)) : Math.max(12, Math.min(20, bounds.height * 0.38)))
       .setWordWrapWidth(bounds.width * 0.82, true)
       .setLineSpacing(2);
     button.zone.setPosition(bounds.x, bounds.y).setSize(bounds.width, bounds.height);

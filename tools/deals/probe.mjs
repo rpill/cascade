@@ -140,6 +140,12 @@ export function scaledStandardQuotas(total) {
   return standardQuotasForTotal(total);
 }
 
+function scoreRange(records) {
+  if (!records || records.length === 0) return null;
+  const scores = records.map((record) => Number(record.difficultyScore));
+  return { min: Math.min(...scores), max: Math.max(...scores) };
+}
+
 export function analyzeStandardScored(scored, quotas) {
   const target = Object.values(quotas).reduce((sum, value) => sum + value, 0);
   const eligible = scored.filter((record) => Number(record.difficultyScore) <= 95);
@@ -161,6 +167,9 @@ export function analyzeStandardScored(scored, quotas) {
     eligibleAtOrBelow95: eligible.length,
     onboardingEligible,
     selected: partitions ? Object.values(partitions).reduce((sum, records) => sum + records.length, 0) : 0,
+    selectedScoreRanges: partitions ? Object.fromEntries(
+      Object.entries(partitions).map(([tier, records]) => [tier, scoreRange(records)]),
+    ) : null,
     reason,
   };
 }
@@ -271,6 +280,10 @@ export function probeResultExitCode(_result) {
   return 0;
 }
 
+function formatScoreRange(range) {
+  return range ? `${range.min.toFixed(2)}..${range.max.toFixed(2)}` : 'n/a';
+}
+
 export function formatProbeReport({ standard, daily }) {
   const standardStatus = standard.ready ? 'READY' : 'NOT_READY';
   const dailyStatus = daily.ready ? 'READY' : 'NOT_READY';
@@ -287,6 +300,9 @@ export function formatProbeReport({ standard, daily }) {
     `snapshot scanned=${standard.snapshotScanned} verified=${standard.verified} size=${formatBytes(standard.snapshotBytes)} trailingIgnored=${standard.ignoredTrailingBytes}`,
     `target=${standard.target} onboarding=${standard.quotas.onboarding} easy=${standard.quotas.easy} medium=${standard.quotas.medium} hard=${standard.quotas.hard}`,
     `eligible<=95=${standard.eligibleAtOrBelow95} onboardingEligible=${standard.onboardingEligible}/${standard.quotas.onboarding}`,
+    ...(standard.selectedScoreRanges ? [
+      `selectedScoreRanges onboarding=${formatScoreRange(standard.selectedScoreRanges.onboarding)} easy=${formatScoreRange(standard.selectedScoreRanges.easy)} medium=${formatScoreRange(standard.selectedScoreRanges.medium)} hard=${formatScoreRange(standard.selectedScoreRanges.hard)}`,
+    ] : []),
     `status=${standardStatus}${standard.reason ? ` reason=${standard.reason}` : ''}`,
     '',
     'DAILY',
