@@ -4,14 +4,13 @@ import { t } from '../../localization/Localization.ts';
 import type { GlobalLeaderboardMode } from '../../leaderboards/LeaderboardConfig.ts';
 import type { LeaderboardLoadResult, LeaderboardMetric, LeaderboardRow } from '../../leaderboards/LeaderboardService.ts';
 import { ActionCard } from '../components/ActionCard.ts';
-import { IconButton } from '../components/IconButton.ts';
+import { SceneShell } from '../components/SceneShell.ts';
 import { PaperPanel } from '../components/PaperPanel.ts';
 import { SegmentedControl } from '../components/SegmentedControl.ts';
 import { ScrollRegion } from '../components/ScrollRegion.ts';
 import type { UiRect } from '../layout/HomeLayout.ts';
 import type { ResolvedUiViewport } from '../layout/UiViewport.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
-import { UI_ICON_KEYS } from '../assets/UiAssets.ts';
 import { BaseUiScene } from './BaseUiScene.ts';
 
 interface RowVisual {
@@ -60,10 +59,9 @@ function metricValues(metric: LeaderboardMetric): readonly [string, string] {
 }
 
 export class LeaderboardsScene extends BaseUiScene {
-  private back: IconButton | null = null;
+  private shell: SceneShell | null = null;
   private tabs: SegmentedControl<GlobalLeaderboardMode> | null = null;
   private panel: PaperPanel | null = null;
-  private title: Phaser.GameObjects.Text | null = null;
   private sectionTitle: Phaser.GameObjects.Text | null = null;
   private status: Phaser.GameObjects.Text | null = null;
   private headerRank: Phaser.GameObjects.Text | null = null;
@@ -88,7 +86,7 @@ export class LeaderboardsScene extends BaseUiScene {
     this.cameras.main.setBackgroundColor(UI_TOKENS.color.table);
     const viewport = this.currentUiViewport();
     this.dailyId = productBridge.snapshot().currentDailyId;
-    this.back = new IconButton(this, viewport, { iconKey: UI_ICON_KEYS.back, enabled: true }, () => this.scene.start('HomeScene'), 30);
+    this.shell = new SceneShell(this, viewport, t('Таблица лидеров'), () => this.scene.start('HomeScene'), 30);
     this.tabs = new SegmentedControl(this, viewport, [
       { value: 'winnable', label: t('Обычная') },
       { value: 'daily', label: 'Daily' },
@@ -102,9 +100,6 @@ export class LeaderboardsScene extends BaseUiScene {
       void this.refreshRows();
     }, 30);
     this.panel = new PaperPanel(this, { depth: 10, textureKey: UI_TOKENS.asset.paperPanel });
-    this.title = this.add.text(0, 0, t('ТАБЛИЦА ЛИДЕРОВ'), {
-      color: '#eadfc7', fontFamily: 'Georgia, serif', fontStyle: 'bold', align: 'center',
-    }).setOrigin(0.5).setDepth(30);
     this.sectionTitle = this.add.text(0, 0, '', {
       color: '#7b6337', fontFamily: 'Georgia, serif', fontStyle: 'bold', align: 'center',
     }).setOrigin(0.5).setDepth(30);
@@ -131,23 +126,19 @@ export class LeaderboardsScene extends BaseUiScene {
   }
 
   protected layout(viewport: ResolvedUiViewport): void {
-    if (!this.back || !this.tabs || !this.panel || !this.title || !this.sectionTitle || !this.status || !this.signIn
+    if (!this.shell || !this.tabs || !this.panel || !this.sectionTitle || !this.status || !this.signIn
       || !this.headerRank || !this.headerPlayer || !this.headerA || !this.headerB || !this.divider || !this.scroll) return;
 
-    const margin = viewport.safeMargin;
-    const headerH = Math.max(viewport.minTouchTarget, viewport.profile === 'desktop' ? 54 : 44);
-    const maxContentW = viewport.profile === 'desktop' ? Math.min(1180, viewport.width - margin * 2) : viewport.width - margin * 2;
-    const contentX = (viewport.width - maxContentW) / 2;
-    const contentW = maxContentW;
+    const shell = this.shell.layout(viewport);
+    const content = shell.content;
+    const contentX = content.x;
+    const contentW = content.width;
     const gap = viewport.profile === 'desktop' ? 12 : 8;
 
-    this.back.setViewport(viewport);
     this.tabs.setViewport(viewport);
     this.signIn.setViewport(viewport);
-    this.back.layout({ x: margin, y: margin, width: headerH, height: headerH });
-    this.title.setFontSize(Math.max(21, Math.min(38, headerH * 0.62))).setPosition(viewport.width / 2, margin + headerH / 2);
 
-    const tabsY = margin + headerH + gap;
+    const tabsY = content.y;
     const tabsH = Math.max(viewport.minTouchTarget, viewport.profile === 'desktop' ? 50 : 44);
     this.tabs.layout({ x: contentX, y: tabsY, width: contentW, height: tabsH });
 
@@ -155,7 +146,7 @@ export class LeaderboardsScene extends BaseUiScene {
     const authH = auth.authorized ? 0 : Math.max(viewport.minTouchTarget, viewport.profile === 'desktop' ? 66 : 56);
     this.signIn.setVisible(!auth.authorized);
     const panelY = tabsY + tabsH + gap;
-    const panelH = Math.max(150, viewport.height - panelY - margin - (authH > 0 ? authH + gap : 0));
+    const panelH = Math.max(150, content.y + content.height - panelY - (authH > 0 ? authH + gap : 0));
     const panelBounds: UiRect = { x: contentX, y: panelY, width: contentW, height: panelH };
     this.panel.layout(panelBounds);
     if (authH > 0) this.signIn.layout({ x: contentX, y: panelY + panelH + gap, width: contentW, height: authH });
@@ -386,11 +377,11 @@ export class LeaderboardsScene extends BaseUiScene {
 
   private resetOwnedUi(): void {
     this.unsubscribe?.(); this.unsubscribe = null;
-    this.back?.destroy(); this.tabs?.destroy(); this.panel?.destroy(); this.title?.destroy(); this.sectionTitle?.destroy(); this.status?.destroy();
+    this.shell?.destroy(); this.tabs?.destroy(); this.panel?.destroy(); this.sectionTitle?.destroy(); this.status?.destroy();
     this.headerRank?.destroy(); this.headerPlayer?.destroy(); this.headerA?.destroy(); this.headerB?.destroy(); this.divider?.destroy(); this.signIn?.destroy();
     this.clearRows();
     this.scroll?.destroy();
-    this.back = null; this.tabs = null; this.panel = null; this.title = null; this.sectionTitle = null; this.status = null;
+    this.shell = null; this.tabs = null; this.panel = null; this.sectionTitle = null; this.status = null;
     this.headerRank = null; this.headerPlayer = null; this.headerA = null; this.headerB = null; this.divider = null; this.scroll = null; this.signIn = null;
     this.loading = false; this.authorizing = false;
   }

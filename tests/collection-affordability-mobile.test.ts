@@ -5,6 +5,7 @@ import * as catalog from '../src/theme/ThemeCatalog.ts';
 import { calculateViewportLayout } from '../src/game/view/ViewportLayout.ts';
 import { computeThemesGridLayout } from '../src/ui/themes/ThemesGridLayout.ts';
 import { resolveUiViewport } from '../src/ui/layout/UiViewport.ts';
+import { computeSceneShellLayout } from '../src/ui/layout/SceneShellLayout.ts';
 
 const scene=readFileSync(new URL('../src/game/scenes/GameScene.ts',import.meta.url),'utf8');
 const themes=readFileSync(new URL('../src/ui/scenes/ThemesScene.ts',import.meta.url),'utf8');
@@ -22,12 +23,18 @@ test('coin gain can flag that the new Trifold Themes screen just became affordab
   assert.match(scene,/themePurchaseUnlocked/);assert.match(complete,/themePurchaseUnlocked/);assert.match(themes,/CoinPill/);
 });
 
-test('Trifold Themes grid keeps two columns in compact landscape',()=>{
+test('Trifold Themes grid keeps three columns in compact landscape',()=>{
   const viewport=resolveUiViewport({width:882,height:440,touchPrimary:true});
-  const layout=computeThemesGridLayout(viewport,6);
+  const content=computeSceneShellLayout(viewport).content;
+  const layout=computeThemesGridLayout(viewport,content,6);
+  assert.equal(layout.columns,3);
+  assert.equal(layout.content.x,content.x);
+  assert.equal(layout.content.width,content.width);
   assert.equal(layout.cards.length,6);
   assert.ok(layout.cards[1]!.x>layout.cards[0]!.x);
-  assert.equal(layout.cards[2]!.x,layout.cards[0]!.x);
+  assert.ok(layout.cards[2]!.x>layout.cards[1]!.x);
+  assert.equal(layout.cards[3]!.x,layout.cards[0]!.x);
+  assert.ok(layout.cards[0]!.height >= 105, `mobile theme cards should not be squashed: ${layout.cards[0]!.height}`);
 });
 
 test('compact gameplay board still keeps foundation rail independent from main play',()=>{

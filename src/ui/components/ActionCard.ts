@@ -22,6 +22,7 @@ export interface ActionCardState {
 export class ActionCard {
   private readonly surface: UiSurface;
   private readonly motif: Phaser.GameObjects.Image | null;
+  private readonly arrowBadge: Phaser.GameObjects.Graphics | null;
   private readonly arrow: Phaser.GameObjects.Image | null;
   private readonly calendarDay: Phaser.GameObjects.Text | null;
   private bounds: UiRect | null = null;
@@ -49,7 +50,8 @@ export class ActionCard {
     this.motif = state.artwork && state.artwork !== 'landscape'
       ? scene.add.image(0, 0, state.artworkKey ?? (state.artwork === 'daily' ? CASCADE_UI_ART_KEYS.calendar : state.artwork === 'themes' ? CASCADE_UI_ART_KEYS.themeFan : CASCADE_UI_ART_KEYS.rank.novice)).setDepth(depth + 0.1) : null;
     this.calendarDay = state.artwork === 'daily' ? scene.add.text(0, 0, String(new Date().getDate()), { fontFamily: 'Georgia, serif', color: '#643f29' }).setOrigin(0.5).setAngle(6).setDepth(depth + 0.12) : null;
-    this.arrow = state.artwork ? scene.add.image(0, 0, UI_ICON_KEYS.chevronRight).setTint(UI_TOKENS.color.control).setDepth(depth + 0.1) : null;
+    this.arrowBadge = state.artwork ? scene.add.graphics().setDepth(depth + 0.08) : null;
+    this.arrow = state.artwork ? scene.add.image(0, 0, UI_ICON_KEYS.chevronRight).setTint(UI_TOKENS.color.goldLight).setDepth(depth + 0.1) : null;
     this.title = scene.add.text(0, 0, state.title, {
       color: '#24302e',
       fontFamily: 'Georgia, serif',
@@ -62,13 +64,13 @@ export class ActionCard {
     }).setOrigin(0.5).setDepth(depth + 0.1);
     this.zone = scene.add.zone(0, 0, 1, 1).setOrigin(0).setDepth(depth + 0.2).setInteractive();
     this.zone.input!.cursor = 'pointer';
-    this.zone.on('pointerover', () => { if (this.state.enabled) this.surface.feedback('hover'); });
-    this.zone.on('pointerout', () => { this.armed = false; this.surface.feedback(this.state.enabled ? 'normal' : 'disabled'); });
-    this.zone.on('pointerdown', () => { this.armed = this.state.enabled; if (this.armed) this.surface.feedback('pressed'); });
+    this.zone.on('pointerover', () => { if (this.state.enabled) { this.surface.feedback('hover'); this.drawArrowBadge('hover'); } });
+    this.zone.on('pointerout', () => { this.armed = false; this.surface.feedback(this.state.enabled ? 'normal' : 'disabled'); this.drawArrowBadge(this.state.enabled ? 'normal' : 'disabled'); });
+    this.zone.on('pointerdown', () => { this.armed = this.state.enabled; if (this.armed) { this.surface.feedback('pressed'); this.drawArrowBadge('pressed'); } });
     this.zone.on('pointerup', () => {
       const activate = this.armed && this.state.enabled;
       this.armed = false;
-      if (activate) { this.surface.feedback('normal'); playUiButtonSound(scene); this.onPress(); }
+      if (activate) { this.surface.feedback('normal'); this.drawArrowBadge('hover'); playUiButtonSound(scene); this.onPress(); }
     });
     this.progress = new ProgressMeter(scene, depth + 0.1);
   }
@@ -92,6 +94,7 @@ export class ActionCard {
     this.surface.setVisible(visible);
     this.motif?.setVisible(visible);
     this.calendarDay?.setVisible(visible);
+    this.arrowBadge?.setVisible(visible);
     this.arrow?.setVisible(visible);
     this.title.setVisible(visible);
     this.subtitle.setVisible(visible && Boolean(this.state.subtitle));
@@ -143,8 +146,13 @@ export class ActionCard {
     const motifY = (motifTop + motifBottom) / 2;
     this.motif?.setPosition(bounds.x + bounds.width * 0.49, motifY).setDisplaySize(motifSize, motifSize);
     this.calendarDay?.setFontSize(motifSize * 0.23).setPosition(bounds.x + bounds.width * 0.49, motifY + motifSize * 0.055);
-    const arrowSize = Math.min(bounds.height * 0.24, 26 * css);
-    this.arrow?.setPosition(bounds.x + bounds.width * 0.91, bounds.y + bounds.height * (tile ? 0.83 : 0.65)).setDisplaySize(arrowSize, arrowSize);
+    const arrowCap = tile ? (this.viewport.profile === 'mobile-landscape' ? 32 : 44) : 48;
+    const arrowDiameter = Math.min(bounds.height * (tile ? 0.27 : 0.28), arrowCap * css);
+    const arrowSize = arrowDiameter * 0.44;
+    const arrowX = bounds.x + bounds.width * (tile ? (this.viewport.profile === 'mobile-landscape' ? 0.82 : 0.86) : 0.91);
+    const arrowY = bounds.y + bounds.height * (tile ? 0.82 : 0.65);
+    this.arrow?.setPosition(arrowX, arrowY).setDisplaySize(arrowSize, arrowSize);
+    this.drawArrowBadge(this.state.enabled ? 'normal' : 'disabled');
     this.zone.setPosition(bounds.x, hitY).setSize(bounds.width, hitHeight);
 
     const progress = this.state.progress;
@@ -160,10 +168,27 @@ export class ActionCard {
     }
   }
 
+  private drawArrowBadge(feedback: 'normal' | 'hover' | 'pressed' | 'disabled'): void {
+    if (!this.arrowBadge || !this.arrow || !this.bounds) return;
+    const css = this.viewport.minTouchTarget / 44;
+    const tile = this.state.artwork !== 'landscape';
+    const arrowCap = tile ? (this.viewport.profile === 'mobile-landscape' ? 32 : 44) : 48;
+    const diameter = Math.min(this.bounds.height * (tile ? 0.27 : 0.28), arrowCap * css);
+    const radius = diameter / 2;
+    const fill = feedback === 'hover' ? UI_TOKENS.color.controlActive : UI_TOKENS.color.control;
+    const alpha = feedback === 'disabled' ? 0.42 : feedback === 'pressed' ? 0.92 : 1;
+    this.arrowBadge.clear()
+      .fillStyle(fill, alpha).fillCircle(this.arrow.x, this.arrow.y, radius)
+      .lineStyle(Math.max(1, css), UI_TOKENS.color.gold, feedback === 'disabled' ? 0.35 : 0.95)
+      .strokeCircle(this.arrow.x, this.arrow.y, radius);
+    this.arrow.setAlpha(feedback === 'disabled' ? 0.45 : 1);
+  }
+
   destroy(): void {
     this.surface.destroy();
     this.motif?.destroy();
     this.calendarDay?.destroy();
+    this.arrowBadge?.destroy();
     this.arrow?.destroy();
     this.title.destroy();
     this.subtitle.destroy();

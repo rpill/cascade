@@ -8,7 +8,6 @@ import { t } from '../../localization/Localization.ts';
 import { UiSurface } from '../components/UiSurface.ts';
 import { UI_ART_KEYS } from '../assets/UiAssets.ts';
 import { coverCrop } from '../assets/ArtworkLayout.ts';
-import { playUiButtonSound } from '../sound/UiSound.ts';
 
 function color(value: string): number { return Number.parseInt(value.replace('#',''),16); }
 
@@ -37,15 +36,17 @@ export class ThemeCard {
     this.status=scene.add.text(0,0,'',{color:'#64706a',fontFamily:'system-ui, sans-serif'}).setOrigin(0.5);
     this.action=scene.add.text(0,0,'',{color:'#7a642f',fontFamily:'system-ui, sans-serif',fontStyle:'bold'}).setOrigin(0.5);
     this.zone=scene.add.zone(0,0,1,1).setOrigin(0).setInteractive();
-    this.zone.on('pointerdown',(pointer:Phaser.Input.Pointer)=>{this.pressStart={x:pointer.x,y:pointer.y};});
-    this.zone.on('pointerup',(pointer:Phaser.Input.Pointer)=>{const start=this.pressStart;this.pressStart=null;if(!start||this.state.action==='none')return;if(isPressGesture(start,{x:pointer.x,y:pointer.y})){playUiButtonSound(scene);this.onPress(this.id);}});
-    this.zone.on('pointerout',()=>{this.pressStart=null;});
+    this.syncInteraction();
+    this.zone.on('pointerover',()=>{if(this.state.action!=='none')this.surface.feedback('hover');});
+    this.zone.on('pointerdown',(pointer:Phaser.Input.Pointer)=>{this.pressStart={x:pointer.x,y:pointer.y};if(this.state.action!=='none')this.surface.feedback('pressed');});
+    this.zone.on('pointerup',(pointer:Phaser.Input.Pointer)=>{const start=this.pressStart;this.pressStart=null;if(this.state.action!=='none')this.surface.feedback('hover');if(!start||this.state.action==='none')return;if(isPressGesture(start,{x:pointer.x,y:pointer.y})){this.onPress(this.id);}});
+    this.zone.on('pointerout',()=>{this.pressStart=null;this.surface.feedback('normal');});
     this.container.add([this.surface.object,this.painting,this.preview,this.title,this.status,this.action,this.zone]);
     this.syncText();
   }
   gameObject(): Phaser.GameObjects.Container { return this.container; }
   setLanguage(_language: Language): void { this.syncText(); }
-  setState(state: ThemeCardViewModel): void { this.state=state; this.syncText(); }
+  setState(state: ThemeCardViewModel): void { this.state=state; this.syncText(); this.syncInteraction(); }
   layout(bounds: UiRect): void {
     const radius=Math.max(8,bounds.height*0.055); this.surface.layout(bounds,'paper',true);
     const previewX=bounds.x+bounds.width*0.08, previewY=bounds.y+bounds.height*0.10, previewW=bounds.width*0.84, previewH=bounds.height*0.48;
@@ -65,6 +66,11 @@ export class ThemeCard {
   private syncText(): void {
     this.title.setText(this.state.displayName);
     this.status.setText(this.state.active?`✓ ${t('ВЫБРАНА')}`:this.state.owned?t('В коллекции'):t('Недоступно')).setColor(this.state.active?'#20523e':'#64706a');
-    this.action.setText(this.state.action==='apply'?t('ПРИМЕНИТЬ'):this.state.action==='buy'?`● ${this.state.priceCoins}`:'').setVisible(this.state.action!=='none');
+    this.action.setText(this.state.action==='apply'?t('ПРИМЕНИТЬ'):!this.state.owned?`● ${this.state.priceCoins}`:'').setVisible(this.state.action==='apply'||!this.state.owned);
+  }
+  private syncInteraction(): void {
+    if (!this.zone.input) return;
+    this.zone.input.cursor = this.state.action !== 'none' ? 'pointer' : 'default';
+    this.surface.feedback('normal');
   }
 }

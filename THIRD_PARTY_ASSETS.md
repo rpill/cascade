@@ -50,13 +50,13 @@
 - License: CC0 1.0 Universal.
 - The runtime PNG is downscaled for menu decoration only; gameplay cards remain the Veilworks deck above.
 
-## Font Awesome Free 6.7.2 — Home presentation icons
+## Font Awesome Free 6.7.2 — menu and Daily presentation icons
 
-- Runtime locations: `public/assets/ui/icons/crown.svg`, `calendar.svg`, `trophy.svg`, `question.svg`, `gear.svg`.
+- Runtime locations: `public/assets/ui/icons/fire.svg` (solid `fire-flame-curved`), `crown.svg`, `calendar.svg`, `trophy.svg`, `question.svg`, `gear.svg`.
 - Source: Font Awesome Free 6.7.2, locally vendored SVG assets.
 - License copy: `public/assets/licenses/fontawesome-free-license.txt`.
 - Icon license: Creative Commons Attribution 4.0 International (CC BY 4.0).
-- These SVGs are used only for Home/menu presentation; the accepted gameplay HUD glyphs remain the project's own compact icon set.
+- These SVGs are used only for Home/menu/Daily presentation; the accepted gameplay HUD glyphs remain the project's own compact icon set.
 
 ## The Public Domain Deck — Home suit emblems and matching decorative queen
 

@@ -3,10 +3,11 @@ import { productBridge } from '../bridge/CascadeProductBridge.ts';
 import { getLanguage, t } from '../../localization/Localization.ts';
 import { ActionCard } from '../components/ActionCard.ts';
 import { CoinPill } from '../components/CoinPill.ts';
+import { SceneShell } from '../components/SceneShell.ts';
 import { IconButton } from '../components/IconButton.ts';
 import { ModalShell } from '../components/ModalShell.ts';
 import { PaperPanel } from '../components/PaperPanel.ts';
-import { computeCalendarCellBounds, computeDailyLayout } from '../daily/DailyCalendarLayout.ts';
+import { computeCalendarCellBounds, computeDailyLayout, computeMonthNavigationBounds } from '../daily/DailyCalendarLayout.ts';
 import type { ResolvedUiViewport } from '../layout/UiViewport.ts';
 import type { UiRect } from '../layout/HomeLayout.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
@@ -22,6 +23,8 @@ interface CalendarCell {
   readonly zone: Phaser.GameObjects.Zone;
   readonly dateKey: string | null;
   readonly selectable: boolean;
+  hovered: boolean;
+  bounds: UiRect | null;
 }
 
 type DailyRecordMap = Readonly<Record<string, DailyRecord>>;
@@ -72,24 +75,36 @@ function formatTime(ms: number | undefined): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+function formatStreakDays(count: number): string {
+  if (getLanguage() === 'en') return `${count} ${count === 1 ? 'day' : 'days'}`;
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  const noun = mod10 === 1 && mod100 !== 11 ? 'день'
+    : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? 'дня'
+      : 'дней';
+  return `${count} ${noun}`;
+}
+
 export class DailyScene extends BaseUiScene {
   private todayKey = '';
   private selectedDateKey = '';
   private visibleMonth = '';
-  private homeButton: IconButton | null = null;
+  private shell: SceneShell | null = null;
   private coinPill: CoinPill | null = null;
   private summaryPanel: PaperPanel | null = null;
   private calendarPanel: PaperPanel | null = null;
   private dailyAction: ActionCard | null = null;
-  private title: Phaser.GameObjects.Text | null = null;
-  private streakText: Phaser.GameObjects.Text | null = null;
-  private resultTextObject: Phaser.GameObjects.Text | null = null;
   private monthText: Phaser.GameObjects.Text | null = null;
+  private summaryDividers: Phaser.GameObjects.Graphics | null = null;
+  private summaryRowIconBadges: Phaser.GameObjects.Graphics[] = [];
+  private summaryRowIcons: Phaser.GameObjects.Image[] = [];
+  private summaryRowLabels: Phaser.GameObjects.Text[] = [];
+  private summaryRowValues: Phaser.GameObjects.Text[] = [];
   private previousMonth: IconButton | null = null;
   private nextMonth: IconButton | null = null;
   private readonly cells: CalendarCell[] = [];
+  private calendarRecords: DailyRecordMap = {};
   private weekdays: Phaser.GameObjects.Text[] = [];
-  private summaryIcon: Phaser.GameObjects.Image | null = null;
   private confirmShell: ModalShell | null = null;
   private confirmText: Phaser.GameObjects.Text | null = null;
   private confirmCancel: ActionCard | null = null;
@@ -107,18 +122,28 @@ export class DailyScene extends BaseUiScene {
     this.visibleMonth = monthAnchor(this.selectedDateKey);
     const viewport = this.currentUiViewport();
 
-    this.homeButton = new IconButton(this, viewport, { iconKey: UI_ICON_KEYS.back, enabled: true }, () => this.scene.start('HomeScene'), 20);
+    this.shell = new SceneShell(this, viewport, 'Daily', () => this.scene.start('HomeScene'), 20);
     this.coinPill = new CoinPill(this, 20);
     this.summaryPanel = new PaperPanel(this, { depth: 10 });
     this.calendarPanel = new PaperPanel(this, { depth: 10 });
     this.dailyAction = new ActionCard(this, viewport, { title: t('ИГРАТЬ СЕГОДНЯ'), enabled: true, emphasis: 'highlight' }, () => this.pressSelectedDate(), 20);
-    this.title = this.add.text(0, 0, 'Daily', { color: '#eadfc7', fontFamily: 'Georgia, serif', fontStyle: 'bold' }).setOrigin(0.5).setDepth(20);
-    this.streakText = this.add.text(0, 0, '', { color: '#24302e', fontFamily: 'system-ui, sans-serif', align: 'center' }).setOrigin(0.5).setDepth(20);
-    this.resultTextObject = this.add.text(0, 0, '', { color: '#64706a', fontFamily: 'system-ui, sans-serif', align: 'center', wordWrap: { width: 320 } }).setOrigin(0.5).setDepth(20);
     this.monthText = this.add.text(0, 0, monthLabel(this.visibleMonth), { color: '#24302e', fontFamily: 'Georgia, serif', fontStyle: 'bold' }).setOrigin(0.5).setDepth(20);
+    this.summaryDividers = this.add.graphics().setDepth(20);
+    const summaryRows = [
+      { icon: UI_ICON_KEYS.fire, label: t('Серия') },
+      { icon: UI_ICON_KEYS.trophy, label: t('Официальный рекорд') },
+      { icon: UI_ICON_KEYS.crown, label: t('Личный рекорд') },
+    ] as const;
+    this.summaryRowIconBadges = summaryRows.map(() => this.add.graphics().setDepth(19));
+    this.summaryRowIcons = summaryRows.map(row => this.add.image(0, 0, row.icon).setDepth(20));
+    this.summaryRowLabels = summaryRows.map(row => this.add.text(0, 0, row.label, {
+      color: '#746b58', fontFamily: 'system-ui, sans-serif',
+    }).setOrigin(0, 0.5).setDepth(20));
+    this.summaryRowValues = summaryRows.map(() => this.add.text(0, 0, '', {
+      color: '#24302e', fontFamily: 'Georgia, serif', fontStyle: 'bold',
+    }).setOrigin(0, 0.5).setDepth(20));
     const weekdayLabels = getLanguage() === 'ru' ? ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     this.weekdays = weekdayLabels.map(day => this.add.text(0, 0, day, { fontFamily: 'Georgia, serif', color: '#655a43' }).setOrigin(0.5).setDepth(20));
-    this.summaryIcon = this.add.image(0, 0, UI_ICON_KEYS.streak).setTint(UI_TOKENS.color.gold).setDepth(20);
     this.previousMonth = new IconButton(this, viewport, { iconKey: UI_ICON_KEYS.chevronLeft, enabled: true }, () => this.changeMonth(-1), 20);
     this.nextMonth = new IconButton(this, viewport, { iconKey: UI_ICON_KEYS.chevronRight, enabled: false }, () => this.changeMonth(1), 20);
 
@@ -134,37 +159,59 @@ export class DailyScene extends BaseUiScene {
   }
 
   protected layout(viewport: ResolvedUiViewport): void {
-    if (!this.homeButton || !this.coinPill || !this.summaryPanel || !this.calendarPanel || !this.dailyAction) return;
-    const bounds = computeDailyLayout(viewport);
+    if (!this.shell || !this.coinPill || !this.summaryPanel || !this.calendarPanel || !this.dailyAction) return;
+    const shell = this.shell.layout(viewport);
+    const bounds = computeDailyLayout(viewport, shell.content);
     const css = viewport.minTouchTarget / 44;
-    this.homeButton.setViewport(viewport);
     this.dailyAction.setViewport(viewport);
     this.previousMonth?.setViewport(viewport);
     this.nextMonth?.setViewport(viewport);
-    this.homeButton.layout(bounds.home);
     this.summaryPanel.layout(bounds.summary);
     this.calendarPanel.layout(bounds.calendar);
 
-    const coinWidth = Math.min(bounds.header.width * 0.14, 150 * viewport.uiScale);
-    this.coinPill.layout({ x: bounds.header.x + bounds.header.width - coinWidth, y: bounds.header.y, width: coinWidth, height: bounds.header.height });
-    this.title?.setPosition(bounds.header.x + bounds.header.width / 2, bounds.header.y + bounds.header.height / 2)
-      .setFontSize(Math.max(20, Math.min(36, bounds.header.height * 0.48)));
+    const coinWidth = Math.min(shell.rightSlot.width, 150 * viewport.uiScale);
+    this.coinPill.layout({ x: shell.rightSlot.x + shell.rightSlot.width - coinWidth, y: shell.rightSlot.y, width: coinWidth, height: shell.rightSlot.height });
 
     const inner: UiRect = {
-      x: bounds.summary.x + bounds.summary.width * 0.08,
-      y: bounds.summary.y + bounds.summary.height * 0.08,
-      width: bounds.summary.width * 0.84,
-      height: bounds.summary.height * 0.84,
+      x: bounds.summary.x + bounds.summary.width * 0.07,
+      y: bounds.summary.y + bounds.summary.height * 0.06,
+      width: bounds.summary.width * 0.86,
+      height: bounds.summary.height * 0.88,
     };
-    const emblem = Math.min(inner.height * 0.12, 64 * css);
-    this.summaryIcon?.setDisplaySize(emblem, emblem).setPosition(inner.x + inner.width / 2, inner.y + inner.height * 0.10);
-    this.streakText?.setPosition(inner.x + inner.width / 2, inner.y + inner.height * 0.27).setFontSize(Math.max(13 * css, Math.min(23 * css, inner.height * 0.055)));
-    this.resultTextObject?.setWordWrapWidth(inner.width * 0.9).setPosition(inner.x + inner.width / 2, inner.y + inner.height * 0.45).setFontSize(Math.max(11 * css, Math.min(18 * css, inner.height * 0.043)));
-    this.dailyAction.layout({ x: inner.x, y: inner.y + inner.height * 0.64, width: inner.width, height: inner.height * 0.18 });
+    const actionHeight = Math.max(viewport.minTouchTarget, Math.min(inner.height * 0.20, 104 * viewport.uiScale));
+    const actionY = inner.y + inner.height - actionHeight;
+    const rowsTop = inner.y + inner.height * 0.01;
+    const rowsBottom = actionY - inner.height * 0.055;
+    const rowHeight = Math.max(1, (rowsBottom - rowsTop) / 3);
+    const badgeSize = Math.max(30 * css, Math.min(52 * css, rowHeight * 0.58));
+    const iconSize = badgeSize * 0.56;
+    const labelSize = Math.max(10 * css, Math.min(13 * css, rowHeight * 0.17));
+    const valueSize = Math.max(12 * css, Math.min(18 * css, rowHeight * 0.24));
+    const iconX = inner.x + inner.width * 0.06 + badgeSize / 2;
+    const textX = inner.x + inner.width * 0.22;
+    const textWidth = inner.x + inner.width - textX - inner.width * 0.04;
+    this.summaryDividers?.clear();
+    for (let index = 0; index < 3; index += 1) {
+      const rowY = rowsTop + rowHeight * index;
+      const centerY = rowY + rowHeight / 2;
+      const badge = this.summaryRowIconBadges[index];
+      badge?.clear();
+      badge?.fillStyle(UI_TOKENS.color.goldLight, 0.22).fillCircle(iconX, centerY, badgeSize / 2);
+      badge?.lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.18).strokeCircle(iconX, centerY, badgeSize / 2);
+      this.summaryRowIcons[index]?.setDisplaySize(iconSize, iconSize).setPosition(iconX, centerY);
+      this.summaryRowLabels[index]?.setFontSize(labelSize).setPosition(textX, centerY - rowHeight * 0.15);
+      this.summaryRowValues[index]?.setFontSize(valueSize).setWordWrapWidth(textWidth).setPosition(textX, centerY + rowHeight * 0.15);
+      if (index < 2) {
+        const dividerY = rowY + rowHeight;
+        this.summaryDividers?.lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.28)
+          .lineBetween(inner.x + inner.width * 0.04, dividerY, inner.x + inner.width * 0.96, dividerY);
+      }
+    }
+    this.dailyAction.layout({ x: inner.x, y: actionY, width: inner.width, height: actionHeight });
 
-    const navSize = Math.min(bounds.calendarHeader.height, Math.max(viewport.minTouchTarget, 56 * viewport.uiScale));
-    this.previousMonth?.layout({ x: bounds.calendarHeader.x + bounds.calendarHeader.width * 0.04, y: bounds.calendarHeader.y + (bounds.calendarHeader.height - navSize) / 2, width: navSize, height: navSize });
-    this.nextMonth?.layout({ x: bounds.calendarHeader.x + bounds.calendarHeader.width - bounds.calendarHeader.width * 0.04 - navSize, y: bounds.calendarHeader.y + (bounds.calendarHeader.height - navSize) / 2, width: navSize, height: navSize });
+    const monthNav = computeMonthNavigationBounds(bounds.calendarHeader, viewport);
+    this.previousMonth?.layout(monthNav.previous);
+    this.nextMonth?.layout(monthNav.next);
     this.monthText?.setPosition(bounds.calendarHeader.x + bounds.calendarHeader.width / 2, bounds.calendarHeader.y + bounds.calendarHeader.height / 2)
       .setFontSize(Math.max(14, Math.min(24, bounds.calendarHeader.height * 0.32)));
 
@@ -175,6 +222,7 @@ export class DailyScene extends BaseUiScene {
     });
     const snapshot = productBridge.snapshot();
     const records = snapshot.state.daily.records;
+    this.calendarRecords = records;
     this.cells.forEach((cell, index) => this.layoutCell(cell, cellBounds[index] ?? bounds.calendarGrid, viewport, records));
     this.layoutConfirmation(viewport);
   }
@@ -189,7 +237,18 @@ export class DailyScene extends BaseUiScene {
         color: '#24302e', fontFamily: 'system-ui, sans-serif', fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(21);
       const zone = this.add.zone(0, 0, 1, 1).setOrigin(0).setDepth(22).setInteractive();
-      const cell: CalendarCell = { surface, label, zone, dateKey, selectable };
+      zone.input!.cursor = selectable ? 'pointer' : 'default';
+      const cell: CalendarCell = { surface, label, zone, dateKey, selectable, hovered: false, bounds: null };
+      zone.on('pointerover', () => {
+        if (!cell.selectable) return;
+        cell.hovered = true;
+        this.redrawCell(cell);
+      });
+      zone.on('pointerout', () => {
+        if (!cell.hovered) return;
+        cell.hovered = false;
+        this.redrawCell(cell);
+      });
       zone.on('pointerdown', () => {
         if (cell.selectable && cell.dateKey) { playUiButtonSound(this); this.selectDate(cell.dateKey); }
       });
@@ -220,26 +279,33 @@ export class DailyScene extends BaseUiScene {
   }
 
   private layoutCell(cell: CalendarCell, bounds: UiRect, viewport: ResolvedUiViewport, records: DailyRecordMap): void {
+    cell.bounds = bounds;
     const record = cell.dateKey ? records[cell.dateKey] : undefined;
     const selected = cell.dateKey === this.selectedDateKey;
+    const hovered = cell.hovered && cell.selectable && !selected;
     const today = cell.dateKey === this.todayKey;
     const fill = selected ? UI_TOKENS.color.control
       : today ? UI_TOKENS.color.paperPressed
         : record?.completedOnTime ? 0xb9cba8
           : record?.completed ? 0xb9c4c9
             : UI_TOKENS.color.paper;
-    const alpha = cell.dateKey ? (cell.selectable ? 0.94 : 0.55) : 0;
+    const alpha = cell.dateKey ? (cell.selectable ? (hovered ? 1 : 0.94) : 0.55) : 0;
     cell.surface.clear();
     if (cell.dateKey) {
       cell.surface.fillStyle(fill, alpha).fillRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, Math.max(4, bounds.height * 0.16));
-      cell.surface.lineStyle(selected ? 3 : 1, selected ? UI_TOKENS.color.gold : UI_TOKENS.color.mutedInk, selected ? 1 : 0.35)
+      cell.surface.lineStyle(selected ? 3 : hovered ? 2 : 1, selected || hovered ? UI_TOKENS.color.gold : UI_TOKENS.color.mutedInk, selected ? 1 : hovered ? 0.82 : 0.35)
         .strokeRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, Math.max(4, bounds.height * 0.16));
     }
-    cell.label.setColor(selected ? '#fff2d4' : '#24302e').setVisible(Boolean(cell.dateKey)).setAlpha(alpha)
+    cell.label.setColor(selected ? '#fff2d4' : '#24302e').setVisible(Boolean(cell.dateKey)).setAlpha(alpha).setScale(hovered ? 1.04 : 1)
       .setPosition(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
       .setFontSize(Math.max(10 * viewport.minTouchTarget / 44, Math.min(18 * viewport.minTouchTarget / 44, bounds.height * 0.30)));
     const hitHeight = Math.max(bounds.height, viewport.minTouchTarget);
     cell.zone.setPosition(bounds.x, bounds.y - (hitHeight - bounds.height) / 2).setSize(bounds.width, hitHeight);
+  }
+
+  private redrawCell(cell: CalendarCell): void {
+    if (!cell.bounds) return;
+    this.layoutCell(cell, cell.bounds, this.currentUiViewport(), this.calendarRecords);
   }
 
   private selectDate(dateKey: string): void {
@@ -250,7 +316,8 @@ export class DailyScene extends BaseUiScene {
 
   private refreshSummary(): void {
     const snapshot = productBridge.snapshot();
-    const record = snapshot.state.daily.records[this.selectedDateKey];
+    this.calendarRecords = snapshot.state.daily.records;
+    const record = this.calendarRecords[this.selectedDateKey];
     const active = snapshot.activeDailyId === this.selectedDateKey;
     const completed = record?.completed === true;
     const isToday = this.selectedDateKey === this.todayKey;
@@ -273,18 +340,18 @@ export class DailyScene extends BaseUiScene {
     this.dailyAction?.setState({ title, subtitle: `${this.selectedDateKey}${reward}${rankingNote}`, emphasis: 'highlight', enabled: true });
 
     const streak = getDailyStreaks(snapshot.state.daily.records, this.todayKey);
-    this.streakText?.setText(`${t('Серия')}: ${streak.current} · ${t('Лучшее')}: ${streak.best}`);
-    const best = formatTime(record?.bestTimeMs);
+    this.summaryRowLabels[0]?.setText(t('Серия'));
+    this.summaryRowLabels[1]?.setText(t('Официальный рекорд'));
+    this.summaryRowLabels[2]?.setText(t('Личный рекорд'));
+    this.summaryRowValues[0]?.setText(`${formatStreakDays(streak.current)} · ${t('Лучшее')} ${streak.best}`);
+    const officialRecord = record?.bestMoves !== undefined && record.bestMovesTimeMs !== undefined
+      ? `${record.bestMoves} ${getLanguage() === 'en' ? 'moves' : 'ходов'} · ${formatTime(record.bestMovesTimeMs)}`
+      : rankingLocked ? t('Рейтинговая попытка использована')
+        : t('Ещё не пройдено');
+    this.summaryRowValues[1]?.setText(officialRecord);
     const hintRemaining = record?.hintUsed ? 0 : 1;
-    const hintStatus = `${t('Подсказка')} ${hintRemaining}/1`;
-    const rankingResult = record?.bestMoves !== undefined && record.bestMovesTimeMs !== undefined
-      ? `${t('Рейтинг за сегодня')}: ${record.bestMoves} ${getLanguage() === 'en' ? 'moves' : 'ходов'} · ${formatTime(record.bestMovesTimeMs)} · ${hintStatus}`
-      : rankingLocked ? `${t('Рейтинговая попытка использована')} · ${hintStatus}`
-        : `${t('Первая попытка идёт в рейтинг')} · ${hintStatus}`;
-    this.resultTextObject?.setText(isToday
-      ? `${t('Лучшее время')}: ${best}
-${rankingResult}`
-      : `${t('Лучшее время')}: ${best}`);
+    const personalRecord = record?.bestTimeMs !== undefined ? formatTime(record.bestTimeMs) : t('Ещё не пройдено');
+    this.summaryRowValues[2]?.setText(`${personalRecord} · ${t('Подсказка')} ${hintRemaining}/1`);
     this.coinPill?.setCoins(snapshot.state.progression.coins);
   }
 
@@ -364,19 +431,21 @@ ${rankingResult}`
   }
 
   private clearDailySceneReferences(): void {
-    this.homeButton = null;
+    this.shell = null;
     this.coinPill = null;
     this.summaryPanel = null;
     this.calendarPanel = null;
     this.dailyAction = null;
-    this.title = null;
-    this.streakText = null;
-    this.resultTextObject = null;
     this.monthText = null;
+    this.summaryDividers = null;
+    this.summaryRowIconBadges = [];
+    this.summaryRowIcons = [];
+    this.summaryRowLabels = [];
+    this.summaryRowValues = [];
     this.previousMonth = null;
     this.nextMonth = null;
+    this.calendarRecords = {};
     this.weekdays = [];
-    this.summaryIcon = null;
     this.confirmShell = null;
     this.confirmText = null;
     this.confirmCancel = null;
@@ -384,6 +453,7 @@ ${rankingResult}`
   }
 
   private shutdownDailyScene(): void {
+    this.shell?.destroy();
     this.unsubscribeBridge?.();
     this.unsubscribeBridge = null;
     this.destroyCalendarCells();

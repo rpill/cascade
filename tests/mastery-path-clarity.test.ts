@@ -10,3 +10,14 @@ test('Mastery path is explicitly labelled and future ranks are visually secondar
   assert.match(source, /item\.current\s*\?\s*1/);
   assert.match(source, /item\.completed/);
 });
+
+
+test('Mastery uses the screen width instead of a centered 1200px island and keeps the rank path readable', () => {
+  assert.doesNotMatch(source, /viewport\.width-1200\*css/);
+  assert.match(source, /pathBackdrop/);
+  assert.match(source, /CoinPill/);
+  assert.match(source, /bounds\.width\s*\*\s*\(mobile \? 0\.90 : 0\.88\)/);
+  assert.match(source, /pathLocks/);
+  assert.match(source, /drawPathConnectors/);
+  assert.doesNotMatch(source, /item\.completed\?0\.78:0\.42/);
+});
