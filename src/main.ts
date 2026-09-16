@@ -67,14 +67,22 @@ void startWhenHostReady(
 
       if (!zoomChanged && !sizeChanged) return;
 
-      if (zoomChanged) {
-        game.scale.setZoom(next.cssZoom);
-        lastCssZoom = next.cssZoom;
-      }
+      // Phaser leaves an inline CSS size behind after HiDPI zoom. When the
+      // zoom returns to 1, ScaleManager.resize() intentionally does not
+      // overwrite that style, so a mobile CSS size can survive on desktop.
+      // Own the display size explicitly and update the backing store before
+      // changing zoom so the final refresh always uses the new dimensions.
+      game.canvas.style.width = `${next.logicalWidth}px`;
+      game.canvas.style.height = `${next.logicalHeight}px`;
+
       if (sizeChanged) {
         game.scale.resize(next.backingWidth, next.backingHeight);
         lastBackingWidth = next.backingWidth;
         lastBackingHeight = next.backingHeight;
+      }
+      if (zoomChanged) {
+        game.scale.setZoom(next.cssZoom);
+        lastCssZoom = next.cssZoom;
       }
     };
 
