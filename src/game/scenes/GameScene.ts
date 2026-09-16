@@ -193,6 +193,7 @@ export class GameScene extends Phaser.Scene {
       doubleCoins: () => { void this.claimStandardRewardDouble(); },
       sound: (cue) => this.sfxController.play(cue),
     });
+    this.applyViewportLayout();
     this.activeGameRepository = new ActiveGameRepository();
     this.installProductBridge();
     this.events.on('service-overlay-closed', this.handleServiceOverlayClosed, this);
@@ -1073,9 +1074,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showProductHome(canCancel: boolean): void {
-    for (const key of ['DailyScene','MasteryScene','ThemesScene','LeaderboardsScene','SettingsScene','HowToPlayScene']) {
-      if (this.scene.isActive(key) || this.scene.isPaused(key)) this.scene.stop(key);
-    }
+    this.stopProductUiScenes();
     if (canCancel) this.board?.setUiPaused(true);
     if (!this.scene.isActive('HomeScene')) this.scene.launch('HomeScene');
     else this.scene.bringToTop('HomeScene');
@@ -1086,6 +1085,7 @@ export class GameScene extends Phaser.Scene {
     for (const key of ['HomeScene','DailyScene','MasteryScene','ThemesScene','LeaderboardsScene','SettingsScene','HowToPlayScene']) {
       if (this.scene.isActive(key) || this.scene.isPaused(key)) this.scene.stop(key);
     }
+    if (this.rulesOpen) this.clearRulesOverlayState();
   }
 
   private startStandardFromProductHome(difficulty: StandardDifficulty): void {
@@ -1177,7 +1177,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private openSettingsFromGame(): void {
-    if (this.gameState === null || this.serviceOverlayOpen || this.scene.isActive('SettingsScene')) return;
+    if (this.rulesOpen || this.gameState === null || this.serviceOverlayOpen || this.scene.isActive('SettingsScene')) return;
     this.serviceOverlayOpen = true;
     this.board?.setUiPaused(true);
     this.reconcileGameplayActivity();
@@ -1194,6 +1194,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private openMainMenu(): void {
+    if (this.rulesOpen) return;
     if (!this.flow.openMainMenu()) {
       return;
     }
@@ -1220,19 +1221,26 @@ export class GameScene extends Phaser.Scene {
   private finishProductHowToPlay(onboarding: boolean): void {
     if (this.scene.isActive('HowToPlayScene')) this.scene.stop('HowToPlayScene');
     const wasOnboarding = this.rulesOnboarding || onboarding;
-    this.rulesOpen = false;
-    this.rulesOnboarding = false;
+    this.clearRulesOverlayState();
     if (wasOnboarding) {
       preferences.markHowToPlaySeen();
       analytics.goal('tutorial_complete');
     }
-    if (this.flow.state === 'playing') {
-      this.board?.setUiPaused(false);
+  }
+
+  private clearRulesOverlayState(): void {
+    this.rulesOpen = false;
+    this.rulesOnboarding = false;
+    if (this.flow.state !== 'playing') {
+      this.rulesBlockedBoardSettle = false;
       this.reconcileGameplayActivity();
-      if (this.rulesBlockedBoardSettle && this.gameState !== null) {
-        this.rulesBlockedBoardSettle = false;
-        this.onBoardSettled(this.gameState);
-      }
+      return;
+    }
+    this.board?.setUiPaused(false);
+    this.reconcileGameplayActivity();
+    if (this.rulesBlockedBoardSettle && this.gameState !== null) {
+      this.rulesBlockedBoardSettle = false;
+      this.onBoardSettled(this.gameState);
     }
   }
 

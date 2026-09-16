@@ -3,21 +3,6 @@ import type { UiRect } from '../layout/HomeLayout.ts';
 
 const DRAG_START_THRESHOLD = 8;
 
-interface FilterCapableContainer extends Phaser.GameObjects.Container {
-  enableFilters(): this;
-  filters: {
-    internal: {
-      addMask(
-        mask: Phaser.GameObjects.GameObject,
-        invert?: boolean,
-        viewCamera?: Phaser.Cameras.Scene2D.Camera,
-        viewTransform?: 'local' | 'world',
-        scaleFactor?: number,
-      ): unknown;
-    };
-  };
-}
-
 export class ScrollRegion {
   private readonly scene: Phaser.Scene;
   private readonly content: Phaser.GameObjects.Container;
@@ -36,9 +21,8 @@ export class ScrollRegion {
     this.maskGraphics = scene.make.graphics({}, false);
 
     if (scene.game.renderer.type === Phaser.WEBGL) {
-      const filterContent = this.content as FilterCapableContainer;
-      filterContent.enableFilters();
-      filterContent.filters.internal.addMask(this.maskGraphics, false, scene.cameras.main, 'world');
+      this.content.enableFilters();
+      this.content.filters!.internal.addMask(this.maskGraphics, false, scene.cameras.main, 'world');
     } else {
       this.canvasMask = this.maskGraphics.createGeometryMask();
       this.content.setMask(this.canvasMask);

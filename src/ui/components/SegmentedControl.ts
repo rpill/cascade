@@ -4,6 +4,7 @@ import type { ResolvedUiViewport } from '../layout/UiViewport.ts';
 import { normalizeTouchTarget } from '../layout/UiViewport.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
 import { UiSurface } from './UiSurface.ts';
+import { playUiButtonSound } from '../sound/UiSound.ts';
 
 export interface SegmentOption<T extends string> {
   readonly value: T;
@@ -48,7 +49,7 @@ export class SegmentedControl<T extends string> {
       }).setOrigin(0.5).setDepth(depth + 0.1);
       const zone = scene.add.zone(0, 0, 1, 1).setOrigin(0).setDepth(depth + 0.2).setInteractive();
       zone.on('pointerdown', () => {
-        if (this.enabled && option.enabled !== false) this.onSelect(option.value);
+        if (this.enabled && option.enabled !== false) { playUiButtonSound(scene); this.onSelect(option.value); }
       });
       zone.input!.cursor = 'pointer';
       return { option, surface, marker, label, zone };

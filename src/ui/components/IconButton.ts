@@ -4,6 +4,7 @@ import type { ResolvedUiViewport } from '../layout/UiViewport.ts';
 import { normalizeTouchTarget } from '../layout/UiViewport.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
 import { UiSurface } from './UiSurface.ts';
+import { playUiButtonSound } from '../sound/UiSound.ts';
 
 export interface IconButtonState {
   readonly iconKey: string;
@@ -36,7 +37,7 @@ export class IconButton {
       .setDepth(depth + 0.1);
     this.zone = scene.add.zone(0, 0, 1, 1).setOrigin(0).setDepth(depth + 0.2).setInteractive();
     this.zone.on('pointerdown', () => {
-      if (this.state.enabled) this.onPress();
+      if (this.state.enabled) { playUiButtonSound(scene); this.onPress(); }
     });
     this.zone.input!.cursor = 'pointer';
     this.zone.on('pointerover', () => { if (this.state.enabled) this.surface.feedback('hover'); });

@@ -3,6 +3,7 @@ import type { ViewportLayout } from '../../game/view/ViewportLayout.ts';
 import { PaperPanel } from '../components/PaperPanel.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
 import { UiSurface } from '../components/UiSurface.ts';
+import { playUiButtonSound } from '../sound/UiSound.ts';
 
 export interface WinOverlayContent {
   readonly title: string;
@@ -192,7 +193,10 @@ export class WinOverlay {
     const zone = scene.add.zone(0, 0, 1, 1).setOrigin(0).setDepth(depth + 0.2).setInteractive();
     const button: OverlayButton = { surface, label, zone, action, enabled: true };
     zone.on('pointerdown', () => {
-      if (button.enabled) button.action();
+      if (button.enabled) {
+        playUiButtonSound(scene);
+        button.action();
+      }
     });
     return button;
   }

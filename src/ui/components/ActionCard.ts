@@ -7,6 +7,7 @@ import { ProgressMeter, type ProgressValue } from './ProgressMeter.ts';
 import { UiSurface } from './UiSurface.ts';
 import { UI_ICON_KEYS } from '../assets/UiAssets.ts';
 import { CASCADE_UI_ART_KEYS } from '../assets/CascadeUiArt.ts';
+import { playUiButtonSound } from '../sound/UiSound.ts';
 
 export interface ActionCardState {
   readonly title: string;
@@ -67,7 +68,7 @@ export class ActionCard {
     this.zone.on('pointerup', () => {
       const activate = this.armed && this.state.enabled;
       this.armed = false;
-      if (activate) { this.surface.feedback('normal'); this.onPress(); }
+      if (activate) { this.surface.feedback('normal'); playUiButtonSound(scene); this.onPress(); }
     });
     this.progress = new ProgressMeter(scene, depth + 0.1);
   }

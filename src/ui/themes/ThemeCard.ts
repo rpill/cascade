@@ -8,6 +8,7 @@ import { t } from '../../localization/Localization.ts';
 import { UiSurface } from '../components/UiSurface.ts';
 import { UI_ART_KEYS } from '../assets/UiAssets.ts';
 import { coverCrop } from '../assets/ArtworkLayout.ts';
+import { playUiButtonSound } from '../sound/UiSound.ts';
 
 function color(value: string): number { return Number.parseInt(value.replace('#',''),16); }
 
@@ -37,7 +38,7 @@ export class ThemeCard {
     this.action=scene.add.text(0,0,'',{color:'#7a642f',fontFamily:'system-ui, sans-serif',fontStyle:'bold'}).setOrigin(0.5);
     this.zone=scene.add.zone(0,0,1,1).setOrigin(0).setInteractive();
     this.zone.on('pointerdown',(pointer:Phaser.Input.Pointer)=>{this.pressStart={x:pointer.x,y:pointer.y};});
-    this.zone.on('pointerup',(pointer:Phaser.Input.Pointer)=>{const start=this.pressStart;this.pressStart=null;if(!start||this.state.action==='none')return;if(isPressGesture(start,{x:pointer.x,y:pointer.y}))this.onPress(this.id);});
+    this.zone.on('pointerup',(pointer:Phaser.Input.Pointer)=>{const start=this.pressStart;this.pressStart=null;if(!start||this.state.action==='none')return;if(isPressGesture(start,{x:pointer.x,y:pointer.y})){playUiButtonSound(scene);this.onPress(this.id);}});
     this.zone.on('pointerout',()=>{this.pressStart=null;});
     this.container.add([this.surface.object,this.painting,this.preview,this.title,this.status,this.action,this.zone]);
     this.syncText();

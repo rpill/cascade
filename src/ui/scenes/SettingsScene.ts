@@ -8,6 +8,7 @@ import type { ResolvedUiViewport } from '../layout/UiViewport.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
 import { BaseUiScene } from './BaseUiScene.ts';
 import { PaperPanel } from '../components/PaperPanel.ts';
+import { playUiButtonSound } from '../sound/UiSound.ts';
 
 interface SettingsLaunchData { readonly returnScene?: string }
 
@@ -46,8 +47,8 @@ export class SettingsScene extends BaseUiScene {
       color: '#e7ddc5', fontFamily: 'system-ui, sans-serif',
     }).setOrigin(0.5);
     this.languageControl = new SegmentedControl<Language>(this, viewport, [
-      { value: 'ru', label: t('Русский') },
-      { value: 'en', label: t('Английский') },
+      { value: 'ru', label: 'Русский' },
+      { value: 'en', label: 'English' },
     ], state.language, (value) => this.selectLanguage(value), 20);
     this.back = new ActionCard(this, viewport, { title: t('НАЗАД'), enabled: true }, () => this.close(), 20);
 
@@ -86,6 +87,7 @@ export class SettingsScene extends BaseUiScene {
   private toggleSfx(): void {
     const current = productBridge.settingsSnapshot();
     productBridge.setSoundEnabled(!current.soundEnabled);
+    if (!current.soundEnabled) playUiButtonSound(this);
     this.refreshState();
   }
 

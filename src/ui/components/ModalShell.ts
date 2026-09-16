@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import type { UiRect } from '../layout/HomeLayout.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
 import { PaperPanel } from './PaperPanel.ts';
+import { playUiButtonSound } from '../sound/UiSound.ts';
 
 export class ModalShell {
   private readonly dimmer: Phaser.GameObjects.Rectangle;
@@ -31,7 +32,7 @@ export class ModalShell {
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(depth + 2);
     this.closeZone = scene.add.zone(0, 0, 1, 1).setOrigin(0.5).setDepth(depth + 3).setInteractive();
-    this.closeZone.on('pointerdown', () => this.onClose());
+    this.closeZone.on('pointerdown', () => { playUiButtonSound(scene); this.onClose(); });
   }
 
   layout(viewportWidth: number, viewportHeight: number, bounds: UiRect): void {

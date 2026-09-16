@@ -12,6 +12,7 @@ import type { UiRect } from '../layout/HomeLayout.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
 import { UI_ICON_KEYS } from '../assets/UiAssets.ts';
 import { BaseUiScene } from './BaseUiScene.ts';
+import { playUiButtonSound } from '../sound/UiSound.ts';
 
 interface CalendarCell {
   readonly surface: Phaser.GameObjects.Graphics;
@@ -206,7 +207,7 @@ export class DailyScene extends BaseUiScene {
       const zone = this.add.zone(0, 0, 1, 1).setOrigin(0).setDepth(22).setInteractive();
       const cell: CalendarCell = { surface, label, zone, dateKey, selectable };
       zone.on('pointerdown', () => {
-        if (cell.selectable && cell.dateKey) this.selectDate(cell.dateKey);
+        if (cell.selectable && cell.dateKey) { playUiButtonSound(this); this.selectDate(cell.dateKey); }
       });
       this.cells.push(cell);
     }
