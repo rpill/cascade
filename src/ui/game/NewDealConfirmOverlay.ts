@@ -4,6 +4,8 @@ import { ActionCard } from '../components/ActionCard.ts';
 import { ModalShell } from '../components/ModalShell.ts';
 import { resolveUiViewport, scaleUiViewportForBacking, type ResolvedUiViewport } from '../layout/UiViewport.ts';
 
+export type NewDealConfirmKind = 'new-deal' | 'daily-ranking-restart';
+
 export class NewDealConfirmOverlay {
   private readonly scene: Phaser.Scene;
   private readonly shell: ModalShell;
@@ -12,12 +14,13 @@ export class NewDealConfirmOverlay {
   private readonly confirmAction: ActionCard;
   private resolver: ((confirmed: boolean) => void) | null = null;
   private visible = false;
+  private kind: NewDealConfirmKind = 'new-deal';
 
   constructor(scene: Phaser.Scene, depth = 6100) {
     this.scene = scene;
     const viewport = this.resolveViewport();
-    this.shell = new ModalShell(scene, t('Начать новую раздачу?'), () => this.finish(false), depth);
-    this.copy = scene.add.text(0, 0, t('Текущая партия будет завершена.'), {
+    this.shell = new ModalShell(scene, '', () => this.finish(false), depth);
+    this.copy = scene.add.text(0, 0, '', {
       color: '#64706a',
       fontFamily: 'system-ui, sans-serif',
       align: 'center',
@@ -26,11 +29,14 @@ export class NewDealConfirmOverlay {
     this.cancel = new ActionCard(scene, viewport, { title: t('ОТМЕНА'), enabled: true }, () => this.finish(false), depth + 2);
     this.confirmAction = new ActionCard(scene, viewport, { title: t('НОВАЯ РАЗДАЧА'), emphasis: 'highlight', enabled: true }, () => this.finish(true), depth + 2);
     this.scene.input.keyboard?.on('keydown-ESC', this.handleEscape, this);
+    this.syncCopy();
     this.setVisible(false);
   }
 
-  confirm(): Promise<boolean> {
+  confirm(kind: NewDealConfirmKind = 'new-deal'): Promise<boolean> {
     if (this.resolver !== null) this.finish(false);
+    this.kind = kind;
+    this.syncCopy();
     this.visible = true;
     this.setVisible(true);
     this.relayout();
@@ -38,9 +44,7 @@ export class NewDealConfirmOverlay {
   }
 
   refreshLocalization(): void {
-    this.copy.setText(t('Текущая партия будет завершена.'));
-    this.cancel.setState({ title: t('ОТМЕНА'), enabled: true });
-    this.confirmAction.setState({ title: t('НОВАЯ РАЗДАЧА'), emphasis: 'highlight', enabled: true });
+    this.syncCopy();
   }
 
   relayout(): void {
@@ -74,6 +78,20 @@ export class NewDealConfirmOverlay {
     this.copy.destroy();
     this.cancel.destroy();
     this.confirmAction.destroy();
+  }
+
+  private syncCopy(): void {
+    const rankingRestart = this.kind === 'daily-ranking-restart';
+    this.shell.setTitle(rankingRestart ? t('Перезапустить Daily?') : t('Начать новую раздачу?'));
+    this.copy.setText(rankingRestart
+      ? t('Рейтинговая попытка будет завершена. Повторные попытки сегодня не изменят место в таблице.')
+      : t('Текущая партия будет завершена.'));
+    this.cancel.setState({ title: t('ОТМЕНА'), enabled: true });
+    this.confirmAction.setState({
+      title: rankingRestart ? t('ПЕРЕЗАПУСТИТЬ') : t('НОВАЯ РАЗДАЧА'),
+      emphasis: 'highlight',
+      enabled: true,
+    });
   }
 
   private setVisible(visible: boolean): void {

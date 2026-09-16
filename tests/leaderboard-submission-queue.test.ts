@@ -78,3 +78,18 @@ test('queue rejects invalid scores without scheduling a submit', async () => {
   assert.equal(calls, 0);
   assert.equal(queue.pendingCount, 0);
 });
+
+test('latest coalescing keeps a downward streak update instead of max score', async () => {
+  const calls: Array<{name:string;score:number}> = [];
+  let now = 0;
+  const queue = new LeaderboardSubmissionQueue(
+    async (name, score) => { calls.push({name,score}); },
+    async (ms) => { now += ms; },
+    () => now,
+    0,
+  );
+  const first = queue.enqueue('dailystreak', 900015, 'latest');
+  const second = queue.enqueue('dailystreak', 15, 'latest');
+  await Promise.all([first, second]);
+  assert.deepEqual(calls, [{ name: 'dailystreak', score: 15 }]);
+});

@@ -159,3 +159,31 @@ test('journal rejects malformed Standard product operations', () => {
     assert.deepEqual(new MetaJournal(`invalid-${index}`, storage).pending, []);
   }
 });
+
+test('journal restores Daily ranking eligibility and persisted hint usage', () => {
+  const storage = new MemoryStorage();
+  const journal = new MetaJournal('player-daily-rules', storage);
+
+  assert.ok(journal.append({
+    kind: 'begin',
+    attemptId: 'daily-attempt-1',
+    mode: 'daily',
+    dailyId: '2026-09-16',
+    weekId: '2026-W38',
+    dailyRankingEligible: true,
+  }));
+  assert.ok(journal.append({ kind: 'daily-hint-used', dailyId: '2026-09-16' }));
+
+  const restored = new MetaJournal('player-daily-rules', storage);
+  assert.deepEqual(restored.pending.map(({ operation }) => operation), [
+    {
+      kind: 'begin',
+      attemptId: 'daily-attempt-1',
+      mode: 'daily',
+      dailyId: '2026-09-16',
+      weekId: '2026-W38',
+      dailyRankingEligible: true,
+    },
+    { kind: 'daily-hint-used', dailyId: '2026-09-16' },
+  ]);
+});

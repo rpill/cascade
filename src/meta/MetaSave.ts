@@ -21,7 +21,11 @@ export interface DailyRecord {
   completed: boolean;
   completedOnTime: boolean;
   bestTimeMs?: number;
+  bestMoves?: number;
+  bestMovesTimeMs?: number;
   attempts: number;
+  rankingAttemptId?: string;
+  hintUsed?: boolean;
 }
 
 export interface ModeStats { played: number; wins: number; bestTimeMs?: number }
@@ -108,7 +112,19 @@ function dailyRecord(value: unknown): DailyRecord | null {
   const completed = value.completed === true;
   const completedOnTime = value.completedOnTime === true;
   const best = typeof value.bestTimeMs === 'number' && Number.isFinite(value.bestTimeMs) && value.bestTimeMs > 0 ? value.bestTimeMs : undefined;
-  return { completed, completedOnTime, attempts, ...(best === undefined ? {} : { bestTimeMs: best }) };
+  const bestMoves = typeof value.bestMoves === 'number' && Number.isSafeInteger(value.bestMoves) && value.bestMoves > 0 ? value.bestMoves : undefined;
+  const bestMovesTimeMs = typeof value.bestMovesTimeMs === 'number' && Number.isFinite(value.bestMovesTimeMs) && value.bestMovesTimeMs > 0 ? value.bestMovesTimeMs : undefined;
+  const rankingAttemptId = typeof value.rankingAttemptId === 'string' && /^[a-zA-Z0-9_~\-]{1,100}$/.test(value.rankingAttemptId)
+    ? value.rankingAttemptId
+    : undefined;
+  const hintUsed = value.hintUsed === true;
+  return {
+    completed, completedOnTime, attempts,
+    ...(best === undefined ? {} : { bestTimeMs: best }),
+    ...(bestMoves === undefined || bestMovesTimeMs === undefined ? {} : { bestMoves, bestMovesTimeMs }),
+    ...(rankingAttemptId === undefined ? {} : { rankingAttemptId }),
+    ...(hintUsed ? { hintUsed: true } : {}),
+  };
 }
 function normalizeDaily(value: unknown): DailyState {
   const raw = isObject(value) ? value : {};

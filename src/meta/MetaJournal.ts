@@ -84,6 +84,10 @@ function isMetaOperation(value: unknown): value is MetaOperation {
     return typeof value.dayId === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.dayId);
   }
 
+  if (value.kind === 'daily-hint-used') {
+    return typeof value.dailyId === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.dailyId);
+  }
+
   if (
     (value.kind !== 'begin' && value.kind !== 'complete')
     || typeof value.attemptId !== 'string'
@@ -95,11 +99,14 @@ function isMetaOperation(value: unknown): value is MetaOperation {
     return false;
   }
 
-  if (value.kind === 'begin') return true;
+  if (value.kind === 'begin') {
+    return value.dailyRankingEligible === undefined || typeof value.dailyRankingEligible === 'boolean';
+  }
   if (
     typeof value.elapsedMs !== 'number'
     || !Number.isFinite(value.elapsedMs)
     || value.elapsedMs <= 0
+    || (value.moves !== undefined && (typeof value.moves !== 'number' || !Number.isSafeInteger(value.moves) || value.moves <= 0))
     || !isNullableString(value.trustedDay)
     || !isNullableString(value.trustedWeek)
   ) return false;

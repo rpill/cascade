@@ -24,6 +24,7 @@ export class MasteryScene extends BaseUiScene {
   private requirementTexts:Phaser.GameObjects.Text[]=[];
   private meters:ProgressMeter[]=[];
   private rewardText:Phaser.GameObjects.Text|null=null;
+  private pathHeading:Phaser.GameObjects.Text|null=null;
   private pathTexts:Phaser.GameObjects.Text[]=[];
   private pathBadges:Phaser.GameObjects.Image[]=[];
 
@@ -42,8 +43,9 @@ export class MasteryScene extends BaseUiScene {
     this.requirementTexts=this.vm.requirements.map(req=>this.add.text(0,0,`${req.label}: ${req.current} / ${req.total}`,{color:'#24302e',fontFamily:'system-ui, sans-serif',fontStyle:'bold'}).setOrigin(0,0.5).setDepth(20));
     this.meters=this.vm.requirements.map(req=>{const meter=new ProgressMeter(this,20);meter.setProgress({current:req.current,total:req.total});return meter;});
     this.rewardText=this.add.text(0,0,this.vm.nextRewardCoins>0?t('Награда за ранг: +{count} монет',{count:this.vm.nextRewardCoins}):t('Все ранги открыты'),{color:'#7a642f',fontFamily:'system-ui, sans-serif',fontStyle:'bold'}).setOrigin(0.5).setDepth(20);
-    this.pathTexts=this.vm.path.map(item=>this.add.text(0,0,item.label,{color:item.current?'#7a642f':item.completed?'#405d55':'#7b817c',fontFamily:'system-ui, sans-serif',fontStyle:item.current?'bold':'normal'}).setOrigin(0.5).setDepth(20));
-    this.pathBadges=this.vm.path.map(item=>this.add.image(0,0,CASCADE_UI_ART_KEYS.rank[item.rank]).setAlpha(item.current||item.completed?1:0.36).setDepth(20));
+    this.pathHeading=this.add.text(0,0,t('Путь мастерства'),{color:'#64706a',fontFamily:'system-ui, sans-serif',fontStyle:'bold'}).setOrigin(0.5).setDepth(20);
+    this.pathTexts=this.vm.path.map(item=>this.add.text(0,0,item.label,{color:item.current?'#7a642f':item.completed?'#405d55':'#7b817c',fontFamily:'system-ui, sans-serif',fontStyle:item.current?'bold':'normal'}).setAlpha(item.current?1:item.completed?0.78:0.42).setOrigin(0.5).setDepth(20));
+    this.pathBadges=this.vm.path.map(item=>this.add.image(0,0,CASCADE_UI_ART_KEYS.rank[item.rank]).setAlpha(item.current?1:item.completed?0.78:0.26).setDepth(20));
     this.bindResponsiveLayout();
   }
 
@@ -73,6 +75,7 @@ export class MasteryScene extends BaseUiScene {
     const reqStartY=right.y+right.height*0.18,reqGap=Math.min(88*css,right.height*0.18);
     this.requirementTexts.forEach((text,index)=>{text.setPosition(right.x+right.width*0.10,reqStartY+index*reqGap).setFontSize(Math.max(14*css,Math.min(26*css,right.width*0.045)));this.meters[index]?.layout({x:right.x+right.width*0.10,y:reqStartY+index*reqGap+reqGap*0.30,width:right.width*0.80,height:Math.max(5*css,right.height*0.013)});});
     const pathY=right.y+right.height*0.77,pathWidth=right.width*0.82,startX=right.x+(right.width-pathWidth)/2,step=this.pathTexts.length>1?pathWidth/(this.pathTexts.length-1):0;
+    this.pathHeading?.setPosition(right.x+right.width/2,pathY-right.height*0.17).setFontSize(Math.max(10*css,Math.min(16*css,right.width*0.024)));
     this.pathTexts.forEach((text,index)=>{text.setPosition(startX+index*step,pathY+right.height*0.08).setFontSize(Math.max(8*css,Math.min(14*css,right.width*0.020)));const size=Math.min(step*0.85,right.height*0.16);this.pathBadges[index]?.setPosition(startX+index*step,pathY-right.height*0.025).setDisplaySize(size,size);});
   }
 }

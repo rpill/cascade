@@ -45,10 +45,11 @@ test('product bridge exposes screen data/actions without routing back to legacy 
 
 test('new leaderboard scene exposes Daily, streak, and Mastery tabs with Mastery score formatting', () => {
   const source = read('src/ui/scenes/LeaderboardsScene.ts');
-  assert.match(source, /value:'daily'/);
-  assert.match(source, /value:'winnable'/);
-  assert.match(source, /value:'mastery'/);
-  assert.match(source, /decodeMasteryLeaderboardScore/);
+  assert.match(source, /value:\s*'daily'/);
+  assert.match(source, /value:\s*'streak'/);
+  assert.match(source, /value:\s*'mastery'/);
+  assert.match(source, /RANK_LABELS\[metric\.rank\]/);
+  assert.match(source, /metric\.points/);
 });
 
 test('GameScene syncs Mastery leaderboard after wins and during historical sync', () => {

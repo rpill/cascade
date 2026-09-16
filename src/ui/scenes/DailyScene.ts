@@ -12,7 +12,9 @@ import type { UiRect } from '../layout/HomeLayout.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
 import { UI_ICON_KEYS } from '../assets/UiAssets.ts';
 import { BaseUiScene } from './BaseUiScene.ts';
+import { getDailyStreaks } from '../../meta/DailyStreak.ts';
 import { playUiButtonSound } from '../sound/UiSound.ts';
+import type { DailyRecord } from '../../meta/MetaSave.ts';
 
 interface CalendarCell {
   readonly surface: Phaser.GameObjects.Graphics;
@@ -22,8 +24,15 @@ interface CalendarCell {
   readonly selectable: boolean;
 }
 
+type DailyRecordMap = Readonly<Record<string, DailyRecord>>;
+
 const DAY_MS = 86_400_000;
 const ARCHIVE_DAYS = 90;
+
+function dateAtOffset(dateKey: string, delta: number): string {
+  const timestamp = Date.parse(`${dateKey}T00:00:00Z`) + delta * DAY_MS;
+  return new Date(timestamp).toISOString().slice(0, 10);
+}
 
 function monthAnchor(dateKey: string): string {
   return `${dateKey.slice(0, 7)}-01`;
@@ -61,33 +70,6 @@ function formatTime(ms: number | undefined): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function dateAtOffset(dateKey: string, delta: number): string {
-  const timestamp = Date.parse(`${dateKey}T00:00:00Z`) + delta * DAY_MS;
-  return new Date(timestamp).toISOString().slice(0, 10);
-}
-
-function streaks(records: Record<string, { completedOnTime: boolean }>, todayKey: string): { current: number; best: number } {
-  let current = 0;
-  for (let offset = 0; offset < 3650; offset += 1) {
-    if (!records[dateAtOffset(todayKey, -offset)]?.completedOnTime) break;
-    current += 1;
-  }
-
-  const completed = Object.entries(records)
-    .filter(([, record]) => record.completedOnTime)
-    .map(([dateKey]) => dateKey)
-    .sort();
-  let best = 0;
-  let running = 0;
-  let previous: string | null = null;
-  for (const dateKey of completed) {
-    running = previous !== null && dateAtOffset(previous, 1) === dateKey ? running + 1 : 1;
-    best = Math.max(best, running);
-    previous = dateKey;
-  }
-  return { current, best };
 }
 
 export class DailyScene extends BaseUiScene {
@@ -191,7 +173,9 @@ export class DailyScene extends BaseUiScene {
       const cell = cellBounds[index]!;
       text.setPosition(cell.x + cell.width / 2, bounds.calendarGrid.y - 12 * css).setFontSize(12 * css);
     });
-    this.cells.forEach((cell, index) => this.layoutCell(cell, cellBounds[index] ?? bounds.calendarGrid, viewport));
+    const snapshot = productBridge.snapshot();
+    const records = snapshot.state.daily.records;
+    this.cells.forEach((cell, index) => this.layoutCell(cell, cellBounds[index] ?? bounds.calendarGrid, viewport, records));
     this.layoutConfirmation(viewport);
   }
 
@@ -235,9 +219,8 @@ export class DailyScene extends BaseUiScene {
     if (requestLayout) this.requestUiLayout();
   }
 
-  private layoutCell(cell: CalendarCell, bounds: UiRect, viewport: ResolvedUiViewport): void {
-    const snapshot = productBridge.snapshot();
-    const record = cell.dateKey ? snapshot.state.daily.records[cell.dateKey] : undefined;
+  private layoutCell(cell: CalendarCell, bounds: UiRect, viewport: ResolvedUiViewport, records: DailyRecordMap): void {
+    const record = cell.dateKey ? records[cell.dateKey] : undefined;
     const selected = cell.dateKey === this.selectedDateKey;
     const today = cell.dateKey === this.todayKey;
     const fill = selected ? UI_TOKENS.color.control
@@ -270,17 +253,38 @@ export class DailyScene extends BaseUiScene {
     const record = snapshot.state.daily.records[this.selectedDateKey];
     const active = snapshot.activeDailyId === this.selectedDateKey;
     const completed = record?.completed === true;
+    const isToday = this.selectedDateKey === this.todayKey;
+    const rankingInProgress = isToday
+      && active
+      && completed !== true
+      && record?.rankingAttemptId !== undefined
+      && record.attempts === 1;
+    const rankingLocked = isToday
+      && !rankingInProgress
+      && (record?.rankingAttemptId !== undefined || completed);
     const title = active ? t('ПРОДОЛЖИТЬ')
       : completed ? t('ПОВТОРИТЬ')
-        : this.selectedDateKey === this.todayKey ? t('ИГРАТЬ СЕГОДНЯ') : t('ИГРАТЬ ИЗ АРХИВА');
-    const firstReward = completed ? 0 : this.selectedDateKey === this.todayKey ? 15 : 5;
+        : isToday ? t('ИГРАТЬ СЕГОДНЯ') : t('ИГРАТЬ ИЗ АРХИВА');
+    const firstReward = completed ? 0 : isToday ? 15 : 5;
     const reward = firstReward > 0 ? ` · +${firstReward} ${t('монет')}` : '';
-    this.dailyAction?.setState({ title, subtitle: `${this.selectedDateKey}${reward}`, emphasis: 'highlight', enabled: true });
+    const rankingNote = isToday
+      ? rankingLocked ? ` · ${t('Без изменения рейтинга')}` : ` · ${t('Первая попытка идёт в рейтинг')}`
+      : '';
+    this.dailyAction?.setState({ title, subtitle: `${this.selectedDateKey}${reward}${rankingNote}`, emphasis: 'highlight', enabled: true });
 
-    const streak = streaks(snapshot.state.daily.records, this.todayKey);
+    const streak = getDailyStreaks(snapshot.state.daily.records, this.todayKey);
     this.streakText?.setText(`${t('Серия')}: ${streak.current} · ${t('Лучшее')}: ${streak.best}`);
     const best = formatTime(record?.bestTimeMs);
-    this.resultTextObject?.setText(`${t('Лучшее время')}: ${best}`);
+    const hintRemaining = record?.hintUsed ? 0 : 1;
+    const hintStatus = `${t('Подсказка')} ${hintRemaining}/1`;
+    const rankingResult = record?.bestMoves !== undefined && record.bestMovesTimeMs !== undefined
+      ? `${t('Рейтинг за сегодня')}: ${record.bestMoves} ${getLanguage() === 'en' ? 'moves' : 'ходов'} · ${formatTime(record.bestMovesTimeMs)} · ${hintStatus}`
+      : rankingLocked ? `${t('Рейтинговая попытка использована')} · ${hintStatus}`
+        : `${t('Первая попытка идёт в рейтинг')} · ${hintStatus}`;
+    this.resultTextObject?.setText(isToday
+      ? `${t('Лучшее время')}: ${best}
+${rankingResult}`
+      : `${t('Лучшее время')}: ${best}`);
     this.coinPill?.setCoins(snapshot.state.progression.coins);
   }
 
@@ -300,8 +304,16 @@ export class DailyScene extends BaseUiScene {
   private confirmReplacement(): void {
     if (this.confirmShell) return;
     const viewport = this.currentUiViewport();
+    const snapshot = productBridge.snapshot();
+    const activeRecord = snapshot.activeDailyId ? snapshot.state.daily.records[snapshot.activeDailyId] : undefined;
+    const forfeitsRanking = snapshot.activeDailyId === this.todayKey
+      && activeRecord?.completed !== true
+      && activeRecord?.rankingAttemptId !== undefined
+      && activeRecord.attempts === 1;
     this.confirmShell = new ModalShell(this, t('Начать другую Daily-раздачу?'), () => this.closeConfirmation(), 5000);
-    this.confirmText = this.add.text(0, 0, t('Текущая Daily-партия будет завершена.'), {
+    this.confirmText = this.add.text(0, 0, forfeitsRanking
+      ? t('Рейтинговая попытка будет завершена. Повторные попытки сегодня не изменят место в таблице.')
+      : t('Текущая Daily-партия будет завершена.'), {
       color: '#64706a', fontFamily: 'system-ui, sans-serif', align: 'center', wordWrap: { width: viewport.width * 0.5 },
     }).setOrigin(0.5).setDepth(5002);
     this.confirmCancel = new ActionCard(this, viewport, { title: t('ОТМЕНА'), enabled: true }, () => this.closeConfirmation(), 5002);

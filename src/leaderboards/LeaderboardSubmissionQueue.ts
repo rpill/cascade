@@ -11,8 +11,11 @@ interface PendingWaiter {
   reject(error: unknown): void;
 }
 
+type CoalescePolicy = 'max' | 'latest';
+
 interface PendingWrite {
   score: number;
+  policy: CoalescePolicy;
   waiters: PendingWaiter[];
 }
 
@@ -53,7 +56,7 @@ export class LeaderboardSubmissionQueue {
     return this.pending.size + this.activeWrites;
   }
 
-  enqueue(technicalName: string, score: number): Promise<void> {
+  enqueue(technicalName: string, score: number, policy: CoalescePolicy = 'max'): Promise<void> {
     if (!Number.isFinite(score) || score <= 0) {
       return Promise.reject(
         new Error('Leaderboard score must be finite and positive.'),
@@ -63,11 +66,13 @@ export class LeaderboardSubmissionQueue {
     const promise = new Promise<void>((resolve, reject) => {
       const existing = this.pending.get(technicalName);
       if (existing !== undefined) {
-        existing.score = Math.max(existing.score, score);
+        existing.score = policy === 'latest' ? score : Math.max(existing.score, score);
+        existing.policy = policy;
         existing.waiters.push({ resolve, reject });
       } else {
         this.pending.set(technicalName, {
           score,
+          policy,
           waiters: [{ resolve, reject }],
         });
       }

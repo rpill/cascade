@@ -14,9 +14,10 @@ test('Statistics page exposes Game and Daily with their competitive views', () =
   assert.match(view, /Лучшая серия/);
 });
 
-test('GameScene submits Standard best streak and current Daily best but never Classic time', () => {
-  assert.match(scene, /syncStandardStreak/);
+test('GameScene submits Daily result, Daily streak, and Mastery while Standard streak stays local', () => {
   assert.match(scene, /syncDailyBest/);
-  assert.doesNotMatch(scene, /syncBest\('original'/);
+  assert.match(scene, /syncDailyStreak/);
+  assert.match(scene, /syncMasteryScore/);
+  assert.doesNotMatch(scene, /syncStandardStreak/);
   assert.doesNotMatch(scene, /classicbesttime/);
 });

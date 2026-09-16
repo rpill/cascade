@@ -43,6 +43,8 @@ import type { PlatformServices } from '../../platform/services.ts';
 import { deriveGameplayActivity } from '../../platform/GameplayActivity.ts';
 import { LeaderboardService } from '../../leaderboards/LeaderboardService.ts';
 import { encodeMasteryLeaderboardScore, type GlobalLeaderboardMode } from '../../leaderboards/LeaderboardConfig.ts';
+import { createLeaderboardFixtureResult, createLocalLeaderboardPlayerEntry, leaderboardFixturesEnabled } from '../../leaderboards/LeaderboardFixtures.ts';
+import { getDailyStreaks } from '../../meta/DailyStreak.ts';
 import { getTheme } from '../../theme/ThemeRegistry.ts';
 import { resolveOwnedThemeId, resolveThemeId } from '../../theme/ThemeSelection.ts';
 import { readStartupThemeId, writeStartupThemeId } from '../../theme/ThemeStartupCache.ts';
@@ -61,12 +63,14 @@ import { GameHud } from '../../ui/game/GameHud.ts';
 import { buildGameHudViewModel } from '../../ui/game/GameHudViewModel.ts';
 import { SceneBackdrop } from '../../ui/components/SceneBackdrop.ts';
 import { UI_TOKENS } from '../../ui/style/UiTokens.ts';
+import { buildVictoryMasteryState, type VictoryMasteryState } from '../view/VictoryMastery.ts';
 
 interface DailyContext {
   readonly dailyId: string;
   readonly weekId: string;
   readonly weekDailyIds: readonly string[];
   readonly seed: bigint;
+  readonly firstCompletionCoins: 5 | 15;
 }
 
 interface StartDealOptions {
@@ -76,11 +80,13 @@ interface StartDealOptions {
 interface OrdinaryCompletionSnapshot {
   readonly mode: OrdinaryGameMode;
   readonly elapsedMs: number;
+  readonly moves: number;
   readonly result: ModeCompletionResult;
   readonly reward: RewardSummary;
   readonly themePurchaseUnlocked: boolean;
   readonly event: CompletionEvent;
   readonly rewardDoubleOffer: RewardDoubleOffer | null;
+  readonly mastery: VictoryMasteryState | null;
 }
 
 export class GameScene extends Phaser.Scene {
@@ -128,6 +134,7 @@ export class GameScene extends Phaser.Scene {
   private attemptAbandonTracked = false;
   private lastOrdinaryCompletion: OrdinaryCompletionSnapshot | null = null;
   private rewardDoubleClaiming = false;
+  private lastDailyMastery: VictoryMasteryState | null = null;
 
   private platform: PlatformServices | null = null;
   private platformPaused = false;
@@ -209,7 +216,7 @@ export class GameScene extends Phaser.Scene {
 
     if (firstRun) {
       this.startFirstRunHowToPlay();
-    } else if (!restoredOrdinary) {
+    } else if (!restoredOrdinary && this.pendingDailyRestore === null) {
       this.showProductHome(false);
     }
     this.refreshMenuMeta();
@@ -252,6 +259,7 @@ export class GameScene extends Phaser.Scene {
         weekId: getIsoWeekId(now),
         weekDailyIds: getIsoWeekDailyIds(now),
         seed: getDailySeed(dailyId, this.verifiedDealCatalog),
+        firstCompletionCoins: 15,
       };
     }
 
@@ -261,6 +269,10 @@ export class GameScene extends Phaser.Scene {
 
     if (this.pendingDailyRestore !== null && this.dailyContext !== null) {
       this.tryRestoreDailySession(this.pendingDailyRestore);
+    }
+
+    if (this.gameState === null && !this.scene.isActive('HomeScene')) {
+      this.showProductHome(false);
     }
 
     this.refreshMenuMeta();
@@ -460,7 +472,13 @@ export class GameScene extends Phaser.Scene {
     const ageDays = Math.floor((Date.parse(`${todayId}T00:00:00Z`) - parsed) / 86_400_000);
     if (ageDays < 0 || ageDays > 90) return null;
     try {
-      return { dailyId, weekId:getIsoWeekId(parsed), weekDailyIds:getIsoWeekDailyIds(parsed), seed:getDailySeed(dailyId,this.verifiedDealCatalog) };
+      return {
+        dailyId,
+        weekId:getIsoWeekId(parsed),
+        weekDailyIds:getIsoWeekDailyIds(parsed),
+        seed:getDailySeed(dailyId,this.verifiedDealCatalog),
+        firstCompletionCoins: dailyId === todayId ? 15 : 5,
+      };
     } catch { return null; }
   }
 
@@ -472,7 +490,7 @@ export class GameScene extends Phaser.Scene {
 
   private completionEvent(mode:GameMode,elapsedMs:number): CompletionEvent {
     const now=this.platform?.trustedClock.nowMs() ?? null;
-    return {kind:'complete',mode,attemptId:this.attemptId,elapsedMs:Math.max(1,elapsedMs),
+    return {kind:'complete',mode,attemptId:this.attemptId,elapsedMs:Math.max(1,elapsedMs),moves:Math.max(1,this.history.moveCount),
       trustedDay:now===null ? null : getDailyId(now),trustedWeek:now===null ? null : getIsoWeekId(now),
       ...(mode==='daily' && this.dailyContext ? {dailyId:this.dailyContext.dailyId,weekId:this.dailyContext.weekId} : {}),
       ...(mode==='winnable' && this.activeStandardSelection ? {
@@ -528,15 +546,14 @@ export class GameScene extends Phaser.Scene {
       return false;
     }
 
-    const deal = this.flow.resume(activeGameSaveToDeal(save), save.uiState);
+    const deal = this.flow.resume(activeGameSaveToDeal(save), 'playing');
     this.pendingDailyRestore = null;
     this.pendingActiveSave = null;
+    this.stopProductUiScenes();
+    if (!this.platformPaused && this.scene.isPaused()) this.scene.resume();
     this.board?.destroy();
     this.startDeal(deal, { restored: save });
-
-    if (save.uiState === 'menu-paused') {
-      this.showProductHome(this.flow.canCancelMenu);
-    }
+    this.board?.setUiPaused(false);
 
     return true;
   }
@@ -576,6 +593,7 @@ export class GameScene extends Phaser.Scene {
     this.dailyCompleteView.hide();
     this.gameCompleteView.hide();
     this.history.clear();
+    if (restored !== undefined) this.history.restoreMoveCount(restored.moveCount);
     const gameState = new SolitaireGame(deal);
     this.gameState = gameState;
     const viewport = this.getRenderMetrics();
@@ -610,6 +628,7 @@ export class GameScene extends Phaser.Scene {
     this.gameHud = new GameHud(this, this.makeGameHudViewModel(), {
       home: () => this.openMainMenu(),
       newDeal: () => this.startNewDeal(),
+      restart: () => this.restartDeal(),
       undo: () => this.undoLastAction(),
       hint: () => this.showHint(),
       settings: () => this.openSettingsFromGame(),
@@ -670,8 +689,12 @@ export class GameScene extends Phaser.Scene {
       this.attemptFinalized = false;
       this.reconcileGameplayActivity();
 
+      const trustedNow = this.platform?.trustedClock.nowMs() ?? null;
+      const dailyRankingEligible = isDaily
+        && trustedNow !== null
+        && getDailyId(trustedNow) === context!.dailyId;
       this.dispatchMeta({kind:'begin',attemptId:this.attemptId,mode,
-        ...(isDaily ? {dailyId:context!.dailyId,weekId:context!.weekId} : {})});
+        ...(isDaily ? {dailyId:context!.dailyId,weekId:context!.weekId,dailyRankingEligible} : {})});
       analytics.event('game_start', { mode, restored: this.attemptRestored });
       if (isDaily) {
         analytics.event('daily_start', { daily_id: context!.dailyId, restored: this.attemptRestored });
@@ -713,7 +736,9 @@ export class GameScene extends Phaser.Scene {
     const event=this.completionEvent(mode,elapsedMs);
     const beforeBest=this.metaState.stats[mode].bestTimeMs;
     const coinsBefore=this.metaState.progression.coins;
+    const metaBefore = this.metaState;
     const result=completeRewardedAttempt(this.metaState,event);
+    const mastery = buildVictoryMasteryState(metaBefore, result.state, result.reward.rankAdvancedTo ?? null);
     const standardBaseCoins = mode === 'winnable'
       ? (result.reward.lines.find((line) => line.label === 'Победа')?.coins ?? 0)
       : 0;
@@ -735,11 +760,13 @@ export class GameScene extends Phaser.Scene {
     this.lastOrdinaryCompletion = {
       mode,
       elapsedMs,
+      moves: event.moves ?? this.history.moveCount,
       result: completion,
       reward:{...result.reward,pending:this.metaSession.status!=='ready' || !recorded},
       themePurchaseUnlocked,
       event,
       rewardDoubleOffer,
+      mastery,
     };
     this.showOrdinaryCompletion();
     if (recorded) this.activeGameRepository.clear();
@@ -758,21 +785,32 @@ export class GameScene extends Phaser.Scene {
     }
 
     const offer = completion.rewardDoubleOffer;
+    const claimedRewardDouble = offer !== null && this.metaState.claimedRewardKeys.includes(offer.key);
     const rewardActionAvailable = offer !== null
       && this.platform?.ads.available === true
-      && !this.metaState.claimedRewardKeys.includes(offer.key);
+      && !claimedRewardDouble;
+    const rewardState = { ...(this.metaSession.getReward(completion.event.attemptId) ?? completion.reward) };
+    if (offer !== null && claimedRewardDouble && !rewardState.pending) rewardState.coins += offer.bonusCoins;
     this.gameCompleteView.show({
       completionId: completion.event.attemptId,
       mode: completion.mode,
       elapsedMs: completion.elapsedMs,
+      moves: completion.moves,
       improvedBest: completion.result.improvedBest,
-      reward:{...(this.metaSession.getReward(completion.event.attemptId) ?? completion.reward),
+      reward:{...rewardState,
         pending:this.metaSession.status!=='ready' || !hasCompletedAttempt(this.metaState,completion.event.attemptId),
         themePurchaseUnlocked:completion.themePurchaseUnlocked},
-      rewardActionLabel: rewardActionAvailable
-        ? t(this.rewardDoubleClaiming ? 'Загрузка…' : '×2 МОНЕТЫ')
-        : null,
+      rewardActionLabel: claimedRewardDouble
+        ? t('УДВОЕНО ДО +{count}', { count: (offer?.bonusCoins ?? 0) * 2 })
+        : rewardActionAvailable
+          ? (this.rewardDoubleClaiming
+              ? t('Загрузка…')
+              : t('УДВОИТЬ +{count}', { count: offer?.bonusCoins ?? 0 }))
+          : null,
       rewardActionEnabled: rewardActionAvailable && !this.rewardDoubleClaiming,
+      rewardDoubled: claimedRewardDouble,
+      rewardDoubleBonusCoins: offer?.bonusCoins ?? null,
+      mastery: completion.mastery,
     });
   }
 
@@ -808,7 +846,16 @@ export class GameScene extends Phaser.Scene {
 
   private showHint(): void {
     if (this.rulesOpen) return;
+    const dailyId = this.gameState?.mode === 'daily' ? this.dailyContext?.dailyId : undefined;
+    if (dailyId !== undefined && this.metaState.daily.records[dailyId]?.hintUsed === true) {
+      this.refreshGameHud();
+      return;
+    }
     const result = this.board?.playHint();
+    if (result === 'played' && dailyId !== undefined) {
+      this.dispatchMeta({ kind: 'daily-hint-used', dailyId });
+      if (this.gameState !== null && !this.gameState.isWon) this.checkpointActiveGame(this.gameState);
+    }
     if (result !== 'busy') this.refreshGameHud();
   }
 
@@ -835,6 +882,7 @@ export class GameScene extends Phaser.Scene {
         snapshot: gameState.snapshot(),
         attemptStarted: this.attemptStarted,
         elapsedMs: this.getElapsedForCheckpoint(),
+        moveCount: this.history.moveCount,
         daily: {
           dailyId: context.dailyId,
           algorithmVersion: DAILY_ALGORITHM_VERSION,
@@ -852,6 +900,7 @@ export class GameScene extends Phaser.Scene {
       snapshot: gameState.snapshot(),
       attemptStarted: this.attemptStarted,
       elapsedMs: this.getElapsedForCheckpoint(),
+      moveCount: this.history.moveCount,
       ...(gameState.mode === 'winnable' && this.activeStandardSelection ? {
         standard: {
           partition: this.activeStandardSelection.partition,
@@ -889,10 +938,12 @@ export class GameScene extends Phaser.Scene {
     this.reconcileGameplayActivity();
     const previousBest=this.metaState.daily.records[context.dailyId]?.bestTimeMs;
     const coinsBefore=this.metaState.progression.coins;
+    const metaBefore = this.metaState;
     const event=this.completionEvent('daily',elapsedMs);
     this.lastDailyEvent=event;
     this.lastDailyImprovedBest=previousBest===undefined || elapsedMs<previousBest;
     const result=completeRewardedAttempt(this.metaState,event);
+    this.lastDailyMastery = buildVictoryMasteryState(metaBefore, result.state, result.reward.rankAdvancedTo ?? null);
     this.lastDailyThemePurchaseUnlocked=this.rewardUnlocksThemePurchase(coinsBefore,result.state.progression.coins);
     const recorded=this.dispatchMeta(event);
     const durationSec = this.analyticsDurationSec(elapsedMs);
@@ -904,10 +955,18 @@ export class GameScene extends Phaser.Scene {
     this.lastDailyReward={...result.reward,pending:!recorded};
     if (recorded) {
       this.activeGameRepository.clear();
-      void this.leaderboardService?.syncDailyBest(
-        context.dailyId,
-        this.metaState.daily.records[context.dailyId]?.bestTimeMs,
-      );
+      const dailyRecord = this.metaState.daily.records[context.dailyId];
+      const rankingCompletion = event.trustedDay === context.dailyId
+        && dailyRecord?.rankingAttemptId === event.attemptId;
+      if (rankingCompletion) {
+        void this.leaderboardService?.syncDailyBest(
+          context.dailyId,
+          dailyRecord?.bestMoves,
+          dailyRecord?.bestMovesTimeMs,
+        );
+      }
+      const dailyStreak = getDailyStreaks(this.metaState.daily.records, context.dailyId);
+      void this.leaderboardService?.syncDailyStreak(dailyStreak.current, dailyStreak.best);
       void this.leaderboardService?.syncMasteryScore(encodeMasteryLeaderboardScore(this.metaState));
     }
     this.pendingDailyRestore = null;
@@ -926,12 +985,14 @@ export class GameScene extends Phaser.Scene {
     this.dailyCompleteView.show({
       completionId:event.attemptId,
       elapsedMs:event.elapsedMs,
+      moves:event.moves ?? this.history.moveCount,
       bestTimeMs:this.metaState.daily.records[event.dailyId]?.bestTimeMs ?? event.elapsedMs,
       improvedBest:this.metaSession.getImprovedBest(event.attemptId) ?? this.lastDailyImprovedBest,
       weekCompleted:getWeeklyProgress(this.metaState,event.weekId).completed,
       reward:{...(this.metaSession.getReward(event.attemptId) ?? this.lastDailyReward),
         pending:!hasCompletedAttempt(this.metaState,event.attemptId),
         themePurchaseUnlocked:this.lastDailyThemePurchaseUnlocked},
+      mastery: this.lastDailyMastery,
     });
   }
 
@@ -944,6 +1005,7 @@ export class GameScene extends Phaser.Scene {
     this.lastOrdinaryCompletion = null;
     this.rewardDoubleClaiming = false;
     this.lastDailyReward = undefined;
+    this.lastDailyMastery = null;
     this.lastDailyEvent = null;
     this.lastDailyThemePurchaseUnlocked = false;
     if (this.flow !== undefined) {
@@ -952,13 +1014,27 @@ export class GameScene extends Phaser.Scene {
   }
 
   private restartDeal(): void {
-    if (this.rulesOpen || this.flow.state !== 'playing') {
-      return;
-    }
+    void this.requestRestartDeal();
+  }
 
+  private async requestRestartDeal(): Promise<void> {
+    if (this.rulesOpen || this.flow.state !== 'playing') return;
+    if (this.isActiveRankedDailyAttempt()) {
+      const confirmed = await this.newDealConfirmOverlay.confirm('daily-ranking-restart');
+      if (!confirmed || this.flow.state !== 'playing') return;
+    }
     const deal = this.flow.restart();
     this.board?.destroy();
     this.startDeal(deal);
+  }
+
+  private isActiveRankedDailyAttempt(): boolean {
+    const context = this.dailyContext;
+    if (this.gameState?.mode !== 'daily' || context === null || !this.attemptStarted || this.attemptFinalized) return false;
+    const record = this.metaState.daily.records[context.dailyId];
+    return record?.rankingAttemptId === this.attemptId
+      && record.bestMoves === undefined
+      && record.bestMovesTimeMs === undefined;
   }
 
   private startNewDeal(): void {
@@ -1058,12 +1134,15 @@ export class GameScene extends Phaser.Scene {
       buyTheme: (themeId) => this.buyTheme(themeId),
       equipTheme: (themeId) => this.equipOwnedTheme(themeId),
       rewardedCoins: async () => { await this.monetizationController?.watchRewarded(); productBridge.notify(); },
-      leaderboardSnapshot: () => ({
-        available: this.leaderboardService?.available ?? false,
-        authorized: this.leaderboardService?.authorized ?? false,
-        authorizationAllowed: this.canAuthorizeLeaderboard(),
-        authPending: this.leaderboardAuthPending,
-      }),
+      leaderboardSnapshot: () => {
+        const fixtures = leaderboardFixturesEnabled();
+        return {
+          available: fixtures || (this.leaderboardService?.available ?? false),
+          authorized: fixtures || (this.leaderboardService?.authorized ?? false),
+          authorizationAllowed: !fixtures && this.canAuthorizeLeaderboard(),
+          authPending: this.leaderboardAuthPending,
+        };
+      },
       loadLeaderboard: (mode) => this.loadProductLeaderboard(mode),
       authorizeLeaderboard: () => this.authorizeProductLeaderboard(),
       settingsSnapshot: () => ({ soundEnabled: preferences.soundEnabled, language: preferences.language }),
@@ -1090,32 +1169,65 @@ export class GameScene extends Phaser.Scene {
 
   private startStandardFromProductHome(difficulty: StandardDifficulty): void {
     this.setStandardDifficulty(difficulty);
-    if (this.flow.state === 'menu-paused' && this.flow.currentDeal?.mode === 'winnable') {
-      this.stopProductUiScenes();
-      this.closeMainMenu();
-      void this.requestFreshDeal(false);
+    if (!this.ensureProductMenuFlow()) return;
+
+    const replacingStandard = this.flow.state === 'menu-paused' && this.flow.currentDeal?.mode === 'winnable';
+    this.stopProductUiScenes();
+    if (replacingStandard) {
+      void this.startStandardFromPausedProductMenu();
       return;
     }
-    if (this.flow.state === 'menu-paused' || this.flow.state === 'menu-required') {
-      this.stopProductUiScenes();
+    this.startMenuMode('winnable');
+  }
+
+  private async startStandardFromPausedProductMenu(): Promise<void> {
+    if (this.freshDealTransitionInFlight) return;
+    const currentDeal = this.flow.currentDeal;
+    if (this.flow.state !== 'menu-paused' || currentDeal?.mode !== 'winnable') return;
+
+    this.freshDealTransitionInFlight = true;
+    try {
+      await this.monetizationController?.beforeFreshStandardDeal();
+      await this.waitForPlatformResumeAndViewport();
+      if (this.sys.settings.status >= Phaser.Scenes.SHUTDOWN) return;
+      if (this.flow.state !== 'menu-paused' || this.flow.currentDeal !== currentDeal) return;
+
       this.startMenuMode('winnable');
+      analytics.event('new_deal', { mode: 'winnable', source: 'new_deal' });
+    } finally {
+      this.freshDealTransitionInFlight = false;
     }
   }
 
   private startDailyFromProductUi(dailyId?: string): void {
     const context = dailyId ? this.dailyContextForId(dailyId) : this.currentDailyContext();
-    if (context === null || this.flow.state === 'playing') return;
+    if (context === null || !this.ensureProductMenuFlow()) return;
     this.stopProductUiScenes();
     this.dailyContext = context;
     this.startMenuMode('daily');
   }
 
+  private ensureProductMenuFlow(): boolean {
+    if (this.flow.state === 'playing') {
+      const productUiOpen = ['HomeScene', 'DailyScene'].some((key) => this.scene.isActive(key) || this.scene.isPaused(key));
+      if (!productUiOpen || !this.flow.openMainMenu()) return false;
+      this.reconcileGameplayActivity();
+    }
+    return this.flow.state === 'menu-paused' || this.flow.state === 'menu-required';
+  }
+
   private async loadProductLeaderboard(mode: GlobalLeaderboardMode) {
+    const dailyId = mode === 'daily' || mode === 'streak'
+      ? this.currentDailyContext()?.dailyId
+      : undefined;
+    if (leaderboardFixturesEnabled()) {
+      const playerEntry = createLocalLeaderboardPlayerEntry(mode, this.metaState, dailyId);
+      return createLeaderboardFixtureResult(mode, dailyId, playerEntry);
+    }
     const service = this.leaderboardService;
     if (service === null || !service.available) {
       return { status:'unavailable', authorized:service?.authorized ?? false, entries:[], playerEntry:null } as const;
     }
-    const dailyId = mode === 'daily' ? this.currentDailyContext()?.dailyId : undefined;
     if (mode === 'daily' && !dailyId) {
       return { status:'error', authorized:service.authorized, entries:[], playerEntry:null } as const;
     }
@@ -1159,15 +1271,32 @@ export class GameScene extends Phaser.Scene {
     const activeMs = this.attemptStarted && this.attemptTimer.running
       ? this.attemptTimer.elapsed(performance.now())
       : 0;
+    const dailyId = mode === 'daily' ? this.dailyContext?.dailyId : undefined;
+    const dailyRecord = dailyId === undefined ? undefined : this.metaState.daily.records[dailyId];
+    const hintRemaining = dailyId === undefined
+      ? undefined
+      : dailyRecord?.hintUsed === true ? 0 : 1;
+    const difficulty = this.activeStandardSelection?.difficulty ?? this.metaState.standard.selectedDifficulty;
+    const dailyRewardCoins = mode === 'daily' ? this.dailyContext?.firstCompletionCoins : undefined;
+    const standardRewardCoins = mode === 'winnable'
+      ? ({ easy: 5, medium: 7, hard: 10 } as const)[difficulty]
+      : undefined;
+    const standardRewardClaimed = mode === 'winnable' && this.activeStandardSelection !== null
+      ? this.metaState.standard.completed[this.activeStandardSelection.partition].includes(this.activeStandardSelection.seed.toString())
+      : false;
     return buildGameHudViewModel({
-      difficulty: this.activeStandardSelection?.difficulty ?? this.metaState.standard.selectedDifficulty,
+      difficulty,
       modeLabel,
       moves: this.history.moveCount,
       activeMs,
       canUndo: this.history.canUndo,
       coins: this.metaState.progression.coins,
+      rewardCoins: dailyRewardCoins ?? standardRewardCoins,
+      rewardClaimed: mode === 'daily' ? dailyRecord?.completed === true : standardRewardClaimed,
       hintEligible: this.board?.hasMoveHints() ?? false,
+      hintRemaining,
       newDealEnabled: mode !== 'daily',
+      newDealVisible: mode !== 'daily',
     }, getLanguage());
   }
 
@@ -1258,11 +1387,13 @@ export class GameScene extends Phaser.Scene {
       tasks.push(service.syncStandardStreak(this.metaState.standardWinStreak.best));
     }
     const dailyContext = this.currentDailyContext();
-    const dailyBest = dailyContext === null
-      ? undefined
-      : this.metaState.daily.records[dailyContext.dailyId]?.bestTimeMs;
-    if (dailyContext !== null && dailyBest !== undefined) {
-      tasks.push(service.syncDailyBest(dailyContext.dailyId, dailyBest));
+    if (dailyContext !== null) {
+      const record = this.metaState.daily.records[dailyContext.dailyId];
+      if (record?.bestMoves !== undefined && record.bestMovesTimeMs !== undefined) {
+        tasks.push(service.syncDailyBest(dailyContext.dailyId, record.bestMoves, record.bestMovesTimeMs));
+      }
+      const streak = getDailyStreaks(this.metaState.daily.records, dailyContext.dailyId);
+      tasks.push(service.syncDailyStreak(streak.current, streak.best));
     }
     tasks.push(service.syncMasteryScore(encodeMasteryLeaderboardScore(this.metaState)));
     await Promise.all(tasks);
@@ -1483,6 +1614,8 @@ export class GameScene extends Phaser.Scene {
   private startMenuMode(mode: GameMode): void {
     this.stopProductUiScenes();
     const deal = this.startSelectedMode(mode);
+    this.reconcileGameplayActivity();
+    if (!this.platformPaused && this.scene.isPaused()) this.scene.resume();
     this.dailyCompleteView.hide();
     this.gameCompleteView.hide();
     this.board?.destroy();

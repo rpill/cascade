@@ -15,9 +15,9 @@ test('new player-facing shell exposes one Game entry plus Daily, Mastery and The
 });
 
 test('new leaderboard screen exposes Daily, streak and Mastery instead of old statistics tabs', () => {
-  assert.match(leaderboard, /value:'daily'/);
-  assert.match(leaderboard, /value:'winnable'/);
-  assert.match(leaderboard, /value:'mastery'/);
+  assert.match(leaderboard, /value:\s*'daily'/);
+  assert.match(leaderboard, /value:\s*'streak'/);
+  assert.match(leaderboard, /value:\s*'mastery'/);
 });
 
 test('ordinary gameplay HUD does not expose Classic or Standard mode labels', () => {

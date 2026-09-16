@@ -208,3 +208,20 @@ test('normalization rebuilds canonical immutable cards rather than trusting pers
   assert.deepEqual(stockCard, createCard(stockCard!.suit, stockCard!.rank));
   assert.equal(Object.isFrozen(stockCard), true);
 });
+
+test('active game save preserves the monotonic player move count', () => {
+  const base = createValidSave('daily');
+  const withMoves = createActiveGameSave({
+    mode: base.mode,
+    seed: BigInt(base.seed),
+    snapshot: base.snapshot,
+    attemptStarted: base.attemptStarted,
+    elapsedMs: base.elapsedMs,
+    moveCount: 17,
+    daily: base.daily,
+    uiState: base.uiState,
+  } as never);
+
+  const normalized = normalizeActiveGameSave(clone(withMoves));
+  assert.equal((normalized as typeof normalized & { moveCount?: number })?.moveCount, 17);
+});

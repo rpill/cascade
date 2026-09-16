@@ -8,6 +8,8 @@ export interface DailyWinInput {
   readonly weekId: string;
   readonly completionDateId: string;
   readonly elapsedMs: number;
+  readonly moves?: number;
+  readonly attemptId?: string;
 }
 
 export interface DailyWinSettlementResult {
@@ -30,7 +32,7 @@ export function settleDailyWin(state: MetaSave, input: DailyWinInput): DailyWinS
   if (!/^\d{4}-W\d{2}$/u.test(input.weekId)) throw new Error('weekId must be an ISO week id.');
 
   const existing = state.daily.records[input.dailyId];
-  const result = completeDailyAttempt(state, input.dailyId, input.weekId, input.elapsedMs);
+  const result = completeDailyAttempt(state, input.dailyId, input.weekId, input.elapsedMs, input.moves, input.attemptId);
   const firstCompletion = result.firstCompletion;
   const onTimeNow = input.dailyId === input.completionDateId;
   const completedOnTime = existing?.completed === true ? existing.completedOnTime : onTimeNow;

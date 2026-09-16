@@ -16,7 +16,23 @@ function uniqueTail(values:readonly string[],limit:number):string[]{return[...ne
 function safeAdd(a:number,b:number,limit:number):number{return Math.min(limit,a+b)}
 function mergeBest(a?:number,b?:number):number|undefined{return a===undefined?b:b===undefined?a:Math.min(a,b)}
 function mergeStats(a:ModeStats,b:ModeStats):ModeStats{const played=safeAdd(a.played,b.played,MAX_STATS_VALUE);const wins=Math.min(played,safeAdd(a.wins,b.wins,MAX_STATS_VALUE));const bestTimeMs=mergeBest(a.bestTimeMs,b.bestTimeMs);return{played,wins,...(bestTimeMs===undefined||wins===0?{}:{bestTimeMs})}}
-function mergeDailyRecord(a:DailyRecord|undefined,b:DailyRecord|undefined):DailyRecord|undefined{if(!a)return b?{...b}:undefined;if(!b)return{...a};const bestTimeMs=mergeBest(a.bestTimeMs,b.bestTimeMs);return{completed:a.completed||b.completed,completedOnTime:a.completedOnTime||b.completedOnTime,attempts:safeAdd(a.attempts,b.attempts,MAX_STATS_VALUE),...(bestTimeMs===undefined?{}:{bestTimeMs})}}
+function mergeDailyRecord(a:DailyRecord|undefined,b:DailyRecord|undefined):DailyRecord|undefined{
+  if(!a)return b?{...b}:undefined;
+  if(!b)return{...a};
+  const bestTimeMs=mergeBest(a.bestTimeMs,b.bestTimeMs);
+  const targetHasRankingEvidence=a.rankingAttemptId!==undefined||(a.bestMoves!==undefined&&a.bestMovesTimeMs!==undefined);
+  const sourceHasRankingEvidence=b.rankingAttemptId!==undefined||(b.bestMoves!==undefined&&b.bestMovesTimeMs!==undefined);
+  const ranking=targetHasRankingEvidence?a:sourceHasRankingEvidence?b:undefined;
+  return{
+    completed:a.completed||b.completed,
+    completedOnTime:a.completedOnTime||b.completedOnTime,
+    attempts:safeAdd(a.attempts,b.attempts,MAX_STATS_VALUE),
+    ...(bestTimeMs===undefined?{}:{bestTimeMs}),
+    ...(ranking?.rankingAttemptId===undefined?{}:{rankingAttemptId:ranking.rankingAttemptId}),
+    ...(ranking?.bestMoves===undefined||ranking.bestMovesTimeMs===undefined?{}:{bestMoves:ranking.bestMoves,bestMovesTimeMs:ranking.bestMovesTimeMs}),
+    ...(a.hintUsed===true||b.hintUsed===true?{hintUsed:true}:{}),
+  };
+}
 function mergeReceipts(a:Record<string,number>,b:Record<string,number>):Record<string,number>{const out={...a};for(const[k,v]of Object.entries(b))out[k]=Math.max(out[k]??0,v);return out}
 function mergeWeekly(a:MetaSave['weekly'],b:MetaSave['weekly']):MetaSave['weekly']{if(a.weekId===b.weekId)return{weekId:a.weekId,completedDailyIds:[...new Set([...a.completedDailyIds,...b.completedDailyIds])],claimedMilestones:[...new Set([...a.claimedMilestones,...b.claimedMilestones])]};const newer=b.weekId>a.weekId?b:a;return{weekId:newer.weekId,completedDailyIds:[...newer.completedDailyIds],claimedMilestones:[...newer.claimedMilestones]}}
 function mergeRewarded(a:MetaSave['monetization'],b:MetaSave['monetization']):MetaSave['monetization']{if(a.rewardedDay===b.rewardedDay)return{rewardedDay:a.rewardedDay,rewardedCount:Math.min(REWARDED_DAILY_LIMIT,a.rewardedCount+b.rewardedCount)};return b.rewardedDay>a.rewardedDay?{...b}:{...a}}

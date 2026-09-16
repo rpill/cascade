@@ -14,7 +14,7 @@ import type {
 function createPlatform(options: {
   payments?: Partial<PlatformPayments>;
   ads?: Partial<PlatformAds>;
-  nowMs?: number | null;
+  nowMs?: number | null | (() => number | null);
 } = {}): PlatformServices {
   const payments: PlatformPayments = {
     available: false,
@@ -32,7 +32,7 @@ function createPlatform(options: {
   };
   return {
     playerStorage: { load: async () => ({}), save: async () => undefined },
-    trustedClock: { nowMs: () => options.nowMs ?? null },
+    trustedClock: { nowMs: () => typeof options.nowMs === 'function' ? options.nowMs() : options.nowMs ?? null },
     auth: {
       isAuthorized: () => false,
       requestAuthorization: async () => false,
@@ -92,6 +92,8 @@ test('startup never touches payments and interstitials no longer depend on purch
   const controller = new MonetizationController(platform, new FakeMeta());
 
   await controller.initialize();
+  await controller.beforeFreshStandardDeal();
+  await controller.beforeFreshStandardDeal();
   await controller.beforeFreshStandardDeal();
 
   assert.deepEqual(paymentCalls, []);
@@ -161,8 +163,56 @@ test('interstitial analytics records request and platform result', async () => {
 
   await controller.initialize();
   await controller.beforeFreshStandardDeal();
+  await controller.beforeFreshStandardDeal();
+  await controller.beforeFreshStandardDeal();
 
   assert.deepEqual(analytics.events.map((item) => item.name), [
     'fullscreen_requested', 'fullscreen_not_shown',
   ]);
+});
+
+
+test('fresh Standard interstitial is requested only on every third replacement', async () => {
+  let interstitialCalls = 0;
+  const controller = new MonetizationController(createPlatform({
+    nowMs: Date.parse('2026-09-16T10:00:00Z'),
+    ads: {
+      available: true,
+      showInterstitial: async () => { interstitialCalls += 1; return true; },
+    },
+  }), new FakeMeta());
+
+  await controller.beforeFreshStandardDeal();
+  await controller.beforeFreshStandardDeal();
+  assert.equal(interstitialCalls, 0);
+
+  await controller.beforeFreshStandardDeal();
+  assert.equal(interstitialCalls, 1);
+
+  await controller.beforeFreshStandardDeal();
+  await controller.beforeFreshStandardDeal();
+  assert.equal(interstitialCalls, 1);
+});
+
+test('fresh Standard interstitial keeps at least two minutes between requests', async () => {
+  let now = Date.parse('2026-09-16T10:00:00Z');
+  let interstitialCalls = 0;
+  const controller = new MonetizationController(createPlatform({
+    nowMs: () => now,
+    ads: {
+      available: true,
+      showInterstitial: async () => { interstitialCalls += 1; return true; },
+    },
+  }), new FakeMeta());
+
+  for (let index = 0; index < 3; index += 1) await controller.beforeFreshStandardDeal();
+  assert.equal(interstitialCalls, 1);
+
+  now += 60_000;
+  for (let index = 0; index < 3; index += 1) await controller.beforeFreshStandardDeal();
+  assert.equal(interstitialCalls, 1);
+
+  now += 61_000;
+  for (let index = 0; index < 3; index += 1) await controller.beforeFreshStandardDeal();
+  assert.equal(interstitialCalls, 2);
 });

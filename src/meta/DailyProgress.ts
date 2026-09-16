@@ -3,6 +3,11 @@ import {
   type MetaSave,
 } from './MetaSave.ts';
 
+export interface BeginDailyAttemptOptions {
+  readonly attemptId?: string;
+  readonly rankingEligible?: boolean;
+}
+
 export interface DailyCompletionResult {
   readonly state: MetaSave;
   readonly firstCompletion: boolean;
@@ -25,8 +30,16 @@ export function beginDailyAttempt(
   state: MetaSave,
   dailyId: string,
   weekId: string,
+  options: BeginDailyAttemptOptions = {},
 ): MetaSave {
   const previous = state.daily.records[dailyId] ?? { completed: false, completedOnTime: false, attempts: 0 };
+  const rankingAttemptId = options.rankingEligible === true
+    && previous.completed !== true
+    && previous.rankingAttemptId === undefined
+    && typeof options.attemptId === 'string'
+    && /^[a-zA-Z0-9_~\-]{1,100}$/.test(options.attemptId)
+      ? options.attemptId
+      : previous.rankingAttemptId;
 
   return {
     ...state,
@@ -34,7 +47,11 @@ export function beginDailyAttempt(
       ...state.daily,
       records: {
         ...state.daily.records,
-        [dailyId]: { ...previous, attempts: previous.attempts + 1 },
+        [dailyId]: {
+          ...previous,
+          attempts: previous.attempts + 1,
+          ...(rankingAttemptId === undefined ? {} : { rankingAttemptId }),
+        },
       },
     },
     weekly: normalizeWeek(state, weekId),
@@ -46,9 +63,14 @@ export function completeDailyAttempt(
   dailyId: string,
   weekId: string,
   elapsedMs: number,
+  moves?: number,
+  attemptId?: string,
 ): DailyCompletionResult {
   if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) {
     throw new Error('Daily elapsed time must be positive.');
+  }
+  if (moves !== undefined && (!Number.isSafeInteger(moves) || moves <= 0)) {
+    throw new Error('Daily move count must be a positive integer.');
   }
 
   const weekly = normalizeWeek(state, weekId);
@@ -57,6 +79,17 @@ export function completeDailyAttempt(
   const previousBest = previous.bestTimeMs;
   const improvedBest = previousBest === undefined || elapsedMs < previousBest;
   const bestTimeMs = improvedBest ? elapsedMs : previousBest;
+  const previousBestMoves = previous.bestMoves;
+  const previousBestMovesTimeMs = previous.bestMovesTimeMs;
+  const recordsRankingResult = moves !== undefined
+    && previousBestMoves === undefined
+    && previousBestMovesTimeMs === undefined
+    && (
+      (previous.rankingAttemptId !== undefined && previous.rankingAttemptId === attemptId)
+      || (previous.rankingAttemptId === undefined && attemptId === undefined && previous.attempts <= 1)
+    );
+  const bestMoves = recordsRankingResult ? moves : previousBestMoves;
+  const bestMovesTimeMs = recordsRankingResult ? elapsedMs : previousBestMovesTimeMs;
   const beforeCount = weekly.completedDailyIds.length;
   const completedDailyIds = firstCompletion && weekly.weekId === weekId
     ? [...weekly.completedDailyIds, dailyId]
@@ -77,6 +110,7 @@ export function completeDailyAttempt(
             ...previous,
             completed: true,
             ...(bestTimeMs === undefined ? {} : { bestTimeMs }),
+            ...(bestMoves === undefined || bestMovesTimeMs === undefined ? {} : { bestMoves, bestMovesTimeMs }),
           },
         },
       },

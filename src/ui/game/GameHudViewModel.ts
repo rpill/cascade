@@ -9,8 +9,12 @@ export interface GameHudInput {
   readonly activeMs: number;
   readonly canUndo: boolean;
   readonly coins: number;
+  readonly rewardCoins?: number;
+  readonly rewardClaimed?: boolean;
   readonly hintEligible: boolean;
+  readonly hintRemaining?: number;
   readonly newDealEnabled: boolean;
+  readonly newDealVisible?: boolean;
 }
 
 export interface GameHudViewModel {
@@ -20,9 +24,11 @@ export interface GameHudViewModel {
   readonly undoEnabled: boolean;
   readonly hintEnabled: boolean;
   readonly newDealEnabled: boolean;
-  readonly coins: number;
+  readonly newDealVisible: boolean;
+  readonly coinLabel: string;
   readonly homeLabel: string;
   readonly newDealLabel: string;
+  readonly restartLabel: string;
   readonly undoLabel: string;
   readonly hintLabel: string;
 }
@@ -44,12 +50,20 @@ export function buildGameHudViewModel(input: GameHudInput, language: Language = 
     movesLabel: translate(language, `${Math.max(0, input.moves)} ходов`, `${Math.max(0, input.moves)} moves`),
     timeLabel: formatActiveTime(input.activeMs),
     undoEnabled: input.canUndo,
-    hintEnabled: input.hintEligible,
+    hintEnabled: input.hintEligible && (input.hintRemaining === undefined || input.hintRemaining > 0),
     newDealEnabled: input.newDealEnabled,
-    coins: Math.max(0, Math.floor(input.coins)),
+    newDealVisible: input.newDealVisible !== false,
+    coinLabel: input.rewardCoins === undefined
+      ? String(Math.max(0, Math.floor(input.coins)))
+      : (input.rewardClaimed
+        ? translate(language, 'Получено', 'Claimed')
+        : `+${Math.max(0, Math.floor(input.rewardCoins))}`),
     homeLabel: translate(language, 'Домой', 'Home'),
     newDealLabel: translate(language, 'Новая', 'New deal'),
+    restartLabel: translate(language, 'Заново', 'Restart'),
     undoLabel: translate(language, 'Отмена', 'Undo'),
-    hintLabel: translate(language, 'Подсказка', 'Hint'),
+    hintLabel: input.hintRemaining === undefined
+      ? translate(language, 'Подсказка', 'Hint')
+      : translate(language, `Подсказка ${Math.max(0, input.hintRemaining)}/1`, `Hint ${Math.max(0, input.hintRemaining)}/1`),
   };
 }

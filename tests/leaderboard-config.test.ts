@@ -2,38 +2,43 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DAILY_LEADERBOARD_NAME,
-  LEADERBOARD_NAMES,
+  DAILY_STREAK_LEADERBOARD_NAME,
+  MASTERY_LEADERBOARD_NAME,
   STANDARD_LEADERBOARD_NAME,
+  decodeDailyLeaderboardScore,
+  decodeDailyStreakLeaderboardScore,
+  encodeDailyLeaderboardScore,
+  encodeDailyStreakLeaderboardScore,
   getLeaderboardName,
-  hasGlobalLeaderboard,
 } from '../src/leaderboards/LeaderboardConfig.ts';
 
-test('Standard and Daily map to exact Yandex technical names while Classic has no board', () => {
-  assert.equal(STANDARD_LEADERBOARD_NAME, 'standardwinstreak');
+test('product leaderboards use Standard, Daily, Daily streak, and Mastery technical names', () => {
   assert.equal(DAILY_LEADERBOARD_NAME, 'dailyfastest');
-  assert.equal(LEADERBOARD_NAMES.winnable, 'standardwinstreak');
-  assert.equal(LEADERBOARD_NAMES.daily, 'dailyfastest');
+  assert.equal(DAILY_STREAK_LEADERBOARD_NAME, 'dailystreak');
+  assert.equal(MASTERY_LEADERBOARD_NAME, 'cascademastery');
+  assert.equal(STANDARD_LEADERBOARD_NAME, 'standardwinstreak');
   assert.equal(getLeaderboardName('winnable'), 'standardwinstreak');
   assert.equal(getLeaderboardName('daily'), 'dailyfastest');
-  assert.equal(hasGlobalLeaderboard('winnable'), true);
-  assert.equal(hasGlobalLeaderboard('daily'), true);
-  assert.equal(hasGlobalLeaderboard('original'), false);
-  assert.match(STANDARD_LEADERBOARD_NAME, /^[a-zA-Z0-9]+$/);
-  assert.match(DAILY_LEADERBOARD_NAME, /^[a-zA-Z0-9]+$/);
+  assert.equal(getLeaderboardName('streak'), 'dailystreak');
+  assert.equal(getLeaderboardName('mastery'), 'cascademastery');
 });
 
-import { MASTERY_LEADERBOARD_NAME, encodeMasteryLeaderboardScore, decodeMasteryLeaderboardScore } from '../src/leaderboards/LeaderboardConfig.ts';
-import { createDefaultMetaSave } from '../src/meta/MetaSave.ts';
+test('Daily score ranks newer day first, then fewer moves, then faster time', () => {
+  const yesterday = encodeDailyLeaderboardScore('2026-09-15', 30, 60_000);
+  const todayMoreMoves = encodeDailyLeaderboardScore('2026-09-16', 50, 60_000);
+  const todayFewerMoves = encodeDailyLeaderboardScore('2026-09-16', 49, 600_000);
+  const todayFaster = encodeDailyLeaderboardScore('2026-09-16', 49, 90_000);
+  assert.ok(todayMoreMoves > yesterday);
+  assert.ok(todayFewerMoves > todayMoreMoves);
+  assert.ok(todayFaster > todayFewerMoves);
+  assert.deepEqual(decodeDailyLeaderboardScore(todayFaster), { dailyId: '2026-09-16', moves: 49, elapsedMs: 90_000 });
+});
 
-test('Mastery uses Cascade technical name and Trifold rank-plus-lifetime score', () => {
-  const profile=createDefaultMetaSave();
-  profile.mastery.rank='expert';
-  profile.futurePrestige.mediumSeeds=['1','2'];
-  profile.futurePrestige.hardSeeds=['3'];
-  profile.futurePrestige.onTimeDailyDates=['2026-09-10'];
-  assert.equal(MASTERY_LEADERBOARD_NAME,'cascademastery');
-  const score=encodeMasteryLeaderboardScore(profile);
-  assert.equal(score,4_000_000_010);
-  assert.deepEqual(decodeMasteryLeaderboardScore(score),{rank:'expert',points:10});
-  assert.match(MASTERY_LEADERBOARD_NAME,/^[a-zA-Z0-9]+$/);
+test('Daily streak score ranks current streak first and best streak second', () => {
+  const sevenBestTen = encodeDailyStreakLeaderboardScore(7, 10);
+  const sevenBestNineteen = encodeDailyStreakLeaderboardScore(7, 19);
+  const eightBestEight = encodeDailyStreakLeaderboardScore(8, 8);
+  assert.ok(sevenBestNineteen > sevenBestTen);
+  assert.ok(eightBestEight > sevenBestNineteen);
+  assert.deepEqual(decodeDailyStreakLeaderboardScore(sevenBestNineteen), { current: 7, best: 19 });
 });

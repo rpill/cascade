@@ -44,6 +44,10 @@ export class ScrollRegion {
     this.setOffset(this.offsetY);
   }
 
+  scrollToTop(): void {
+    this.setOffset(0);
+  }
+
   layout(bounds: UiRect): void {
     this.bounds = bounds;
     this.maskGraphics.clear().fillStyle(0xffffff).fillRect(bounds.x, bounds.y, bounds.width, bounds.height);

@@ -6,6 +6,9 @@ import type { MetaSessionStatus } from '../meta/MetaSession.ts';
 import type { PlatformServices } from '../platform/services.ts';
 import { REWARDED_COINS, REWARDED_DAILY_LIMIT } from './Products.ts';
 
+const STANDARD_INTERSTITIAL_EVERY = 3;
+const STANDARD_INTERSTITIAL_COOLDOWN_MS = 2 * 60 * 1000;
+
 export interface MonetizationViewState {
   readonly rewardedBusy: boolean;
   readonly rewardedAvailable: boolean;
@@ -27,6 +30,8 @@ export class MonetizationController {
   private readonly platform: PlatformServices;
   private readonly meta: MonetizationMetaSession;
   private readonly analytics: AnalyticsClient;
+  private freshStandardDealCount = 0;
+  private lastInterstitialRequestAt: number | null = null;
 
   constructor(
     platform: PlatformServices,
@@ -103,7 +108,18 @@ export class MonetizationController {
   }
 
   async beforeFreshStandardDeal(): Promise<void> {
+    this.freshStandardDealCount += 1;
+    if (this.freshStandardDealCount % STANDARD_INTERSTITIAL_EVERY !== 0) return;
     if (!this.platform.ads.available) return;
+
+    const now = this.platform.trustedClock.nowMs() ?? Date.now();
+    if (
+      this.lastInterstitialRequestAt !== null
+      && now - this.lastInterstitialRequestAt < STANDARD_INTERSTITIAL_COOLDOWN_MS
+    ) {
+      return;
+    }
+    this.lastInterstitialRequestAt = now;
 
     this.analytics.event('fullscreen_requested');
     try {

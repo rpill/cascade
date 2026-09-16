@@ -48,6 +48,11 @@ export class ModalShell {
     this.closeZone.setPosition(this.close.x, this.close.y).setSize(closeSize, closeSize);
   }
 
+
+  setTitle(title: string): void {
+    this.title.setText(title);
+  }
+
   setVisible(visible: boolean): void {
     this.dimmer.setVisible(visible).setActive(visible);
     this.panel.setVisible(visible);

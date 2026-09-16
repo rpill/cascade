@@ -18,6 +18,7 @@ interface AttemptEvent {
 export type CompletionEvent = AttemptEvent & {
   readonly kind: 'complete';
   readonly elapsedMs: number;
+  readonly moves?: number;
   readonly trustedDay: string | null;
   readonly trustedWeek: string | null;
   readonly standardSeed?: string;
@@ -26,8 +27,9 @@ export type CompletionEvent = AttemptEvent & {
 };
 
 export type MetaOperation =
-  | (AttemptEvent & { readonly kind: 'begin' })
+  | (AttemptEvent & { readonly kind: 'begin'; readonly dailyRankingEligible?: boolean })
   | CompletionEvent
+  | { readonly kind: 'daily-hint-used'; readonly dailyId: string }
   | { readonly kind: 'purchase'; readonly themeId: string }
   | { readonly kind: 'equip'; readonly themeId: string }
   | { readonly kind: 'set-standard-difficulty'; readonly difficulty: StandardDifficulty }
@@ -92,6 +94,8 @@ export function completeRewardedAttempt(
       weekId: event.weekId!,
       completionDateId,
       elapsedMs: event.elapsedMs,
+      moves: event.moves,
+      attemptId: event.attemptId,
     });
     next = settled.state;
     if (settled.coinsGranted > 0) lines.push({ label: 'Испытание дня', coins: settled.coinsGranted });
@@ -146,6 +150,21 @@ export function applyMetaOperation(state: MetaSave, event: MetaOperation): MetaS
       return /^reward-double:standard:[1-9]\d{0,9}$/u.test(event.key)
         ? claimCoinRewardOnce(state, event.key, event.bonusCoins)
         : state;
+    case 'daily-hint-used': {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(event.dailyId)) return state;
+      const previous = state.daily.records[event.dailyId] ?? { completed: false, completedOnTime: false, attempts: 0 };
+      if (previous.hintUsed === true) return state;
+      return {
+        ...state,
+        daily: {
+          ...state.daily,
+          records: {
+            ...state.daily.records,
+            [event.dailyId]: { ...previous, hintUsed: true },
+          },
+        },
+      };
+    }
     case 'rewarded-ad': {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(event.dayId)) return state;
       const sameDay = state.monetization.rewardedDay === event.dayId;
@@ -184,7 +203,10 @@ export function applyMetaOperation(state: MetaSave, event: MetaOperation): MetaS
       if (!event.attemptId || state.progression.startedAttempts.includes(event.attemptId) || hasCompletedAttempt(state, event.attemptId)) return state;
       if (event.mode === 'daily' && !validDaily(event)) return state;
       const next = event.mode === 'daily'
-        ? beginDailyAttempt(state, event.dailyId!, event.weekId!)
+        ? beginDailyAttempt(state, event.dailyId!, event.weekId!, {
+            attemptId: event.attemptId,
+            rankingEligible: event.dailyRankingEligible === true,
+          })
         : beginModeAttempt(state, event.mode);
       return {
         ...next,

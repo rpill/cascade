@@ -62,3 +62,70 @@ test('active game preservation decision remains independent of profile schema', 
   assert.equal(shouldPreserveActiveGameForProfileMerge('guest', false, transfer), false);
   assert.equal(shouldPreserveActiveGameForProfileMerge('other', true, transfer), false);
 });
+
+test('profile merge preserves Daily hint use and an existing fixed ranking attempt', () => {
+  const cloud = makeState((state) => {
+    state.daily.records['2026-09-16'] = {
+      completed: true,
+      completedOnTime: true,
+      attempts: 1,
+      bestTimeMs: 70_000,
+      bestMoves: 50,
+      bestMovesTimeMs: 70_000,
+      rankingAttemptId: 'cloud~1',
+      hintUsed: true,
+    };
+  });
+  const guest = makeState((state) => {
+    state.daily.records['2026-09-16'] = {
+      completed: true,
+      completedOnTime: true,
+      attempts: 2,
+      bestTimeMs: 60_000,
+      bestMoves: 40,
+      bestMovesTimeMs: 60_000,
+      rankingAttemptId: 'guest~1',
+      hintUsed: false,
+    };
+  });
+
+  const merged = mergeMetaProfiles(cloud, guest, 'guest-daily');
+  const record = merged.daily.records['2026-09-16']!;
+  assert.equal(record.bestTimeMs, 60_000);
+  assert.equal(record.rankingAttemptId, 'cloud~1');
+  assert.equal(record.bestMoves, 50);
+  assert.equal(record.bestMovesTimeMs, 70_000);
+  assert.equal(record.hintUsed, true);
+});
+
+test('profile merge keeps a consumed cloud Daily ranking attempt even when guest has a scored replay', () => {
+  const cloud = makeState((state) => {
+    state.daily.records['2026-09-17'] = {
+      completed: false,
+      completedOnTime: false,
+      attempts: 1,
+      rankingAttemptId: 'cloud~abandoned',
+      hintUsed: false,
+    };
+  });
+  const guest = makeState((state) => {
+    state.daily.records['2026-09-17'] = {
+      completed: true,
+      completedOnTime: true,
+      attempts: 2,
+      bestTimeMs: 55_000,
+      bestMoves: 38,
+      bestMovesTimeMs: 55_000,
+      rankingAttemptId: 'guest~ranked',
+      hintUsed: true,
+    };
+  });
+
+  const merged = mergeMetaProfiles(cloud, guest, 'guest-daily-abandoned');
+  const record = merged.daily.records['2026-09-17']!;
+  assert.equal(record.rankingAttemptId, 'cloud~abandoned');
+  assert.equal(record.bestMoves, undefined);
+  assert.equal(record.bestMovesTimeMs, undefined);
+  assert.equal(record.bestTimeMs, 55_000);
+  assert.equal(record.hintUsed, true);
+});

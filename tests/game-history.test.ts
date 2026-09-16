@@ -113,6 +113,7 @@ test('one undo restores a player move and its complete automatic chain', () => {
   );
   while (game.autoMoveToFoundation() !== null) {}
 
+  assert.equal(history.moveCount, 1);
   assert.deepEqual(game.foundations.hearts.map((card) => card.rank), [1, 2]);
   assert.equal(history.undo(game), true);
   assert.deepEqual(game.tableau[0].map((card) => card.id), [ace.id, blocker.id]);
@@ -130,4 +131,21 @@ test('clearing history disables undo', () => {
 
   assert.equal(history.canUndo, false);
   assert.equal(history.undo(game), false);
+});
+
+test('undo restores the board without refunding the counted player move', () => {
+  const game = emptyGame([
+    createCard('clubs', 4),
+    createCard('diamonds', 6),
+    createCard('hearts', 8),
+  ]);
+  const history = new GameHistory();
+
+  history.execute(game, () => game.draw(), (cards) => cards.length > 0);
+  assert.equal(history.moveCount, 1);
+  assert.equal(history.undo(game), true);
+  assert.equal(history.moveCount, 1);
+
+  history.execute(game, () => game.draw(), (cards) => cards.length > 0);
+  assert.equal(history.moveCount, 2);
 });

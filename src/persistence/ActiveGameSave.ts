@@ -20,6 +20,7 @@ export interface ActiveGameSaveV2 {
   snapshot: SolitaireSnapshot;
   attemptStarted: boolean;
   elapsedMs: number;
+  moveCount: number;
   daily?: {
     dailyId: string;
     algorithmVersion: number;
@@ -38,6 +39,7 @@ export interface ActiveGameCheckpointInput {
   snapshot: SolitaireSnapshot;
   attemptStarted: boolean;
   elapsedMs: number;
+  moveCount?: number;
   daily?: ActiveGameSaveV2['daily'];
   standard?: ActiveGameSaveV2['standard'];
   uiState: ActiveGameSaveV2['uiState'];
@@ -248,6 +250,10 @@ export function normalizeActiveGameSave(raw: unknown): ActiveGameSaveV2 | null {
     return null;
   }
 
+  const moveCount = Number.isSafeInteger(raw.moveCount) && (raw.moveCount as number) >= 0
+    ? raw.moveCount as number
+    : 0;
+
   return {
     version: ACTIVE_GAME_SAVE_VERSION,
     ...(typeof raw.attemptId === 'string' && /^[a-zA-Z0-9_~\-]{1,100}$/.test(raw.attemptId) ? {attemptId:raw.attemptId} : {}),
@@ -256,6 +262,7 @@ export function normalizeActiveGameSave(raw: unknown): ActiveGameSaveV2 | null {
     snapshot,
     attemptStarted: raw.attemptStarted,
     elapsedMs: raw.elapsedMs,
+    moveCount,
     ...(daily === undefined ? {} : { daily }),
     ...(standard === undefined ? {} : { standard }),
     uiState: raw.uiState,
@@ -273,6 +280,7 @@ export function createActiveGameSave(
     snapshot: input.snapshot,
     attemptStarted: input.attemptStarted,
     elapsedMs: input.elapsedMs,
+    moveCount: input.moveCount ?? 0,
     ...(input.daily === undefined ? {} : { daily: input.daily }),
     ...(input.standard === undefined ? {} : { standard: input.standard }),
     uiState: input.uiState,

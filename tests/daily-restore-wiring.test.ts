@@ -50,11 +50,11 @@ test('Daily restore validates id algorithm version and deterministic seed', () =
   assert.doesNotMatch(restore, /Date\.now\(|new Date\(/);
 });
 
-test('validated Daily restore resumes exact saved board and shared timer state without starting another attempt', () => {
+test('validated Daily restore resumes exact saved board into playable state without starting another attempt', () => {
   const restore = extractMethod(scene, 'tryRestoreDailySession');
   assert.match(
     restore,
-    /flow\.resume\(activeGameSaveToDeal\(save\), save\.uiState\)/,
+    /flow\.resume\(activeGameSaveToDeal\(save\), 'playing'\)/,
   );
   assert.match(restore, /startDeal\(deal, \{ restored: save \}\)/);
 

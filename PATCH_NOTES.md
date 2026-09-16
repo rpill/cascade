@@ -1,13 +1,22 @@
-# Cascade UI visibility hotfix
+Cascade victory screen rework — 2026-09-16
 
-Base intent: apply on top of the current project state after the active-deal continue patch.
+Based on user archive: cascade(20260916-131921).zip
 
 Changes:
-- Back-to-game / К игре button now uses a stronger wood-texture capsule with a warm gold border and inset/depth treatment on both desktop and mobile.
-- Compact-landscape slot frame alpha changed from 1.00 to 0.78 so the table surface subtly shows through on phones.
-- Desktop slot alpha remains unchanged: foundation/stock 0.48, tableau 0.30.
-- Slot glyphs remain fully opaque.
+- Shared landscape victory layout for desktop and mobile landscape.
+- Two clear sections: Rewards and Mastery.
+- Standard rewards are split into base win reward, rank reward, and total.
+- Rewarded x2 clearly doubles only the base win reward.
+- Before ad: e.g. +5 win +100 rank = 105 total.
+- After ad: +10 win +100 rank = 110 total.
+- Reward button now says e.g. DOUBLE +5 / УДВОИТЬ +5.
+- Standard victory result now displays moves alongside time.
+- Mastery promotion text is shown inside the Mastery panel.
+- Daily completion uses the same landscape two-column presentation when Mastery changes.
+- Added RU/EN localization strings for the new presentation.
 
-Verification:
-- New focused contracts: 11/11 PASS.
-- Full test suite excluding localization.test.ts (requires unavailable local TypeScript package): 685 PASS / 0 FAIL / 2 SKIP.
+Verification in container:
+- 33/33 related tests passed.
+- TypeScript transpile/syntax checks passed for all 7 changed production files.
+- English localization duplicate-key check: 0 duplicates.
+- Full pnpm build was not run because the container does not have the project node_modules installed.

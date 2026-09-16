@@ -1,19 +1,24 @@
 import type * as Phaser from 'phaser';
-import { t } from '../../localization/Localization.ts';
+import { getLanguage, t } from '../../localization/Localization.ts';
 import type { SfxCue } from '../../settings/SfxController.ts';
-import type { MasteryRank } from '../../meta/MetaSave.ts';
 import type { ViewportLayout } from './ViewportLayout.ts';
-import { WinOverlay, type WinOverlayContent } from '../../ui/win/WinOverlay.ts';
+import { WinOverlay, type WinOverlayContent, type WinOverlayRewardContent } from '../../ui/win/WinOverlay.ts';
 import type { RewardSummaryState } from './RewardSummaryView.ts';
+import { presentVictoryMastery, type VictoryMasteryState } from './VictoryMastery.ts';
+import { buildVictoryRewardPresentation } from './VictoryRewardPresentation.ts';
 
 export interface GameCompleteState {
   readonly completionId: string;
   readonly mode: 'original' | 'winnable';
   readonly elapsedMs: number;
+  readonly moves: number;
   readonly improvedBest: boolean;
   readonly reward?: RewardSummaryState;
   readonly rewardActionLabel?: string | null;
   readonly rewardActionEnabled?: boolean;
+  readonly rewardDoubled?: boolean;
+  readonly rewardDoubleBonusCoins?: number | null;
+  readonly mastery?: VictoryMasteryState | null;
 }
 
 export interface GameCompleteActions {
@@ -23,42 +28,72 @@ export interface GameCompleteActions {
   readonly sound?: (cue: SfxCue) => void;
 }
 
-const RANK_LABELS: Readonly<Record<MasteryRank,string>> = {
-  novice:'Новичок', player:'Игрок', tactician:'Тактик', expert:'Эксперт', master:'Мастер', grandmaster:'Грандмастер',
-};
-
 function formatDuration(ms:number):string {
   const totalSeconds=Math.floor(Math.max(0,ms)/1000);
   return `${Math.floor(totalSeconds/60)}:${String(totalSeconds%60).padStart(2,'0')}`;
 }
 
-function rewardLine(reward:RewardSummaryState|undefined):string|null {
-  if (!reward) return null;
-  if (reward.pending) return t('Награды начисляются…');
-  return reward.coins > 0 ? `+${reward.coins} ${t('монет')}` : t('Без повторной награды');
+function baseRewardLabel(label: string | null): string | null {
+  if (label === null) return null;
+  if (label === 'Победа') return t('За победу');
+  return t(label);
 }
 
-function detailLine(reward:RewardSummaryState|undefined):string|null {
-  if (!reward || reward.pending || !reward.rankAdvancedTo) return null;
-  return t('Новый ранг: {rank}', {rank:t(RANK_LABELS[reward.rankAdvancedTo])});
+function rewardContent(state: GameCompleteState): WinOverlayRewardContent {
+  const presentation = buildVictoryRewardPresentation(state.reward, {
+    doubleBonusCoins: state.rewardDoubleBonusCoins,
+    doubled: state.rewardDoubled,
+  });
+  const helperLine = presentation.pending
+    ? null
+    : presentation.empty
+      ? null
+      : state.rewardDoubled && presentation.doubleFromCoins > 0
+        ? t('Награда за победу удвоена\n({from} → {to})', {
+            from: `+${presentation.doubleFromCoins}`,
+            to: `+${presentation.doubleToCoins}`,
+          })
+        : presentation.doubleFromCoins > 0 && presentation.doubleToCoins > presentation.doubleFromCoins
+          ? `${t('Реклама удваивает только награду за победу ({from} → {to})', {
+              from: `+${presentation.doubleFromCoins}`,
+              to: `+${presentation.doubleToCoins}`,
+            }).replace(' (', '\n(')}`
+          : null;
+  return {
+    title: t('НАГРАДЫ'),
+    baseLabel: baseRewardLabel(presentation.baseLabel),
+    baseCoins: presentation.baseCoins,
+    rankLabel: presentation.rankCoins > 0 ? t('Новый ранг') : null,
+    rankCoins: presentation.rankCoins,
+    totalLabel: t('Всего получено'),
+    totalCoins: presentation.totalCoins,
+    pendingLabel: presentation.pending ? t('Награды начисляются…') : null,
+    emptyLabel: presentation.empty ? t('Без повторной награды') : null,
+    helperLine,
+  };
 }
 
 function contentFor(state:GameCompleteState):WinOverlayContent {
+  const noticeParts = [
+    state.improvedBest ? t('Новый рекорд!') : null,
+    state.reward?.themePurchaseUnlocked ? t('Доступны новые темы в коллекции') : null,
+  ].filter((value): value is string => Boolean(value));
   return {
     title:t('ПОБЕДА'),
-    kicker:state.mode==='winnable'?t('ИГРА'):t('КЛАССИКА'),
-    resultLine:state.improvedBest?`${formatDuration(state.elapsedMs)} · ${t('Новый рекорд')}`:formatDuration(state.elapsedMs),
-    rewardLine:rewardLine(state.reward),
-    detailLine:detailLine(state.reward),
-    noticeLine:state.reward?.themePurchaseUnlocked?t('Доступны новые темы в коллекции'):null,
+    kicker:null,
+    resultLine:`${t('Время: {value0}', { value0: formatDuration(state.elapsedMs) })} · ${t('Ходы: {value0}', { value0: Math.max(0, state.moves) })}`,
+    detailLine:null,
+    noticeLine:noticeParts.length > 0 ? noticeParts.join(' · ') : null,
+    rewards: rewardContent(state),
     primaryActionLabel:t('НОВАЯ РАЗДАЧА'),
     secondaryActionLabel:t('В МЕНЮ'),
     rewardActionLabel:state.rewardActionLabel ?? null,
     rewardActionEnabled:state.rewardActionEnabled === true,
+    mastery: state.mastery ? presentVictoryMastery(state.mastery, getLanguage()) : null,
   };
 }
 
-/** Trifold-style Phaser victory overlay adapted to Cascade's existing completion contract. */
+/** Shared landscape victory overlay for desktop and mobile. */
 export class GameCompleteView {
   private readonly overlay:WinOverlay;
   private state:GameCompleteState|null=null;
@@ -66,7 +101,7 @@ export class GameCompleteView {
   private lastCelebratedCompletionId:string|null=null;
 
   constructor(scene:Phaser.Scene, private readonly actions:GameCompleteActions) {
-    const initial:GameCompleteState={completionId:'',mode:'winnable',elapsedMs:0,improvedBest:false};
+    const initial:GameCompleteState={completionId:'',mode:'winnable',elapsedMs:0,moves:0,improvedBest:false};
     this.overlay=new WinOverlay(scene,contentFor(initial),{newDeal:actions.newGame,home:actions.menu,doubleCoins:actions.doubleCoins},5000);
     this.overlay.setVisible(false);
   }
@@ -80,11 +115,13 @@ export class GameCompleteView {
     this.overlay.setContent(contentFor(state));
     this.overlay.setVisible(true);
     if (this.layoutState) this.overlay.layout(this.layoutState);
-    if (state.completionId!==this.lastCelebratedCompletionId) {
+    const freshCompletion = state.completionId!==this.lastCelebratedCompletionId;
+    if (freshCompletion) {
       this.lastCelebratedCompletionId=state.completionId;
       this.actions.sound?.('victory');
       if (state.reward && !state.reward.pending && state.reward.coins>0) this.actions.sound?.('coin-reward');
     }
+    if (freshCompletion) this.overlay.playMasteryAnimation();
   }
 
   layout(layout:ViewportLayout):void { this.layoutState=layout; this.overlay.layout(layout); }
