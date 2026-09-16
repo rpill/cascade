@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import type { ViewportLayout } from '../../game/view/ViewportLayout.ts';
 import { PaperPanel } from '../components/PaperPanel.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';

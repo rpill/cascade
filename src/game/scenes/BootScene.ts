@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 import { SUITS, type Card, type Deal, type Suit } from '../model/types.ts';
 import { createDealForMode } from '../model/deal.ts';

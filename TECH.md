@@ -117,7 +117,7 @@ Do not merge the active board checkpoint into `cascadeMeta` or upload a full boa
 - Interaction geometry uses overlap area and may be tuned independently of legal-move rules.
 - Manual drag resolution is always an immediate snap, both for accepted placement and rejected/cancelled return; reserve motion tweens for non-drag/automatic movement.
 - Keep normal antialiasing and subpixel motion; do not use `pixelArt`/nearest-neighbour filtering merely to hide low-resolution source assets.
-- Do not use the unsupported Phaser 3 `GameConfig.resolution` field. Desktop uses `Phaser.Scale.RESIZE` so the canvas itself matches the parent viewport instead of being CSS-upscaled.
+- Do not use a `GameConfig.resolution` field. Phaser 4 keeps `Phaser.Scale.NONE`; the HiDPI backing-store size and CSS zoom are managed explicitly from the host bounds via `planHiDpiCanvas`, `scale.setZoom`, and `scale.resize`.
 - Keep the main camera at zoom 1 / scroll 0. Do not reintroduce authored-board camera fitting; calculate board geometry directly from `LayoutMetrics(this.scale.width, this.scale.height)`.
 - Desktop responsive cards are constrained to 84..180 px wide with the existing 108:151 aspect ratio. The foundation utility rail is anchored to the left viewport edge; tableau columns use a compact proportional gap (target ~30% of card width, cap 40%) instead of consuming all spare width; excess widescreen/ultrawide space centers the tableau inside that region.
 - Load runtime card faces from `public/assets/cards/*.png`; do not use Phaser SVG loading for cards. The current Vintage PNGs are 360×480 and are displayed responsively up to 180×252.

@@ -1,4 +1,4 @@
-import type Phaser from 'phaser';
+import type * as Phaser from 'phaser';
 import type { ThemeDefinition } from './ThemeDefinition.ts';
 
 export const CARD_BACK_ART_FRAME = 'card-back-art';

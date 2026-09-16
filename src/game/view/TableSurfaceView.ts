@@ -1,4 +1,4 @@
-import type Phaser from 'phaser';
+import type * as Phaser from 'phaser';
 import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
 import type { ViewportLayout } from './ViewportLayout.ts';
 import { getSurfaceTransform } from './BoardTexture.ts';

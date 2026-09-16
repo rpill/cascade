@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import type { LayoutBounds, ViewportLayout } from '../../game/view/ViewportLayout.ts';
 import { UI_ART_KEYS, UI_ICON_KEYS } from '../assets/UiAssets.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';

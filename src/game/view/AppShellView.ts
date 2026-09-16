@@ -1,5 +1,5 @@
 import { t, LocalizationBindings } from '../../localization/Localization.ts';
-import type Phaser from 'phaser';
+import type * as Phaser from 'phaser';
 
 import { createIconControl, refreshIconControls } from './ui/UiControls.ts';
 import { createUiIcon } from './ui/UiIcons.ts';

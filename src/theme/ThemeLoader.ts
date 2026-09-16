@@ -1,4 +1,4 @@
-import type Phaser from 'phaser';
+import type * as Phaser from 'phaser';
 import { getThemeAssets } from './ThemeAssets.ts';
 import type { ThemeDefinition } from './ThemeDefinition.ts';
 import { prepareCardBack } from './CardBackTexture.ts';

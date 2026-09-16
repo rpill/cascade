@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { t } from '../../localization/Localization.ts';
 import { ActionCard } from '../components/ActionCard.ts';
 import { ModalShell } from '../components/ModalShell.ts';

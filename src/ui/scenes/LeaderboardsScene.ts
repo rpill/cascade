@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { productBridge } from '../bridge/CascadeProductBridge.ts';
 import { t } from '../../localization/Localization.ts';
 import { decodeMasteryLeaderboardScore, type GlobalLeaderboardMode } from '../../leaderboards/LeaderboardConfig.ts';

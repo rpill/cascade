@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import type { UiRect } from '../layout/HomeLayout.ts';
 import type { ResolvedUiViewport } from '../layout/UiViewport.ts';
 import { normalizeTouchTarget } from '../layout/UiViewport.ts';

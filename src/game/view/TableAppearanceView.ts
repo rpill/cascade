@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { getBoardSlots } from './layout.ts';
 import type { ViewportLayout } from './ViewportLayout.ts';
 import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';

@@ -1,5 +1,5 @@
 import { t, LocalizationBindings } from '../../localization/Localization.ts';
-import type Phaser from 'phaser';
+import type * as Phaser from 'phaser';
 
 export interface StatisticsModeState {
   readonly played: number;

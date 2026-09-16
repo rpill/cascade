@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { CASCADE_UI_ART_FILES, CASCADE_UI_ART_KEYS } from './CascadeUiArt.ts';
 
 const ICON_ROOT = './assets/ui/icons';

@@ -1,12 +1,28 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import type { UiRect } from '../layout/HomeLayout.ts';
 
 const DRAG_START_THRESHOLD = 8;
+
+interface FilterCapableContainer extends Phaser.GameObjects.Container {
+  enableFilters(): this;
+  filters: {
+    internal: {
+      addMask(
+        mask: Phaser.GameObjects.GameObject,
+        invert?: boolean,
+        viewCamera?: Phaser.Cameras.Scene2D.Camera,
+        viewTransform?: 'local' | 'world',
+        scaleFactor?: number,
+      ): unknown;
+    };
+  };
+}
 
 export class ScrollRegion {
   private readonly scene: Phaser.Scene;
   private readonly content: Phaser.GameObjects.Container;
   private readonly maskGraphics: Phaser.GameObjects.Graphics;
+  private canvasMask: Phaser.Display.Masks.GeometryMask | null = null;
   private bounds: UiRect = { x: 0, y: 0, width: 1, height: 1 };
   private contentHeight = 1;
   private offsetY = 0;
@@ -17,7 +33,16 @@ export class ScrollRegion {
   constructor(scene: Phaser.Scene, depth = 0) {
     this.scene = scene;
     this.content = scene.add.container(0, 0).setDepth(depth);
-    this.maskGraphics = scene.add.graphics().setVisible(false);
+    this.maskGraphics = scene.make.graphics({}, false);
+
+    if (scene.game.renderer.type === Phaser.WEBGL) {
+      const filterContent = this.content as FilterCapableContainer;
+      filterContent.enableFilters();
+      filterContent.filters.internal.addMask(this.maskGraphics, false, scene.cameras.main, 'world');
+    } else {
+      this.canvasMask = this.maskGraphics.createGeometryMask();
+      this.content.setMask(this.canvasMask);
+    }
     scene.input.on('pointerdown', this.handlePointerDown, this);
     scene.input.on('pointermove', this.handlePointerMove, this);
     scene.input.on('pointerup', this.handlePointerUp, this);
@@ -38,8 +63,6 @@ export class ScrollRegion {
   layout(bounds: UiRect): void {
     this.bounds = bounds;
     this.maskGraphics.clear().fillStyle(0xffffff).fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-    const mask = this.maskGraphics.createGeometryMask();
-    this.content.setMask(mask);
     this.setOffset(this.offsetY);
   }
 
@@ -93,6 +116,7 @@ export class ScrollRegion {
     this.scene.input.off('gameout', this.handlePointerUp, this);
     this.scene.input.off('wheel', this.handleWheel, this);
     this.content.destroy(true);
+    this.canvasMask?.destroy();
     this.maskGraphics.destroy();
   }
 }

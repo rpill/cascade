@@ -1,4 +1,4 @@
-import type Phaser from 'phaser';
+import type * as Phaser from 'phaser';
 import { t } from '../../localization/Localization.ts';
 import type { SfxCue } from '../../settings/SfxController.ts';
 import type { MasteryRank } from '../../meta/MetaSave.ts';

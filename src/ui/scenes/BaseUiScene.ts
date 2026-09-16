@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { SceneBackdrop } from '../components/SceneBackdrop.ts';
 import { resolveUiViewport, scaleUiViewportForBacking, type ResolvedUiViewport } from '../layout/UiViewport.ts';
 

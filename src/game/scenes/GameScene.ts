@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 import { GameFlow } from '../model/GameFlow.ts';
 import { createRandomDealSeed, GameSession } from '../model/GameSession.ts';

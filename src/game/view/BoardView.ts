@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 import { SolitaireGame } from '../model/SolitaireGame.ts';
 import { getTableauDealSequence } from '../model/deal.ts';

@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { t } from '../../localization/Localization.ts';
 import { productBridge } from '../bridge/CascadeProductBridge.ts';
 import { RULE_SLIDES } from '../../game/view/RulesSlides.ts';

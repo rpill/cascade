@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import type { StandardDifficulty } from '../../meta/MetaSave.ts';
 import { getLanguage, t } from '../../localization/Localization.ts';
 import { THEME_CATALOG } from '../../theme/ThemeCatalog.ts';

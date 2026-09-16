@@ -3,7 +3,7 @@
 ## Stack
 
 - TypeScript
-- Phaser `^3.90.0`
+- Phaser `^4.2.1`
 - Vite `^7.1.3`
 - pnpm
 - Node built-in test runner

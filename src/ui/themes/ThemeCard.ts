@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import type { ThemeId } from '../../theme/ThemeDefinition.ts';
 import type { UiRect } from '../layout/HomeLayout.ts';
 import type { ThemeCardViewModel } from './ThemesViewModel.ts';

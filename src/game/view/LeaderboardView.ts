@@ -1,5 +1,5 @@
 import { t, LocalizationBindings } from '../../localization/Localization.ts';
-import type Phaser from 'phaser';
+import type * as Phaser from 'phaser';
 import type { LeaderboardRow } from '../../leaderboards/LeaderboardService.ts';
 import type { OrdinaryGameMode } from '../../meta/GameStats.ts';
 

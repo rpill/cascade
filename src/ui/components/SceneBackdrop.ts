@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { UI_ART_KEYS } from '../assets/UiAssets.ts';
 import { coverCrop } from '../assets/ArtworkLayout.ts';
 

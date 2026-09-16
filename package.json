@@ -20,7 +20,7 @@
     "deals:probe": "node tools/deals/probe.mjs"
   },
   "dependencies": {
-    "phaser": "^3.90.0"
+    "phaser": "^4.2.1"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",

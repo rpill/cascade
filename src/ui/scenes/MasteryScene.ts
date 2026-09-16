@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { getLanguage, t } from '../../localization/Localization.ts';
 import { productBridge } from '../bridge/CascadeProductBridge.ts';
 import { CASCADE_UI_ART_KEYS } from '../assets/CascadeUiArt.ts';

@@ -1,5 +1,5 @@
 import { t, LocalizationBindings } from '../../localization/Localization.ts';
-import type Phaser from 'phaser';
+import type * as Phaser from 'phaser';
 
 import type { GameMode } from '../model/types.ts';
 import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
