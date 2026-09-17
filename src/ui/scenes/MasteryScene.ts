@@ -115,9 +115,11 @@ export class MasteryScene extends BaseUiScene {
     const bounds: UiRect = content;
     this.panel.layout(bounds);
     const sections = this.layoutMasterySections(bounds, css, mobile);
+    const sharedProgressWidth = Math.min(sections.overall.width * 0.84, sections.requirements.width * 0.84);
+    const sharedProgressHeight = Math.max(12 * css, Math.min(sections.overall.height, sections.requirements.height) * (mobile ? 0.070 : 0.066));
     this.layoutRankSection(sections.rank, css, mobile);
-    this.layoutOverallSection(sections.overall, css, mobile);
-    this.layoutRequirementSection(sections.requirements, css, mobile);
+    this.layoutOverallSection(sections.overall, css, mobile, sharedProgressWidth, sharedProgressHeight);
+    this.layoutRequirementSection(sections.requirements, css, mobile, sharedProgressWidth, sharedProgressHeight);
     this.layoutPathSection(sections.path, css, mobile);
     this.drawStructureChrome(sections, css, mobile);
   }
@@ -158,33 +160,41 @@ export class MasteryScene extends BaseUiScene {
       .setFontSize(Math.max(20 * css, Math.min((mobile ? 32 : 42) * css, bounds.width * 0.105)));
   }
 
-  private layoutOverallSection(bounds: UiRect, css: number, mobile: boolean): void {
-    const textSize = Math.max(12 * css, Math.min((mobile ? 17 : 21) * css, bounds.width * 0.052));
-    const left = bounds.x + bounds.width * 0.06;
-    this.subtitle?.setPosition(left, bounds.y + bounds.height * 0.34).setFontSize(textSize);
+  private layoutOverallSection(bounds: UiRect, css: number, mobile: boolean, sharedProgressWidth: number, sharedProgressHeight: number): void {
+    const textSize = Math.max(12 * css, Math.min((mobile ? 17 : 21) * css, bounds.width * 0.050));
+    const left = bounds.x + bounds.width * 0.05;
+    const labelY = bounds.y + bounds.height * 0.23;
+    const meterY = bounds.y + bounds.height * 0.47;
+    this.subtitle?.setPosition(left, labelY).setFontSize(textSize);
 
     const meterBounds: UiRect = {
       x: left,
-      y: bounds.y + bounds.height * 0.50,
-      width: bounds.width * 0.88,
-      height: Math.max(10 * css, bounds.height * (mobile ? 0.07 : 0.075)),
+      y: meterY,
+      width: sharedProgressWidth,
+      height: sharedProgressHeight,
     };
     this.drawProgressFrame(this.overallMeterFrame, meterBounds, css);
     this.overallMeter?.layout(this.insetMeter(meterBounds, css));
   }
 
-  private layoutRequirementSection(bounds: UiRect, css: number, mobile: boolean): void {
+  private layoutRequirementSection(bounds: UiRect, css: number, mobile: boolean, sharedProgressWidth: number, sharedProgressHeight: number): void {
     const count = Math.max(1, this.requirementTexts.length);
-    const rowH = bounds.height / count;
+    const textSize = Math.max(12 * css, Math.min((mobile ? 17 : 21) * css, bounds.width * 0.046));
+    const left = bounds.x + bounds.width * 0.05;
+
     this.requirementTexts.forEach((text, index) => {
-      const rowTop = bounds.y + index * rowH;
-      text.setPosition(bounds.x + bounds.width * 0.03, rowTop + rowH * 0.30)
-        .setFontSize(Math.max(12 * css, Math.min((mobile ? 17 : 21) * css, bounds.width * 0.047)));
+      const single = count === 1;
+      const rowH = single ? bounds.height : bounds.height / count;
+      const rowTop = single ? bounds.y : bounds.y + index * rowH;
+      const labelY = single ? bounds.y + bounds.height * 0.23 : rowTop + rowH * 0.24;
+      const meterY = single ? bounds.y + bounds.height * 0.47 : rowTop + rowH * 0.52;
+
+      text.setPosition(left, labelY).setFontSize(textSize);
       const meterBounds: UiRect = {
-        x: bounds.x + bounds.width * 0.03,
-        y: rowTop + rowH * 0.52,
-        width: bounds.width * 0.92,
-        height: Math.max(9 * css, rowH * (mobile ? 0.11 : 0.105)),
+        x: left,
+        y: meterY,
+        width: sharedProgressWidth,
+        height: sharedProgressHeight,
       };
       this.drawProgressFrame(this.meterFrames[index], meterBounds, css);
       this.meters[index]?.layout(this.insetMeter(meterBounds, css));
@@ -192,7 +202,7 @@ export class MasteryScene extends BaseUiScene {
   }
 
   private layoutPathSection(bounds: UiRect, css: number, mobile: boolean): void {
-    const headingY = bounds.y + bounds.height * (mobile ? 0.14 : 0.13);
+    const headingY = bounds.y + bounds.height * (mobile ? 0.11 : 0.10);
     this.pathHeading?.setPosition(bounds.x + bounds.width / 2, headingY)
       .setFontSize(Math.max(14 * css, Math.min((mobile ? 20 : 25) * css, bounds.height * 0.18)));
 
@@ -205,14 +215,7 @@ export class MasteryScene extends BaseUiScene {
     const xs = this.pathTexts.map((_, index) => startX + index * step);
 
     const pathBackdrop = this.pathBackdrop;
-    const sepY = bounds.y + bounds.height * 0.01;
-    const sepGap = bounds.width * 0.09;
-    if (pathBackdrop) {
-      pathBackdrop.clear();
-      pathBackdrop.lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.42)
-        .lineBetween(bounds.x, sepY, bounds.x + bounds.width / 2 - sepGap, sepY)
-        .lineBetween(bounds.x + bounds.width / 2 + sepGap, sepY, bounds.x + bounds.width, sepY);
-    }
+    pathBackdrop?.clear();
 
     this.drawPathConnectors(xs, badgeY, badgeSize, css, mobile);
     this.pathSelection?.clear();
@@ -248,12 +251,8 @@ export class MasteryScene extends BaseUiScene {
       .lineBetween(secondX, top, secondX, bottom);
   }
 
-  private drawProgressFrame(graphics: Phaser.GameObjects.Graphics | null, bounds: UiRect, css: number): void {
-    if (!graphics) return;
-    const radius = bounds.height / 2;
-    graphics.clear()
-      .fillStyle(0xf7edd8, 0.78).fillRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius)
-      .lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.56).strokeRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
+  private drawProgressFrame(graphics: Phaser.GameObjects.Graphics | null, _bounds: UiRect, _css: number): void {
+    graphics?.clear();
   }
 
   private insetMeter(bounds: UiRect, css: number): UiRect {

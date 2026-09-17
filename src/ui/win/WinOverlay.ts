@@ -179,21 +179,56 @@ export class WinOverlay {
     this.masteryPanel.setVisible(this.visible && Boolean(mastery));
     if (mastery) {
       this.masteryPanel.layout(panelBounds,'paper',true);
-      const badgeSize = Math.min(panelH*0.50,panelBounds.width*0.17);
-      this.masteryBadge.setPosition(panelBounds.x+panelBounds.width*0.18,panelY+panelH*0.50).setDisplaySize(badgeSize,badgeSize);
-      this.masteryRank.setPosition(panelBounds.x+panelBounds.width*0.43,panelY+panelH*0.26).setFontSize(Math.max(17,panelH*0.14));
-      this.masteryCaption.setOrigin(0,0.5).setPosition(panelBounds.x+panelBounds.width*0.43,panelY+panelH*0.45).setFontSize(Math.max(11,panelH*0.075)).setWordWrapWidth(panelBounds.width*0.48).setAlign('left');
-      const progressRowY=panelY+panelH*0.69;
-      const meterHeight=Math.max(8,panelH*0.075);
-      const labelX=panelBounds.x+panelBounds.width*0.43;
-      const meterX=panelBounds.x+panelBounds.width*0.61;
-      const valueX=panelBounds.x+panelBounds.width*0.88;
-      const meterBounds={x:meterX,y:progressRowY-meterHeight/2,width:panelBounds.width*0.22,height:meterHeight};
-      this.masteryMeterBounds=meterBounds;
+      const badgeSize = Math.min(panelH * 0.50, panelBounds.width * 0.17);
+      this.masteryBadge.setPosition(panelBounds.x + panelBounds.width * 0.18, panelY + panelH * 0.50).setDisplaySize(badgeSize, badgeSize);
+
+      const contentLeft = panelBounds.x + panelBounds.width * 0.34;
+      const contentRight = panelBounds.x + panelBounds.width * 0.92;
+      const contentWidth = contentRight - contentLeft;
+      const progressLabelWidth = contentWidth * 0.34;
+      const progressGap = panelBounds.width * 0.018;
+      const progressValueWidth = contentWidth * 0.12;
+      const meterHeight = Math.max(10, panelH * 0.075);
+      const row1Y = panelY + panelH * 0.26;
+      const row2Y = panelY + panelH * 0.46;
+      const row3Y = panelY + panelH * 0.70;
+
+      this.masteryRank
+        .setOrigin(0, 0.5)
+        .setPosition(contentLeft, row1Y)
+        .setFontSize(Math.max(17, panelH * 0.14));
+
+      this.masteryCaption
+        .setOrigin(0, 0.5)
+        .setPosition(contentLeft, row2Y)
+        .setFontSize(Math.max(11, panelH * 0.075))
+        .setWordWrapWidth(contentWidth * 0.92)
+        .setAlign('left');
+
+      this.masteryProgressLabel
+        .setOrigin(0, 0.5)
+        .setPosition(contentLeft, row3Y)
+        .setFontSize(Math.max(10, panelH * 0.065));
+
+      const meterX = contentLeft + progressLabelWidth + progressGap;
+      const meterBounds = {
+        x: meterX,
+        y: row3Y - meterHeight / 2,
+        width: Math.max(32, contentRight - meterX - progressGap - progressValueWidth),
+        height: meterHeight,
+      };
+      this.masteryMeterBounds = meterBounds;
       this.masteryMeter.layout(meterBounds);
-      this.masteryProgressLabel.setOrigin(0,0.5).setPosition(labelX,progressRowY).setFontSize(Math.max(10,panelH*0.065));
-      this.masteryProgressValue.setOrigin(1,0.5).setPosition(valueX,progressRowY).setFontSize(Math.max(10,panelH*0.065));
-      this.masteryReward.setPosition(panelBounds.x+panelBounds.width*0.65,panelY+panelH*0.87).setFontSize(Math.max(10,panelH*0.065));
+
+      this.masteryProgressValue
+        .setOrigin(1, 0.5)
+        .setPosition(contentRight, row3Y)
+        .setFontSize(Math.max(10, panelH * 0.065));
+
+      this.masteryReward
+        .setOrigin(0.5, 0.5)
+        .setPosition(panelBounds.x + panelBounds.width * 0.65, panelY + panelH * 0.87)
+        .setFontSize(Math.max(10, panelH * 0.065));
     }
 
     const buttonY=bounds.y+height*0.82, gap=bounds.width*0.025;
