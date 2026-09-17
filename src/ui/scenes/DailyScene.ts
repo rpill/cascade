@@ -2,16 +2,17 @@ import * as Phaser from 'phaser';
 import { productBridge } from '../bridge/CascadeProductBridge.ts';
 import { getLanguage, t } from '../../localization/Localization.ts';
 import { ActionCard } from '../components/ActionCard.ts';
-import { CoinPill } from '../components/CoinPill.ts';
 import { SceneShell } from '../components/SceneShell.ts';
 import { IconButton } from '../components/IconButton.ts';
 import { ModalShell } from '../components/ModalShell.ts';
 import { PaperPanel } from '../components/PaperPanel.ts';
+import { ButtonSurface } from '../components/ButtonSurface.ts';
 import { computeCalendarCellBounds, computeDailyLayout, computeMonthNavigationBounds } from '../daily/DailyCalendarLayout.ts';
 import type { ResolvedUiViewport } from '../layout/UiViewport.ts';
 import type { UiRect } from '../layout/HomeLayout.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
 import { UI_ICON_KEYS } from '../assets/UiAssets.ts';
+import { CASCADE_UI_ART_KEYS } from '../assets/CascadeUiArt.ts';
 import { BaseUiScene } from './BaseUiScene.ts';
 import { getDailyStreaks } from '../../meta/DailyStreak.ts';
 import { playUiButtonSound } from '../sound/UiSound.ts';
@@ -19,6 +20,7 @@ import type { DailyRecord } from '../../meta/MetaSave.ts';
 
 interface CalendarCell {
   readonly surface: Phaser.GameObjects.Graphics;
+  readonly activeSurface: ButtonSurface;
   readonly label: Phaser.GameObjects.Text;
   readonly zone: Phaser.GameObjects.Zone;
   readonly dateKey: string | null;
@@ -90,7 +92,6 @@ export class DailyScene extends BaseUiScene {
   private selectedDateKey = '';
   private visibleMonth = '';
   private shell: SceneShell | null = null;
-  private coinPill: CoinPill | null = null;
   private summaryPanel: PaperPanel | null = null;
   private calendarPanel: PaperPanel | null = null;
   private dailyAction: ActionCard | null = null;
@@ -123,9 +124,24 @@ export class DailyScene extends BaseUiScene {
     const viewport = this.currentUiViewport();
 
     this.shell = new SceneShell(this, viewport, 'Daily', () => this.scene.start('HomeScene'), 20);
-    this.coinPill = new CoinPill(this, 20);
-    this.summaryPanel = new PaperPanel(this, { depth: 10 });
-    this.calendarPanel = new PaperPanel(this, { depth: 10 });
+    this.summaryPanel = new PaperPanel(this, {
+      depth: 10,
+      textureKey: CASCADE_UI_ART_KEYS.dailyPanelBg,
+      artworkAlpha: 0.86,
+      artworkWashAlpha: 0.72,
+      artworkMode: 'cover',
+      artworkFocusX: 0.18,
+      artworkFocusY: 0.50,
+    });
+    this.calendarPanel = new PaperPanel(this, {
+      depth: 10,
+      textureKey: CASCADE_UI_ART_KEYS.dailyPanelBg,
+      artworkAlpha: 0.84,
+      artworkWashAlpha: 0.76,
+      artworkMode: 'cover',
+      artworkFocusX: 0.52,
+      artworkFocusY: 0.50,
+    });
     this.dailyAction = new ActionCard(this, viewport, { title: t('ИГРАТЬ СЕГОДНЯ'), enabled: true, emphasis: 'highlight' }, () => this.pressSelectedDate(), 20);
     this.monthText = this.add.text(0, 0, monthLabel(this.visibleMonth), { color: '#24302e', fontFamily: 'Georgia, serif', fontStyle: 'bold' }).setOrigin(0.5).setDepth(20);
     this.summaryDividers = this.add.graphics().setDepth(20);
@@ -159,7 +175,7 @@ export class DailyScene extends BaseUiScene {
   }
 
   protected layout(viewport: ResolvedUiViewport): void {
-    if (!this.shell || !this.coinPill || !this.summaryPanel || !this.calendarPanel || !this.dailyAction) return;
+    if (!this.shell || !this.summaryPanel || !this.calendarPanel || !this.dailyAction) return;
     const shell = this.shell.layout(viewport);
     const bounds = computeDailyLayout(viewport, shell.content);
     const css = viewport.minTouchTarget / 44;
@@ -169,8 +185,6 @@ export class DailyScene extends BaseUiScene {
     this.summaryPanel.layout(bounds.summary);
     this.calendarPanel.layout(bounds.calendar);
 
-    const coinWidth = Math.min(shell.rightSlot.width, 150 * viewport.uiScale);
-    this.coinPill.layout({ x: shell.rightSlot.x + shell.rightSlot.width - coinWidth, y: shell.rightSlot.y, width: coinWidth, height: shell.rightSlot.height });
 
     const inner: UiRect = {
       x: bounds.summary.x + bounds.summary.width * 0.07,
@@ -238,7 +252,9 @@ export class DailyScene extends BaseUiScene {
       }).setOrigin(0.5).setDepth(21);
       const zone = this.add.zone(0, 0, 1, 1).setOrigin(0).setDepth(22).setInteractive();
       zone.input!.cursor = selectable ? 'pointer' : 'default';
-      const cell: CalendarCell = { surface, label, zone, dateKey, selectable, hovered: false, bounds: null };
+      const activeSurface = new ButtonSurface(this, 20.5);
+      activeSurface.setVisible(false);
+      const cell: CalendarCell = { surface, activeSurface, label, zone, dateKey, selectable, hovered: false, bounds: null };
       zone.on('pointerover', () => {
         if (!cell.selectable) return;
         cell.hovered = true;
@@ -262,6 +278,7 @@ export class DailyScene extends BaseUiScene {
       cell.zone.destroy();
       cell.label.destroy();
       cell.surface.destroy();
+      cell.activeSurface.destroy();
     }
     this.cells.length = 0;
   }
@@ -291,10 +308,19 @@ export class DailyScene extends BaseUiScene {
             : UI_TOKENS.color.paper;
     const alpha = cell.dateKey ? (cell.selectable ? (hovered ? 1 : 0.94) : 0.55) : 0;
     cell.surface.clear();
+    cell.activeSurface.setVisible(false);
     if (cell.dateKey) {
-      cell.surface.fillStyle(fill, alpha).fillRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, Math.max(4, bounds.height * 0.16));
-      cell.surface.lineStyle(selected ? 3 : hovered ? 2 : 1, selected || hovered ? UI_TOKENS.color.gold : UI_TOKENS.color.mutedInk, selected ? 1 : hovered ? 0.82 : 0.35)
-        .strokeRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, Math.max(4, bounds.height * 0.16));
+      if (selected) {
+        const insetX = Math.max(0, bounds.width * 0.02);
+        const insetY = Math.max(0, bounds.height * 0.02);
+        cell.activeSurface.setVisible(true);
+        cell.activeSurface.layout({ x: bounds.x + insetX, y: bounds.y + insetY, width: bounds.width - insetX * 2, height: bounds.height - insetY * 2 }, 'jade', 'square');
+        cell.activeSurface.feedback('normal');
+      } else {
+        cell.surface.fillStyle(fill, alpha).fillRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, Math.max(4, bounds.height * 0.16));
+        cell.surface.lineStyle(hovered ? 2 : 1, hovered ? UI_TOKENS.color.gold : UI_TOKENS.color.mutedInk, hovered ? 0.82 : 0.35)
+          .strokeRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, Math.max(4, bounds.height * 0.16));
+      }
     }
     cell.label.setColor(selected ? '#fff2d4' : '#24302e').setVisible(Boolean(cell.dateKey)).setAlpha(alpha).setScale(hovered ? 1.04 : 1)
       .setPosition(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
@@ -332,12 +358,10 @@ export class DailyScene extends BaseUiScene {
     const title = active ? t('ПРОДОЛЖИТЬ')
       : completed ? t('ПОВТОРИТЬ')
         : isToday ? t('ИГРАТЬ СЕГОДНЯ') : t('ИГРАТЬ ИЗ АРХИВА');
-    const firstReward = completed ? 0 : isToday ? 15 : 5;
-    const reward = firstReward > 0 ? ` · +${firstReward} ${t('монет')}` : '';
     const rankingNote = isToday
       ? rankingLocked ? ` · ${t('Без изменения рейтинга')}` : ` · ${t('Первая попытка идёт в рейтинг')}`
       : '';
-    this.dailyAction?.setState({ title, subtitle: `${this.selectedDateKey}${reward}${rankingNote}`, emphasis: 'highlight', enabled: true });
+    this.dailyAction?.setState({ title, subtitle: `${this.selectedDateKey}${rankingNote}`, emphasis: 'highlight', enabled: true });
 
     const streak = getDailyStreaks(snapshot.state.daily.records, this.todayKey);
     this.summaryRowLabels[0]?.setText(t('Серия'));
@@ -352,7 +376,6 @@ export class DailyScene extends BaseUiScene {
     const hintRemaining = record?.hintUsed ? 0 : 1;
     const personalRecord = record?.bestTimeMs !== undefined ? formatTime(record.bestTimeMs) : t('Ещё не пройдено');
     this.summaryRowValues[2]?.setText(`${personalRecord} · ${t('Подсказка')} ${hintRemaining}/1`);
-    this.coinPill?.setCoins(snapshot.state.progression.coins);
   }
 
   private pressSelectedDate(): void {
@@ -432,7 +455,6 @@ export class DailyScene extends BaseUiScene {
 
   private clearDailySceneReferences(): void {
     this.shell = null;
-    this.coinPill = null;
     this.summaryPanel = null;
     this.calendarPanel = null;
     this.dailyAction = null;

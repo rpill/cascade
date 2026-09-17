@@ -18,20 +18,6 @@ function begin(attemptId: string): MetaOperation {
   return { kind: 'begin', attemptId, mode: 'winnable' };
 }
 
-function complete(attemptId: string): MetaOperation {
-  return {
-    kind: 'complete',
-    attemptId,
-    mode: 'winnable',
-    elapsedMs: 4_000,
-    trustedDay: '2026-09-08',
-    trustedWeek: '2026-W37',
-    standardSeed: '123',
-    standardPartition: 'easy',
-    standardDifficulty: 'easy',
-  };
-}
-
 function cloudData(state: MetaSave): Record<string, unknown> {
   return { cascadeMeta: structuredClone(state) };
 }
@@ -69,24 +55,10 @@ test('browser profile write failure cannot acknowledge the durable operation jou
   assert.equal(journal.pending.length,0);
 });
 
-test('purchase is rejected until a profile load succeeds', async () => {
-  const journal = new MetaJournal('player-1', new MemoryStorage());
-  const storage: PlayerStorage = {
-    load: async () => { throw new Error('offline'); },
-    save: async () => undefined,
-  };
-  const session = new MetaSession(storage, journal);
-
-  assert.equal(session.dispatch({ kind: 'purchase', themeId: 'navy_study' }), false);
-  await session.load();
-  assert.equal(session.dispatch({ kind: 'purchase', themeId: 'navy_study' }), false);
-  assert.equal(journal.pending.length, 0);
-});
-
 test('load can retry after a failed profile read', async () => {
   let fail = true;
   const remote = createDefaultMetaSave();
-  remote.progression.coins = 75;
+  remote.standard.selectedDifficulty = 'hard';
   const storage: PlayerStorage = {
     load: async () => {
       if (fail) throw new Error('offline');
@@ -101,7 +73,7 @@ test('load can retry after a failed profile read', async () => {
 
   assert.equal(await session.load(), true);
   assert.equal(session.status, 'ready');
-  assert.equal(session.state.progression.coins, 75);
+  assert.equal(session.state.standard.selectedDifficulty, 'hard');
 });
 
 test('operation dispatched before load replays over cloud state', async () => {
@@ -194,7 +166,7 @@ test('failed cloud write remains retryable and clears save error after success',
   assert.equal(journal.pending.length, 0);
 });
 
-test('journal append failure does not apply a commerce operation', async () => {
+test('journal append failure does not apply an operation', async () => {
   const local: MetaJournalStorage = {
     getItem: () => null,
     setItem: () => { throw new Error('blocked'); },
@@ -207,7 +179,7 @@ test('journal append failure does not apply a commerce operation', async () => {
   await session.load();
   const before = structuredClone(session.state);
 
-  assert.equal(session.dispatch({ kind: 'purchase', themeId: 'navy_study' }), false);
+  assert.equal(session.dispatch(begin('blocked-attempt')), false);
   assert.deepEqual(session.state, before);
 });
 
@@ -225,41 +197,6 @@ test('state changes notify observers for provisional dispatch, load, and save st
   await session.flush();
 
   assert.ok(changes >= 4);
-});
-
-test('completion reward is recalculated when provisional state replays over cloud', async () => {
-  const remote = createDefaultMetaSave();
-  remote.standard.completed.easy = ['123'];
-  const storage: PlayerStorage = {
-    load: async () => cloudData(remote),
-    save: async () => undefined,
-  };
-  const session = new MetaSession(storage, new MetaJournal('player-1', new MemoryStorage()));
-
-  session.dispatch(complete('rewarded-attempt'));
-  assert.ok(session.getReward('rewarded-attempt')?.lines.some(({ label }) => label === 'Победа'));
-
-  await session.load();
-
-  assert.equal(session.getReward('rewarded-attempt'), undefined);
-});
-
-test('already receipted completion does not advertise a reward after load', async () => {
-  const journal = new MetaJournal('player-1', new MemoryStorage());
-  const envelope = journal.append(complete('already-saved-attempt'));
-  assert.ok(envelope);
-  const remote = createDefaultMetaSave();
-  remote.progression.receipts[journal.stream] = envelope.sequence;
-  remote.progression.completedAttempts.push('already-saved-attempt');
-  const storage: PlayerStorage = {
-    load: async () => cloudData(remote),
-    save: async () => undefined,
-  };
-  const session = new MetaSession(storage, journal);
-
-  await session.load();
-
-  assert.equal(session.getReward('already-saved-attempt'), undefined);
 });
 
 test('replaceAndFlush persists a merged snapshot even when the journal is empty and retries a failed write', async () => {
@@ -282,14 +219,14 @@ test('replaceAndFlush persists a merged snapshot even when the journal is empty 
   assert.equal(typeof replaceAndFlush, 'function');
 
   const merged = structuredClone(session.state);
-  merged.progression.coins = 321;
+  merged.standard.selectedDifficulty = 'hard';
   failWrites = true;
   assert.equal(await replaceAndFlush!.call(session, merged), false);
-  assert.equal(session.state.progression.coins, 321);
+  assert.equal(session.state.standard.selectedDifficulty, 'hard');
   assert.equal(session.saveError, true);
 
   failWrites = false;
   assert.equal(await session.flush(), true);
   assert.equal(session.saveError, false);
-  assert.equal((data.cascadeMeta as ReturnType<typeof createDefaultMetaSave>).progression.coins, 321);
+  assert.equal((data.cascadeMeta as ReturnType<typeof createDefaultMetaSave>).standard.selectedDifficulty, 'hard');
 });

@@ -6,9 +6,6 @@ export const ANALYTICS_GOALS = [
   'tutorial_complete',
   'game_win',
   'daily_complete',
-  'theme_buy',
-  'iap_success',
-  'rewarded_reward',
 ] as const;
 
 export type AnalyticsGoal = typeof ANALYTICS_GOALS[number];
@@ -19,13 +16,6 @@ export const ANALYTICS_EVENTS = [
   'game_abandon',
   'new_deal',
   'tutorial_start',
-  'shop_open',
-  'theme_equip',
-  'iap_click',
-  'iap_error',
-  'rewarded_click',
-  'rewarded_no_reward',
-  'rewarded_error',
   'fullscreen_requested',
   'fullscreen_shown',
   'fullscreen_not_shown',

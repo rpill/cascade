@@ -16,10 +16,9 @@ import {
   type Point,
 } from './layout.ts';
 import type { ViewportLayout } from './ViewportLayout.ts';
-import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
+import type { GameAppearance } from '../appearance/GameAppearance.ts';
 import { TableAppearanceView } from './TableAppearanceView.ts';
-import { STOCK_EDGE_ASSET } from '../../theme/ThemeAssets.ts';
-import { CARD_BACK_ART_FRAME } from '../../theme/CardBackTexture.ts';
+import { STOCK_EDGE_ASSET } from '../appearance/GameAppearanceAssets.ts';
 import {
   getCardMotionDuration,
   getFoundationStepDelay,
@@ -74,7 +73,7 @@ export class BoardView {
   private readonly scene: Phaser.Scene;
   private readonly game: SolitaireGame;
   private readonly actions: BoardActions;
-  private theme: ThemeDefinition;
+  private readonly appearanceConfig: GameAppearance;
   private readonly cardImages = new Map<string, Phaser.GameObjects.Image>();
   private readonly stockBacks: Phaser.GameObjects.Image[] = [];
   private readonly ownedObjects: Phaser.GameObjects.GameObject[] = [];
@@ -103,16 +102,16 @@ export class BoardView {
     game: SolitaireGame,
     actions: BoardActions,
     layout: ViewportLayout,
-    theme: ThemeDefinition,
+    appearance: GameAppearance,
   ) {
     this.scene = scene;
     this.game = game;
     this.actions = actions;
     this.layout = layout;
-    this.theme = theme;
+    this.appearanceConfig = appearance;
     this.stockVisual = new StockVisualState(game.stock.length);
 
-    this.appearance = new TableAppearanceView(scene, theme, layout);
+    this.appearance = new TableAppearanceView(scene, appearance, layout);
     this.createCardImages();
     this.createStockStack();
     this.relayout(layout);
@@ -222,11 +221,6 @@ export class BoardView {
     this.cardImages.clear();
   }
 
-  setTheme(theme: ThemeDefinition): void {
-    this.theme = theme;
-    this.appearance.setTheme(theme, this.layout);
-    this.updateStockStack();
-  }
 
   private createCardImages(): void {
     const visibleCards = [
@@ -263,7 +257,7 @@ export class BoardView {
 
   private createStockStack(): void {
     for (let index = 0; index < MAX_STOCK_LAYERS; index += 1) {
-      const back = this.scene.add.image(this.layout.stock.x, this.layout.stock.y, this.theme.cardBack.key)
+      const back = this.scene.add.image(this.layout.stock.x, this.layout.stock.y, this.appearanceConfig.cardBack.key)
         .setOrigin(0)
         .setDisplaySize(this.layout.cardWidth, this.layout.cardHeight)
         .setVisible(false)
@@ -285,8 +279,7 @@ export class BoardView {
       const top = index === offsets.length - 1;
 
       back
-        .setTexture(top ? this.theme.cardBack.key : STOCK_EDGE_ASSET.key,
-          top && this.theme.cardBack.crop !== undefined ? CARD_BACK_ART_FRAME : undefined)
+        .setTexture(top ? this.appearanceConfig.cardBack.key : STOCK_EDGE_ASSET.key)
         .setDisplaySize(this.layout.cardWidth, this.layout.cardHeight)
         .setVisible(visible)
         .setPosition(this.layout.stock.x, this.layout.stock.y + (offset ?? 0))

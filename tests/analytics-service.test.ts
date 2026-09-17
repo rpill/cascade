@@ -14,11 +14,11 @@ test('analytics routes conversions to reachGoal and ordinary actions to params e
   };
   const analytics = new AnalyticsService(transport);
 
-  analytics.event('shop_open', { source: 'menu', ignored: undefined });
+  analytics.event('game_start', { mode: 'winnable', ignored: undefined });
   analytics.goal('game_win', { mode: 'winnable', duration_sec: 91.25 });
 
   assert.deepEqual(calls, [
-    ['event', 'shop_open', { source: 'menu' }],
+    ['event', 'game_start', { mode: 'winnable' }],
     ['goal', 'game_win', { mode: 'winnable', duration_sec: 91.25 }],
   ]);
 });
@@ -30,17 +30,16 @@ test('analytics drops invalid numeric values instead of poisoning Metrica payloa
     event: () => undefined,
   });
 
-  analytics.goal('iap_success', {
-    product_id: 'coins_500',
-    order_price: Number.NaN,
+  analytics.goal('daily_complete', {
+    mode: 'daily',
+    duration_sec: Number.NaN,
     infinity: Number.POSITIVE_INFINITY,
-    currency: 'YAN',
-    remove_ads: false,
+    on_time: true,
     nothing: null,
   });
 
   assert.deepEqual(calls, [[
-    'iap_success',
-    { product_id: 'coins_500', currency: 'YAN', remove_ads: false },
+    'daily_complete',
+    { mode: 'daily', on_time: true },
   ]]);
 });

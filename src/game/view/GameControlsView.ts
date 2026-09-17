@@ -2,7 +2,7 @@ import { t, LocalizationBindings } from '../../localization/Localization.ts';
 import type * as Phaser from 'phaser';
 
 import type { GameMode } from '../model/types.ts';
-import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
+import type { GameAppearance } from '../appearance/GameAppearance.ts';
 import { createIconControl, refreshIconControls } from './ui/UiControls.ts';
 import './GameControlsView.css';
 
@@ -38,11 +38,11 @@ export class GameControlsView {
   private readonly hintButton: HTMLButtonElement;
   private readonly newDealButton: HTMLButtonElement;
 
-  constructor(scene: Phaser.Scene, actions: GameControlsActions, theme: ThemeDefinition) {
+  constructor(scene: Phaser.Scene, actions: GameControlsActions, appearance: GameAppearance) {
     this.root = document.createElement('div');
     this.root.className = 'game-hud';
     this.root.style.setProperty('--game-hud-paper', toCssUrl(HUD_PAPER_TEXTURE));
-    this.setTheme(theme);
+    this.setAppearance(appearance);
 
     this.modeLabel = document.createElement('div');
     this.modeLabel.className = 'game-mode-label';
@@ -133,9 +133,8 @@ export class GameControlsView {
     this.setDaily(mode === 'daily');
   }
 
-  setTheme(theme: ThemeDefinition): void {
-    this.root.dataset.theme = theme.id;
-    const palette = theme.controls;
+  setAppearance(appearance: GameAppearance): void {
+    const palette = appearance.controls;
     this.root.style.setProperty('--game-control-surface', palette.surface);
     this.root.style.setProperty('--game-control-hover', palette.hover);
     this.root.style.setProperty('--game-control-ink', palette.ink);

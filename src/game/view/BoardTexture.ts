@@ -1,7 +1,7 @@
-import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
+import type { GameAppearance } from '../appearance/GameAppearance.ts';
 
-export function getBoardTexture(theme: ThemeDefinition): string {
-  return theme.boardSurface.key;
+export function getBoardTexture(appearance: GameAppearance): string {
+  return appearance.boardSurface.key;
 }
 
 export function getSurfaceTransform(

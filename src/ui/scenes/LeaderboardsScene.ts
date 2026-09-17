@@ -11,6 +11,7 @@ import { ScrollRegion } from '../components/ScrollRegion.ts';
 import type { UiRect } from '../layout/HomeLayout.ts';
 import type { ResolvedUiViewport } from '../layout/UiViewport.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
+import { CASCADE_UI_ART_KEYS } from '../assets/CascadeUiArt.ts';
 import { BaseUiScene } from './BaseUiScene.ts';
 
 interface RowVisual {
@@ -99,7 +100,15 @@ export class LeaderboardsScene extends BaseUiScene {
       this.clearRows();
       void this.refreshRows();
     }, 30);
-    this.panel = new PaperPanel(this, { depth: 10, textureKey: UI_TOKENS.asset.paperPanel });
+    this.panel = new PaperPanel(this, {
+      depth: 10,
+      textureKey: CASCADE_UI_ART_KEYS.leaderboardPanelBg,
+      artworkAlpha: 0.80,
+      artworkWashAlpha: 0.80,
+      artworkMode: 'cover',
+      artworkFocusX: 0.50,
+      artworkFocusY: 0.52,
+    });
     this.sectionTitle = this.add.text(0, 0, '', {
       color: '#7b6337', fontFamily: 'Georgia, serif', fontStyle: 'bold', align: 'center',
     }).setOrigin(0.5).setDepth(30);

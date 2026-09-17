@@ -179,7 +179,9 @@ export function calculateViewportLayout(
     y: foundationStartY + index * (cardHeight + foundationGap),
   }));
 
-  const mainPlayTopOffset = compact ? clamp(10, safeHeight * 0.025, 14) : 0;
+  const mainPlayTopOffset = compact
+    ? clamp(14, safeHeight * 0.032, 18)
+    : clamp(12, safeHeight * 0.018, 22);
   const mainPlayY = boardY + mainPlayTopOffset;
   const mainPlayBounds = {
     x: mainPlayX,

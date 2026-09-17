@@ -2,8 +2,6 @@ import * as Phaser from 'phaser';
 import { getLanguage, t } from '../../localization/Localization.ts';
 import { productBridge } from '../bridge/CascadeProductBridge.ts';
 import { CASCADE_UI_ART_KEYS } from '../assets/CascadeUiArt.ts';
-import { UI_ICON_KEYS } from '../assets/UiAssets.ts';
-import { CoinPill } from '../components/CoinPill.ts';
 import { SceneShell } from '../components/SceneShell.ts';
 import { PaperPanel } from '../components/PaperPanel.ts';
 import { ProgressMeter } from '../components/ProgressMeter.ts';
@@ -24,7 +22,6 @@ export class MasteryScene extends BaseUiScene {
   private vm: MasteryViewModel | null = null;
   private panel: PaperPanel | null = null;
   private shell: SceneShell | null = null;
-  private coinPill: CoinPill | null = null;
 
   private badge: Phaser.GameObjects.Image | null = null;
   private title: Phaser.GameObjects.Text | null = null;
@@ -36,10 +33,6 @@ export class MasteryScene extends BaseUiScene {
   private meters: ProgressMeter[] = [];
   private meterFrames: Phaser.GameObjects.Graphics[] = [];
 
-  private rewardFrame: Phaser.GameObjects.Graphics | null = null;
-  private rewardCoins: Phaser.GameObjects.Image[] = [];
-  private rewardText: Phaser.GameObjects.Text | null = null;
-
   private structureChrome: Phaser.GameObjects.Graphics | null = null;
   private pathBackdrop: Phaser.GameObjects.Graphics | null = null;
   private pathTrack: Phaser.GameObjects.Graphics | null = null;
@@ -47,7 +40,6 @@ export class MasteryScene extends BaseUiScene {
   private pathHeading: Phaser.GameObjects.Text | null = null;
   private pathTexts: Phaser.GameObjects.Text[] = [];
   private pathBadges: Phaser.GameObjects.Image[] = [];
-  private pathLocks: Array<Phaser.GameObjects.Image | null> = [];
 
   constructor() { super('MasteryScene'); }
 
@@ -57,11 +49,16 @@ export class MasteryScene extends BaseUiScene {
     this.vm = buildMasteryViewModel(snapshot.state, getLanguage());
     const viewport = this.currentUiViewport();
 
-    this.panel = new PaperPanel(this, { depth: 10 });
+    this.panel = new PaperPanel(this, {
+      depth: 10,
+      textureKey: CASCADE_UI_ART_KEYS.masteryPanelBg,
+      artworkAlpha: 0.82,
+      artworkWashAlpha: 0.78,
+      artworkMode: 'cover',
+      artworkFocusX: 0.50,
+      artworkFocusY: 0.54,
+    });
     this.shell = new SceneShell(this, viewport, t('Мастерство'), () => this.scene.start('HomeScene'), 30);
-    this.coinPill = new CoinPill(this, 30);
-    this.coinPill.setCoins(snapshot.state.progression.coins);
-
     this.badge = this.add.image(0, 0, CASCADE_UI_ART_KEYS.rank[this.vm.rank]).setDepth(20);
     this.title = this.add.text(0, 0, this.vm.rankLabel, {
       color: '#202b29', fontFamily: 'Georgia, serif', fontStyle: 'bold',
@@ -89,15 +86,6 @@ export class MasteryScene extends BaseUiScene {
     });
     this.meterFrames = this.vm.requirements.map(() => this.add.graphics().setDepth(19.8));
 
-    this.rewardFrame = this.add.graphics().setDepth(18.5);
-    this.rewardCoins = [0, 1, 2].map(() => this.add.image(0, 0, UI_ICON_KEYS.coin)
-      .setTint(UI_TOKENS.color.goldLight).setDepth(20));
-    this.rewardText = this.add.text(0, 0, this.vm.nextRewardCoins > 0
-      ? t('Награда за ранг: +{count} монет', { count: this.vm.nextRewardCoins })
-      : t('Все ранги открыты'), {
-      color: '#5f481d', fontFamily: 'system-ui, sans-serif', fontStyle: 'bold',
-    }).setOrigin(0, 0.5).setDepth(20);
-
     this.structureChrome = this.add.graphics().setDepth(16);
     this.pathBackdrop = this.add.graphics().setDepth(15);
     this.pathTrack = this.add.graphics().setDepth(18);
@@ -112,8 +100,6 @@ export class MasteryScene extends BaseUiScene {
     }).setAlpha(item.current ? 1 : item.completed ? 0.96 : 0.9).setOrigin(0.5).setDepth(20));
     this.pathBadges = this.vm.path.map(item => this.add.image(0, 0, CASCADE_UI_ART_KEYS.rank[item.rank])
       .setAlpha(item.current ? 1 : item.completed ? 0.92 : 0.34).setDepth(20));
-    this.pathLocks = this.vm.path.map(item => item.current || item.completed ? null : this.add.image(0, 0, UI_ICON_KEYS.lock)
-      .setTint(UI_TOKENS.color.goldLight).setDepth(21));
 
     this.bindResponsiveLayout();
   }
@@ -125,13 +111,6 @@ export class MasteryScene extends BaseUiScene {
     const content = shell.content;
     const css = viewport.minTouchTarget / 44;
     const mobile = viewport.profile === 'mobile-landscape';
-    const coinWidth = Math.min(shell.rightSlot.width, Math.max(92 * css, shell.header.height * 2.0));
-    this.coinPill?.layout({
-      x: shell.rightSlot.x + shell.rightSlot.width - coinWidth,
-      y: shell.rightSlot.y,
-      width: coinWidth,
-      height: shell.rightSlot.height,
-    });
 
     const bounds: UiRect = content;
     this.panel.layout(bounds);
@@ -182,34 +161,16 @@ export class MasteryScene extends BaseUiScene {
   private layoutOverallSection(bounds: UiRect, css: number, mobile: boolean): void {
     const textSize = Math.max(12 * css, Math.min((mobile ? 17 : 21) * css, bounds.width * 0.052));
     const left = bounds.x + bounds.width * 0.06;
-    this.subtitle?.setPosition(left, bounds.y + bounds.height * 0.18).setFontSize(textSize);
+    this.subtitle?.setPosition(left, bounds.y + bounds.height * 0.34).setFontSize(textSize);
 
     const meterBounds: UiRect = {
       x: left,
-      y: bounds.y + bounds.height * 0.29,
+      y: bounds.y + bounds.height * 0.50,
       width: bounds.width * 0.88,
       height: Math.max(10 * css, bounds.height * (mobile ? 0.07 : 0.075)),
     };
     this.drawProgressFrame(this.overallMeterFrame, meterBounds, css);
     this.overallMeter?.layout(this.insetMeter(meterBounds, css));
-
-    const reward: UiRect = {
-      x: left,
-      y: bounds.y + bounds.height * (mobile ? 0.53 : 0.55),
-      width: bounds.width * 0.88,
-      height: bounds.height * (mobile ? 0.28 : 0.25),
-    };
-    this.drawRewardFrame(reward, css);
-    const showCoins = Boolean(this.vm && this.vm.nextRewardCoins > 0);
-    const coinSize = Math.min(reward.height * 0.42, reward.width * 0.095);
-    const coinBaseX = reward.x + reward.width * 0.12;
-    const coinY = reward.y + reward.height / 2;
-    this.rewardCoins.forEach((coin, index) => coin
-      .setVisible(showCoins)
-      .setDisplaySize(coinSize, coinSize)
-      .setPosition(coinBaseX + index * coinSize * 0.34, coinY + (index === 1 ? -coinSize * 0.15 : index === 2 ? coinSize * 0.08 : coinSize * 0.10)));
-    this.rewardText?.setPosition(reward.x + reward.width * (showCoins ? 0.30 : 0.08), coinY)
-      .setFontSize(Math.max(11 * css, Math.min((mobile ? 15 : 18) * css, reward.height * 0.30)));
   }
 
   private layoutRequirementSection(bounds: UiRect, css: number, mobile: boolean): void {
@@ -248,11 +209,9 @@ export class MasteryScene extends BaseUiScene {
     const sepGap = bounds.width * 0.09;
     if (pathBackdrop) {
       pathBackdrop.clear();
-      pathBackdrop.lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.48)
+      pathBackdrop.lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.42)
         .lineBetween(bounds.x, sepY, bounds.x + bounds.width / 2 - sepGap, sepY)
         .lineBetween(bounds.x + bounds.width / 2 + sepGap, sepY, bounds.x + bounds.width, sepY);
-      this.drawDiamond(pathBackdrop, bounds.x + bounds.width / 2 - sepGap * 0.82, sepY, 3.5 * css, 0.7);
-      this.drawDiamond(pathBackdrop, bounds.x + bounds.width / 2 + sepGap * 0.82, sepY, 3.5 * css, 0.7);
     }
 
     this.drawPathConnectors(xs, badgeY, badgeSize, css, mobile);
@@ -264,9 +223,6 @@ export class MasteryScene extends BaseUiScene {
       badge?.setPosition(x, badgeY).setDisplaySize(badgeSize, badgeSize);
       if (item && !item.current && !item.completed) badge?.setTint(0x8e8a79);
       else badge?.clearTint();
-
-      const lock = this.pathLocks[index];
-      lock?.setPosition(x, badgeY).setDisplaySize(badgeSize * 0.31, badgeSize * 0.31).setAlpha(0.92);
       text.setPosition(x, labelY).setFontSize(Math.max(9 * css, Math.min((mobile ? 12 : 15) * css, bounds.height * 0.105)));
 
       if (item?.current) {
@@ -292,30 +248,12 @@ export class MasteryScene extends BaseUiScene {
       .lineBetween(secondX, top, secondX, bottom);
   }
 
-  private drawRewardFrame(bounds: UiRect, css: number): void {
-    if (!this.rewardFrame) return;
-    const radius = Math.max(5 * css, bounds.height * 0.12);
-    this.rewardFrame.clear()
-      .fillStyle(0xf8ead0, 0.76).fillRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius)
-      .lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.68).strokeRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
-    const c = Math.max(5 * css, bounds.height * 0.11);
-    const inset = 6 * css;
-    this.rewardFrame.lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.45)
-      .lineBetween(bounds.x + inset, bounds.y + inset, bounds.x + inset + c, bounds.y + inset)
-      .lineBetween(bounds.x + inset, bounds.y + inset, bounds.x + inset, bounds.y + inset + c)
-      .lineBetween(bounds.x + bounds.width - inset - c, bounds.y + bounds.height - inset, bounds.x + bounds.width - inset, bounds.y + bounds.height - inset)
-      .lineBetween(bounds.x + bounds.width - inset, bounds.y + bounds.height - inset - c, bounds.x + bounds.width - inset, bounds.y + bounds.height - inset);
-  }
-
   private drawProgressFrame(graphics: Phaser.GameObjects.Graphics | null, bounds: UiRect, css: number): void {
     if (!graphics) return;
     const radius = bounds.height / 2;
     graphics.clear()
       .fillStyle(0xf7edd8, 0.78).fillRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius)
-      .lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.72).strokeRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
-    const diamond = Math.max(2.5 * css, bounds.height * 0.17);
-    this.drawDiamond(graphics, bounds.x - diamond * 1.35, bounds.y + bounds.height / 2, diamond, 0.72);
-    this.drawDiamond(graphics, bounds.x + bounds.width + diamond * 1.35, bounds.y + bounds.height / 2, diamond, 0.72);
+      .lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.56).strokeRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
   }
 
   private insetMeter(bounds: UiRect, css: number): UiRect {
@@ -331,25 +269,16 @@ export class MasteryScene extends BaseUiScene {
   private drawPathConnectors(xs: readonly number[], y: number, badgeSize: number, css: number, mobile: boolean): void {
     if (!this.pathTrack) return;
     this.pathTrack.clear();
-    const lineAlpha = mobile ? 0.68 : 0.74;
-    const edgePad = badgeSize * 0.59;
-    const diamondSize = Math.max(2.5 * css, badgeSize * 0.055);
+    const lineAlpha = mobile ? 0.62 : 0.68;
     const arrow = Math.max(4 * css, badgeSize * 0.085);
-    this.pathTrack.lineStyle(Math.max(1, 1.4 * css), UI_TOKENS.color.gold, lineAlpha);
+    const edgePad = badgeSize * 0.59;
+    this.pathTrack.lineStyle(Math.max(1, 1.35 * css), UI_TOKENS.color.gold, lineAlpha);
     for (let index = 0; index < xs.length - 1; index += 1) {
       const start = xs[index] + edgePad;
       const end = xs[index + 1] - edgePad;
-      const mid = (start + end) / 2;
-      const gap = diamondSize * 2.1;
-      this.pathTrack.lineBetween(start, y, mid - gap, y).lineBetween(mid + gap, y, end - arrow, y);
-      this.drawDiamond(this.pathTrack, mid, y, diamondSize, 0.85);
+      this.pathTrack.lineBetween(start, y, end - arrow, y);
       this.pathTrack.beginPath().moveTo(end - arrow, y - arrow * 0.62).lineTo(end, y).lineTo(end - arrow, y + arrow * 0.62).strokePath();
     }
-  }
-
-  private drawDiamond(graphics: Phaser.GameObjects.Graphics, x: number, y: number, size: number, alpha: number): void {
-    graphics.fillStyle(UI_TOKENS.color.gold, alpha).beginPath()
-      .moveTo(x, y - size).lineTo(x + size, y).lineTo(x, y + size).lineTo(x - size, y).closePath().fillPath();
   }
 
   private masteryTotals(): { current: number; total: number } {

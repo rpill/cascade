@@ -6,10 +6,10 @@ const homeVm = readFileSync(new URL('../src/ui/home/HomeViewModel.ts', import.me
 const leaderboard = readFileSync(new URL('../src/ui/scenes/LeaderboardsScene.ts', import.meta.url), 'utf8');
 const controls = readFileSync(new URL('../src/game/view/GameControlsView.ts', import.meta.url), 'utf8');
 
-test('new player-facing shell exposes one Game entry plus Daily, Mastery and Themes', () => {
+test('new player-facing shell exposes one Game entry plus Daily, Mastery and Leaders', () => {
   assert.match(home, /scene\.start\('DailyScene'\)/);
   assert.match(home, /scene\.start\('MasteryScene'\)/);
-  assert.match(home, /scene\.start\('ThemesScene'\)/);
+  assert.match(home, /scene\.start\('LeaderboardsScene'\)/);
   assert.doesNotMatch(home, /КЛАССИКА/);
   assert.match(homeVm, /selectedDifficulty/);
 });

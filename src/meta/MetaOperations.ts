@@ -1,12 +1,9 @@
 import type { GameMode } from '../game/model/types.ts';
 import { beginDailyAttempt } from './DailyProgress.ts';
 import { beginModeAttempt, completeModeAttempt } from './GameStats.ts';
-import { createRewardSummary, equipTheme, purchaseTheme, type RewardLine, type RewardSummary } from './Economy.ts';
-import { MAX_ECONOMY_VALUE, type MetaSave, type StandardDifficulty, type StandardPartition } from './MetaSave.ts';
-import { REWARDED_COINS, REWARDED_DAILY_LIMIT } from '../monetization/Products.ts';
+import type { MasteryRank, MetaSave, StandardDifficulty, StandardPartition } from './MetaSave.ts';
 import { settleStandardWin } from './standard/StandardWinSettlement.ts';
 import { settleDailyWin } from './daily/DailyWinSettlement.ts';
-import { claimCoinRewardOnce } from './economy/CoinRewards.ts';
 
 interface AttemptEvent {
   readonly attemptId: string;
@@ -30,13 +27,9 @@ export type MetaOperation =
   | (AttemptEvent & { readonly kind: 'begin'; readonly dailyRankingEligible?: boolean })
   | CompletionEvent
   | { readonly kind: 'daily-hint-used'; readonly dailyId: string }
-  | { readonly kind: 'purchase'; readonly themeId: string }
-  | { readonly kind: 'equip'; readonly themeId: string }
   | { readonly kind: 'set-standard-difficulty'; readonly difficulty: StandardDifficulty }
   | { readonly kind: 'standard-served'; readonly seed: string; readonly partition: StandardPartition; readonly difficulty: StandardDifficulty }
-  | { readonly kind: 'standard-failed'; readonly attemptId: string }
-  | { readonly kind: 'rewarded-ad'; readonly dayId: string }
-  | { readonly kind: 'reward-double'; readonly key: string; readonly bonusCoins: number };
+  | { readonly kind: 'standard-failed'; readonly attemptId: string };
 
 function remember(ids: string[], id: string): string[] { return [...ids, id].slice(-128); }
 function attemptCursor(id: string): { key: string; sequence: number } | null {
@@ -67,27 +60,18 @@ function validStandardCompletion(event: CompletionEvent): event is CompletionEve
     && (event.standardDifficulty === 'easy' || event.standardDifficulty === 'medium' || event.standardDifficulty === 'hard');
 }
 
-function appendRankRewardLine(lines: RewardLine[], beforeCoins: number, afterCoins: number, baseCoins: number, rankAdvanced: boolean): void {
-  if (!rankAdvanced) return;
-  const rankCoins = Math.max(0, afterCoins - beforeCoins - baseCoins);
-  if (rankCoins > 0) lines.push({ label: 'Новый ранг мастерства', coins: rankCoins });
-}
-
-export function completeRewardedAttempt(
+export function completeAttempt(
   state: MetaSave,
   event: CompletionEvent,
-): { state: MetaSave; reward: RewardSummary } {
-  const empty: RewardSummary = { coins: 0, lines: [] };
+): { state: MetaSave; rankAdvancedTo: MasteryRank | null } {
   if (!event.attemptId || hasCompletedAttempt(state, event.attemptId)
-    || !Number.isFinite(event.elapsedMs) || event.elapsedMs <= 0) return { state, reward: empty };
+    || !Number.isFinite(event.elapsedMs) || event.elapsedMs <= 0) return { state, rankAdvancedTo: null };
 
-  const before = state;
   let next = state;
-  const lines: RewardLine[] = [];
-  let rankAdvancedTo: RewardSummary['rankAdvancedTo'];
+  let rankAdvancedTo: MasteryRank | null = null;
 
   if (event.mode === 'daily') {
-    if (!validDaily(event)) return { state, reward: empty };
+    if (!validDaily(event)) return { state, rankAdvancedTo: null };
     const completionDateId = event.trustedDay ?? event.dailyId!;
     const settled = settleDailyWin(next, {
       dailyId: event.dailyId!,
@@ -98,24 +82,19 @@ export function completeRewardedAttempt(
       attemptId: event.attemptId,
     });
     next = settled.state;
-    if (settled.coinsGranted > 0) lines.push({ label: 'Испытание дня', coins: settled.coinsGranted });
-    appendRankRewardLine(lines, before.progression.coins, next.progression.coins, settled.coinsGranted, settled.rankAdvancedTo !== null);
     rankAdvancedTo = settled.rankAdvancedTo;
   } else {
     if (next.stats[event.mode].played <= next.stats[event.mode].wins) next = beginModeAttempt(next, event.mode);
     next = completeModeAttempt(next, event.mode, event.elapsedMs).state;
 
     if (event.mode === 'winnable') {
-      if (!validStandardCompletion(event)) return { state, reward: empty };
-      const beforeSettlementCoins = next.progression.coins;
+      if (!validStandardCompletion(event)) return { state, rankAdvancedTo: null };
       const settled = settleStandardWin(next, {
         seed: event.standardSeed,
         partition: event.standardPartition,
         difficulty: event.standardDifficulty,
       });
       next = settled.state;
-      if (settled.baseCoinsGranted > 0) lines.push({ label: 'Победа', coins: settled.baseCoinsGranted });
-      appendRankRewardLine(lines, beforeSettlementCoins, next.progression.coins, settled.baseCoinsGranted, settled.rankAdvancedTo !== null);
       rankAdvancedTo = settled.rankAdvancedTo;
       const current = next.standardWinStreak.current + 1;
       next = {
@@ -135,21 +114,15 @@ export function completeRewardedAttempt(
     },
   };
 
-  return { state: next, reward: createRewardSummary(before, next, lines, rankAdvancedTo ?? null) };
+  return { state: next, rankAdvancedTo };
 }
 
 export function applyMetaOperation(state: MetaSave, event: MetaOperation): MetaSave {
   switch (event.kind) {
-    case 'purchase': return purchaseTheme(state, event.themeId);
-    case 'equip': return equipTheme(state, event.themeId);
     case 'set-standard-difficulty':
       return state.standard.selectedDifficulty === event.difficulty
         ? state
         : { ...state, standard: { ...state.standard, selectedDifficulty: event.difficulty } };
-    case 'reward-double':
-      return /^reward-double:standard:[1-9]\d{0,9}$/u.test(event.key)
-        ? claimCoinRewardOnce(state, event.key, event.bonusCoins)
-        : state;
     case 'daily-hint-used': {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(event.dailyId)) return state;
       const previous = state.daily.records[event.dailyId] ?? { completed: false, completedOnTime: false, attempts: 0 };
@@ -162,24 +135,6 @@ export function applyMetaOperation(state: MetaSave, event: MetaOperation): MetaS
             ...state.daily.records,
             [event.dailyId]: { ...previous, hintUsed: true },
           },
-        },
-      };
-    }
-    case 'rewarded-ad': {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(event.dayId)) return state;
-      const sameDay = state.monetization.rewardedDay === event.dayId;
-      const currentCount = sameDay ? state.monetization.rewardedCount : 0;
-      if (currentCount >= REWARDED_DAILY_LIMIT) return state;
-      return {
-        ...state,
-        progression: {
-          ...state.progression,
-          coins: Math.min(MAX_ECONOMY_VALUE, state.progression.coins + REWARDED_COINS),
-        },
-        monetization: {
-          ...state.monetization,
-          rewardedDay: event.dayId,
-          rewardedCount: currentCount + 1,
         },
       };
     }
@@ -198,7 +153,7 @@ export function applyMetaOperation(state: MetaSave, event: MetaOperation): MetaS
       return event.attemptId
         ? { ...state, standardWinStreak: { ...state.standardWinStreak, current: 0 } }
         : state;
-    case 'complete': return completeRewardedAttempt(state, event).state;
+    case 'complete': return completeAttempt(state, event).state;
     case 'begin': {
       if (!event.attemptId || state.progression.startedAttempts.includes(event.attemptId) || hasCompletedAttempt(state, event.attemptId)) return state;
       if (event.mode === 'daily' && !validDaily(event)) return state;

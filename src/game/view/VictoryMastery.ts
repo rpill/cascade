@@ -19,7 +19,6 @@ export interface VictoryMasteryState {
   readonly before: VictoryMasterySnapshot;
   readonly after: VictoryMasterySnapshot;
   readonly rankAdvancedTo: MasteryRank | null;
-  readonly rankRewardCoins: number;
 }
 
 export interface WinOverlayMasteryContent {
@@ -91,7 +90,6 @@ export function buildVictoryMasteryState(before: MetaSave, after: MetaSave, rank
     before: previous,
     after: next,
     rankAdvancedTo,
-    rankRewardCoins: rankAdvancedTo ? (getMasteryRequirements(previous.rank)?.rewardCoins ?? 0) : 0,
   };
 }
 

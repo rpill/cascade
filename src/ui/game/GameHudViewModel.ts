@@ -8,9 +8,6 @@ export interface GameHudInput {
   readonly moves: number;
   readonly activeMs: number;
   readonly canUndo: boolean;
-  readonly coins: number;
-  readonly rewardCoins?: number;
-  readonly rewardClaimed?: boolean;
   readonly hintEligible: boolean;
   readonly hintRemaining?: number;
   readonly newDealEnabled: boolean;
@@ -25,7 +22,6 @@ export interface GameHudViewModel {
   readonly hintEnabled: boolean;
   readonly newDealEnabled: boolean;
   readonly newDealVisible: boolean;
-  readonly coinLabel: string;
   readonly homeLabel: string;
   readonly newDealLabel: string;
   readonly restartLabel: string;
@@ -53,13 +49,8 @@ export function buildGameHudViewModel(input: GameHudInput, language: Language = 
     hintEnabled: input.hintEligible && (input.hintRemaining === undefined || input.hintRemaining > 0),
     newDealEnabled: input.newDealEnabled,
     newDealVisible: input.newDealVisible !== false,
-    coinLabel: input.rewardCoins === undefined
-      ? String(Math.max(0, Math.floor(input.coins)))
-      : (input.rewardClaimed
-        ? translate(language, 'Получено', 'Claimed')
-        : `+${Math.max(0, Math.floor(input.rewardCoins))}`),
     homeLabel: translate(language, 'Домой', 'Home'),
-    newDealLabel: translate(language, 'Новая', 'New deal'),
+    newDealLabel: translate(language, 'Новая', 'New'),
     restartLabel: translate(language, 'Заново', 'Restart'),
     undoLabel: translate(language, 'Отмена', 'Undo'),
     hintLabel: input.hintRemaining === undefined

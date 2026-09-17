@@ -6,15 +6,11 @@ import { createCard } from '../model/cards.ts';
 import { createRandomDealSeed } from '../model/GameSession.ts';
 import { pickStandardDeal, type StandardDealSelection } from '../model/StandardDealPicker.ts';
 import { VerifiedDealCatalog } from '../model/VerifiedDealCatalog.ts';
-import { getTheme } from '../../theme/ThemeRegistry.ts';
-import { resolveThemeId } from '../../theme/ThemeSelection.ts';
-import { readStartupThemeId } from '../../theme/ThemeStartupCache.ts';
-import type { ThemeAssetRef } from '../../theme/ThemeDefinition.ts';
-import { getThemeAssets } from '../../theme/ThemeAssets.ts';
-import { prepareCardBack } from '../../theme/CardBackTexture.ts';
 import { preferences } from '../../settings/Preferences.ts';
 import { SFX_ASSETS, type SfxAssetGroup } from '../../settings/SfxController.ts';
 import { preloadUiAssets } from '../../ui/assets/UiAssets.ts';
+import { GAME_APPEARANCE, type GameAssetRef } from '../appearance/GameAppearance.ts';
+import { getGameAppearanceAssets } from '../appearance/GameAppearanceAssets.ts';
 
 const SUIT_FILE: Record<Suit, string> = {
   clubs: 'club',
@@ -85,12 +81,11 @@ export class BootScene extends Phaser.Scene {
 
   preload(): void {
     preloadUiAssets(this);
-    const theme = getTheme(resolveThemeId(import.meta.env.DEV ? window.location.search : '', readStartupThemeId()));
     const firstRun = !preferences.howToPlaySeen;
     this.load.binary(VERIFIED_DEALS_BINARY_KEY, './assets/deals/verified-deals.bin');
     this.load.json(VERIFIED_DEALS_MANIFEST_KEY, './assets/deals/verified-deals-manifest.json');
 
-    getThemeAssets(theme).forEach(asset => this.loadThemeAsset(asset));
+    getGameAppearanceAssets(GAME_APPEARANCE).forEach(asset => this.loadGameAppearanceAsset(asset));
 
     if (firstRun) {
       this.loadSfxGroup(SFX_ASSETS.deal);
@@ -113,8 +108,6 @@ export class BootScene extends Phaser.Scene {
     const catalog = VerifiedDealCatalog.decode(binary, manifest);
     this.registry.set(VERIFIED_DEALS_REGISTRY_KEY, catalog);
 
-    const theme = getTheme(resolveThemeId(import.meta.env.DEV ? window.location.search : '', readStartupThemeId()));
-    prepareCardBack(this, theme);
 
     if (!preferences.howToPlaySeen) {
       this.loadFirstRunCriticalAssets(catalog);
@@ -162,7 +155,7 @@ export class BootScene extends Phaser.Scene {
     asset.keys.forEach((key, index) => this.load.audio(key, asset.urls[index]));
   }
 
-  private loadThemeAsset(asset: ThemeAssetRef): void {
+  private loadGameAppearanceAsset(asset: GameAssetRef): void {
     this.load.image(asset.key, asset.url);
   }
 }

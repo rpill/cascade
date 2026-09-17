@@ -1,4 +1,4 @@
-import type { SurfaceInsets } from '../../theme/ThemeDefinition.ts';
+import type { SurfaceInsets } from '../appearance/GameAppearance.ts';
 
 export interface SurfaceSlice {
   readonly sx: number;

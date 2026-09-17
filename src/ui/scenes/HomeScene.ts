@@ -1,10 +1,8 @@
 import * as Phaser from 'phaser';
 import type { StandardDifficulty } from '../../meta/MetaSave.ts';
 import { getLanguage, t } from '../../localization/Localization.ts';
-import { THEME_CATALOG } from '../../theme/ThemeCatalog.ts';
 import { productBridge } from '../bridge/CascadeProductBridge.ts';
 import { ActionCard } from '../components/ActionCard.ts';
-import { CoinPill } from '../components/CoinPill.ts';
 import { IconButton } from '../components/IconButton.ts';
 import { ModalShell } from '../components/ModalShell.ts';
 import { SegmentedControl } from '../components/SegmentedControl.ts';
@@ -22,9 +20,8 @@ export class HomeScene extends BaseUiScene {
   private newDeal: ActionCard | null = null;
   private daily: ActionCard | null = null;
   private mastery: ActionCard | null = null;
-  private themes: ActionCard | null = null;
+  private leaders: ActionCard | null = null;
   private difficulty: SegmentedControl<StandardDifficulty> | null = null;
-  private coinPill: CoinPill | null = null;
   private serviceButtons: IconButton[] = [];
   private brandGraphics: Phaser.GameObjects.Graphics | null = null;
   private brandTitle: Phaser.GameObjects.Text | null = null;
@@ -39,6 +36,8 @@ export class HomeScene extends BaseUiScene {
 
   create(): void {
     this.cameras.main.setBackgroundColor(UI_TOKENS.color.table);
+    document.title = t('Пасьянс Каскад');
+    this.game.canvas.parentElement?.setAttribute('aria-label', t('Пасьянс Каскад'));
     this.refreshViewModel();
     const viewport = this.currentUiViewport();
     const vm = this.requireViewModel();
@@ -63,9 +62,9 @@ export class HomeScene extends BaseUiScene {
       title: t('Мастерство'), subtitle: vm.mastery.subtitle, artwork: 'mastery',
       artworkKey: CASCADE_UI_ART_KEYS.rank[vm.mastery.rank], enabled: vm.mastery.enabled,
     }, () => this.scene.start('MasteryScene'), 20);
-    this.themes = new ActionCard(this, viewport, {
-      title: t('Темы'), subtitle: vm.themes.subtitle, artwork: 'themes', enabled: vm.themes.enabled,
-    }, () => this.scene.start('ThemesScene'), 20);
+    this.leaders = new ActionCard(this, viewport, {
+      title: vm.leaders.title, subtitle: vm.leaders.subtitle, artwork: 'leaders', enabled: vm.leaders.enabled,
+    }, () => this.scene.start('LeaderboardsScene'), 20);
 
     this.difficulty = new SegmentedControl(
       this,
@@ -75,10 +74,7 @@ export class HomeScene extends BaseUiScene {
       value => this.selectDifficulty(value),
       30,
     );
-    this.coinPill = new CoinPill(this, 30);
-    this.coinPill.setCoins(vm.coins);
     this.serviceButtons = [
-      new IconButton(this, viewport, { iconKey:UI_ICON_KEYS.leaderboard, enabled:vm.leaderboardsEnabled }, () => this.scene.start('LeaderboardsScene'), 30),
       new IconButton(this, viewport, { iconKey:UI_ICON_KEYS.howToPlay, enabled:true }, () => this.scene.start('HowToPlayScene'), 30),
       new IconButton(this, viewport, { iconKey:UI_ICON_KEYS.settings, enabled:true }, () => this.scene.start('SettingsScene'), 30),
     ];
@@ -93,7 +89,7 @@ export class HomeScene extends BaseUiScene {
   protected layout(viewport: ResolvedUiViewport): void {
     if (!this.primary) return;
     const home = computeHomeLayout(viewport);
-    for (const component of [this.primary,this.newDeal,this.daily,this.mastery,this.themes]) component?.setViewport(viewport);
+    for (const component of [this.primary,this.newDeal,this.daily,this.mastery,this.leaders]) component?.setViewport(viewport);
     this.difficulty?.setViewport(viewport);
     for (const button of this.serviceButtons) button.setViewport(viewport);
     this.primary.layout(home.continuePrimary);
@@ -101,10 +97,9 @@ export class HomeScene extends BaseUiScene {
     this.newDeal?.layout(home.newDealAction);
     this.daily?.layout(home.daily);
     this.mastery?.layout(home.mastery);
-    this.themes?.layout(home.themes);
-    this.coinPill?.layout(home.coinPill);
+    this.leaders?.layout(home.leaders);
     const gap=Math.max(6,home.serviceActions.height*0.14);
-    const width=(home.serviceActions.width-gap*2)/3;
+    const width=(home.serviceActions.width-gap)/2;
     this.serviceButtons.forEach((button,index)=>button.layout({x:home.serviceActions.x+index*(width+gap),y:home.serviceActions.y,width,height:home.serviceActions.height}));
     this.layoutBrand(home.brand,viewport);
     this.layoutNewDealConfirmation(viewport);
@@ -120,7 +115,6 @@ export class HomeScene extends BaseUiScene {
       activeDifficulty:snapshot.activeDifficulty,
       currentDailyId:snapshot.currentDailyId,
       leaderboardsEnabled:snapshot.leaderboardsEnabled,
-      themesTotal:snapshot.themesTotal || THEME_CATALOG.length,
       language:getLanguage(),
     });
   }
@@ -133,10 +127,8 @@ export class HomeScene extends BaseUiScene {
     this.newDeal?.setState({title:vm.newDeal.title,emphasis:'highlight',enabled:true});
     this.daily?.setState({title:'Daily',subtitle:vm.daily.subtitle,artwork:'daily',enabled:vm.daily.enabled});
     this.mastery?.setState({title:t('Мастерство'),subtitle:vm.mastery.subtitle,artwork:'mastery',artworkKey:CASCADE_UI_ART_KEYS.rank[vm.mastery.rank],enabled:true});
-    this.themes?.setState({title:t('Темы'),subtitle:vm.themes.subtitle,artwork:'themes',enabled:true});
+    this.leaders?.setState({title:vm.leaders.title,subtitle:vm.leaders.subtitle,artwork:'leaders',enabled:vm.leaders.enabled});
     this.difficulty?.setSelected(vm.selectedDifficulty);
-    this.coinPill?.setCoins(vm.coins);
-    this.serviceButtons[0]?.setState({iconKey:UI_ICON_KEYS.leaderboard,enabled:vm.leaderboardsEnabled});
     this.requestUiLayout();
   }
 
@@ -155,6 +147,7 @@ export class HomeScene extends BaseUiScene {
     productBridge.setStandardDifficulty(difficulty);
     this.refreshFromBridge();
   }
+
 
   private confirmNewDeal(): void {
     if (this.newDealConfirmShell) return;
@@ -191,7 +184,7 @@ export class HomeScene extends BaseUiScene {
 
   private createBrand(): void {
     this.brandGraphics=this.add.graphics().setDepth(1);
-    this.brandTitle=this.add.text(0,0,'CASCADE',{color:'#e8c88a',fontFamily:'Georgia, serif'}).setOrigin(0.5).setDepth(3);
+    this.brandTitle=this.add.text(0,0,t('Пасьянс Каскад'),{color:'#e8c88a',fontFamily:'Georgia, serif'}).setOrigin(0.5).setDepth(3);
     this.brandSubtitle=this.add.text(0,0,t('Пасьянс для спокойной игры'),{color:'#e3d5b5',fontFamily:'Georgia, serif',align:'center'}).setOrigin(0.5).setDepth(3);
   }
 
@@ -199,19 +192,34 @@ export class HomeScene extends BaseUiScene {
     if (viewport.profile === 'mobile-landscape') {
       const css = viewport.minTouchTarget / 44;
       this.brandGraphics?.clear();
-      this.brandTitle?.setOrigin(0, 0.5).setLetterSpacing(2 * css).setFontSize(Math.min(31 * css, bounds.width * 0.125)).setPosition(bounds.x + 4 * css, bounds.y + bounds.height / 2);
+      const maxMobileTitleWidth = bounds.width - 8 * css;
+      let mobileTitleSize = Math.min(27 * css, bounds.width * 0.105);
+      this.brandTitle?.setText(t('Пасьянс Каскад')).setOrigin(0, 0.5).setLetterSpacing(0.6 * css).setFontSize(mobileTitleSize);
+      if (this.brandTitle && this.brandTitle.width > maxMobileTitleWidth) {
+        mobileTitleSize *= maxMobileTitleWidth / this.brandTitle.width;
+        this.brandTitle.setFontSize(mobileTitleSize);
+      }
+      this.brandTitle?.setPosition(bounds.x + 4 * css, bounds.y + bounds.height / 2);
       this.brandSubtitle?.setVisible(false);
       return;
     }
     this.brandTitle?.setOrigin(0.5);
     this.brandSubtitle?.setVisible(true);
-    const cx=bounds.x+bounds.width*0.48,cy=bounds.y+bounds.height*0.23,r=Math.max(4,bounds.width*0.012);
-    this.brandGraphics?.clear().fillStyle(0x08291f,0.88).fillRoundedRect(bounds.x,bounds.y+bounds.height*0.11,bounds.width*0.96,bounds.height*0.22,12)
+    const cx = bounds.x + bounds.width * 0.48;
+    const panelY = bounds.y + bounds.height * 0.39;
+    const panelHeight = bounds.height * 0.22;
+    const dividerY = panelY + panelHeight * 0.55;
+    this.brandGraphics?.clear().fillStyle(0x08291f,0.88).fillRoundedRect(bounds.x, panelY, bounds.width * 0.96, panelHeight, 12)
       .lineStyle(Math.max(1,viewport.minTouchTarget/44),UI_TOKENS.color.gold,0.85)
-      .lineBetween(bounds.x+bounds.width*0.12,cy,cx-r*3,cy).lineBetween(cx+r*3,cy,bounds.x+bounds.width*0.84,cy);
-    for(const dx of [-r*1.5,0,r*1.5]) this.brandGraphics?.beginPath().moveTo(cx+dx,cy-r).lineTo(cx+dx+r,cy).lineTo(cx+dx,cy+r).lineTo(cx+dx-r,cy).closePath().strokePath();
-    const titleSize=bounds.width*0.135;
-    this.brandTitle?.setLetterSpacing(titleSize*0.06).setFontSize(titleSize).setPosition(cx,bounds.y+bounds.height*0.18);
-    this.brandSubtitle?.setFontSize(Math.max(11*viewport.minTouchTarget/44,titleSize*0.23)).setPosition(cx,bounds.y+bounds.height*0.275);
+      .lineBetween(bounds.x+bounds.width*0.12, dividerY, bounds.x+bounds.width*0.84, dividerY);
+    const maxTitleWidth = bounds.width * 0.80;
+    let titleSize = Math.min(bounds.width * 0.092, panelHeight * 0.30);
+    this.brandTitle?.setText(t('Пасьянс Каскад')).setLetterSpacing(titleSize * 0.012).setFontSize(titleSize);
+    if (this.brandTitle && this.brandTitle.width > maxTitleWidth) {
+      titleSize *= maxTitleWidth / this.brandTitle.width;
+      this.brandTitle.setFontSize(titleSize);
+    }
+    this.brandTitle?.setPosition(cx, panelY + panelHeight * 0.32);
+    this.brandSubtitle?.setFontSize(Math.max(11*viewport.minTouchTarget/44,titleSize*0.31)).setPosition(cx, panelY + panelHeight * 0.76);
   }
 }

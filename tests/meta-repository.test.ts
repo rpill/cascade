@@ -20,7 +20,9 @@ test('failed save keeps the newest snapshot pending and retry writes only that s
   assert.deepEqual(writes,[{cascadeMeta:second}]);
 });
 
-test('repository intentionally resets old unpublished save schemas', async () => {
-  const storage:PlayerStorage={load:async()=>({cascadeMeta:{version:META_SAVE_VERSION-1,progression:{coins:12345}}}),save:async()=>{}};
-  assert.deepEqual(await new MetaRepository(storage).load(),createDefaultMetaSave());
+test('repository normalizes legacy snapshots into the current schema', async () => {
+  const storage:PlayerStorage={load:async()=>({cascadeMeta:{version:META_SAVE_VERSION-1,standard:{selectedDifficulty:'hard'}}}),save:async()=>{}};
+  const loaded=await new MetaRepository(storage).load();
+  assert.equal(loaded.version,META_SAVE_VERSION);
+  assert.equal(loaded.standard.selectedDifficulty,'hard');
 });

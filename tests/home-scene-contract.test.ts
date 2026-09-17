@@ -7,11 +7,12 @@ test('HomeScene is a real Trifold-style responsive product hub', () => {
   const source = readFileSync('src/ui/scenes/HomeScene.ts', 'utf8');
   assert.match(source, /computeHomeLayout/);
   assert.match(source, /new SegmentedControl/);
-  assert.match(source, /new CoinPill/);
+  assert.doesNotMatch(source, /CoinPill|CoinShopOverlay/);
   assert.match(source, /new ActionCard/);
   assert.match(source, /Daily/);
   assert.match(source, /Мастерство/);
-  assert.match(source, /Темы/);
+  assert.match(source, /leaders/);
+  assert.match(source, /LeaderboardsScene/);
   assert.match(source, /CASCADE_UI_ART_KEYS/);
   assert.match(source, /productBridge/);
 });
@@ -21,7 +22,7 @@ test('Home keeps gameplay actions in the bridge and routes product destinations 
   for (const action of ['resumeGame', 'startStandard', 'setStandardDifficulty']) {
     assert.match(source, new RegExp(`productBridge\\.${action}`), `missing bridge action ${action}`);
   }
-  for (const destination of ['DailyScene','MasteryScene','ThemesScene','LeaderboardsScene','HowToPlayScene','SettingsScene']) {
+  for (const destination of ['DailyScene','MasteryScene','LeaderboardsScene','HowToPlayScene','SettingsScene']) {
     assert.match(source, new RegExp(`scene\\.start\\('${destination}'\\)`), `missing scene destination ${destination}`);
   }
 });

@@ -6,11 +6,11 @@ const main = readFileSync('src/main.ts','utf8');
 const scene = readFileSync('src/game/scenes/GameScene.ts','utf8');
 const bridge = readFileSync('src/ui/bridge/CascadeProductBridge.ts','utf8');
 
-const productScenes = ['HomeScene','DailyScene','MasteryScene','ThemesScene','LeaderboardsScene','SettingsScene','HowToPlayScene'];
+const productScenes = ['HomeScene','DailyScene','MasteryScene','LeaderboardsScene','SettingsScene','HowToPlayScene'];
 
-test('Phaser registers the full Trifold-style product shell alongside gameplay', () => {
+test('Phaser registers the full product shell alongside gameplay', () => {
   for (const name of productScenes) assert.match(main,new RegExp(name));
-  assert.match(main,/scene:\s*\[BootScene, GameScene, HomeScene, DailyScene, MasteryScene, ThemesScene, LeaderboardsScene, SettingsScene, HowToPlayScene\]/);
+  assert.match(main,/scene:\s*\[BootScene, GameScene, HomeScene, DailyScene, MasteryScene, LeaderboardsScene, SettingsScene, HowToPlayScene\]/);
 });
 
 test('GameScene installs a Cascade product bridge and uses HomeScene as the main product hub', () => {
@@ -24,11 +24,12 @@ test('GameScene installs a Cascade product bridge and uses HomeScene as the main
   assert.doesNotMatch(open,/showShellPlay/);
 });
 
-test('bridge exposes product state and gameplay actions but does not own screen routing', () => {
-  for (const token of ['startDaily', 'themesSnapshot', 'buyTheme', 'equipTheme', 'leaderboardSnapshot', 'loadLeaderboard', 'authorizeLeaderboard', 'settingsSnapshot', 'setSoundEnabled', 'setLanguage']) {
+test('bridge exposes gameplay, leaderboard and settings actions but does not own screen routing', () => {
+  for (const token of ['startDaily', 'leaderboardSnapshot', 'loadLeaderboard', 'authorizeLeaderboard', 'settingsSnapshot', 'setSoundEnabled', 'setLanguage']) {
     assert.match(bridge,new RegExp(token));
   }
-  for (const legacyRoute of ['openDaily','openThemes','openLeaderboards','openHowToPlay','openSettings']) {
+  assert.doesNotMatch(bridge,/themesSnapshot|buyTheme|equipTheme|rewardedCoins|coins/);
+  for (const legacyRoute of ['openDaily','openLeaderboards','openHowToPlay','openSettings']) {
     assert.doesNotMatch(bridge,new RegExp(legacyRoute));
   }
 });

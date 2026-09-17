@@ -1,6 +1,6 @@
 /*
  * Gameplay HUD: two compact functional capsules plus a separated Home button.
- * Colors/materials still come from the active theme; geometry is shared.
+ * Colors/materials come from the fixed game appearance; geometry is shared.
  */
 
 .game-hud {

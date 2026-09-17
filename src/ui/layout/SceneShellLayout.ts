@@ -16,7 +16,7 @@ export function computeSceneShellLayout(viewport: ResolvedUiViewport): SceneShel
   const headerHeight = Math.max(viewport.minTouchTarget, (mobile ? 48 : 60) * css);
   const contentGap = Math.max((mobile ? 8 : 14) * css, outer * 0.35);
   const back: UiRect = { x: outer, y: outer, width: headerHeight, height: headerHeight };
-  const rightWidth = Math.max(headerHeight * (mobile ? 3.1 : 3.6), 144 * css);
+  const rightWidth = Math.max(headerHeight * (mobile ? 4.4 : 5.6), mobile ? 184 * css : 260 * css);
   const rightSlot: UiRect = {
     x: viewport.width - outer - rightWidth,
     y: outer,

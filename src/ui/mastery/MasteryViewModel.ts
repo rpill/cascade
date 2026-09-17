@@ -16,7 +16,6 @@ export interface MasteryViewModel {
   readonly rank: MasteryRank;
   readonly rankLabel: string;
   readonly requirements: readonly MasteryRequirementViewModel[];
-  readonly nextRewardCoins: number;
   readonly path: readonly MasteryPathItemViewModel[];
 }
 
@@ -39,7 +38,6 @@ export function buildMasteryViewModel(state: MetaSave, language: Language = 'ru'
     rank,
     rankLabel: rankLabel(language, rank),
     requirements: requirements ? keys.filter(key => requirements[key] > 0).map(key => ({ key, label: requirementLabel(language,key), current: stage[key], total: requirements[key] })) : [],
-    nextRewardCoins: requirements?.rewardCoins ?? 0,
     path: MASTERY_RANK_ORDER.map((pathRank,index)=>({ rank:pathRank,label:rankLabel(language,pathRank),current:pathRank===rank,completed:index<currentIndex })),
   };
 }

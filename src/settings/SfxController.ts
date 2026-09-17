@@ -5,7 +5,7 @@ export type SfxCue =
   | 'undo'
   | 'button'
   | 'victory'
-  | 'coin-reward';
+;
 
 export interface SfxAssetGroup {
   readonly keys: readonly string[];
@@ -53,11 +53,6 @@ export const SFX_ASSETS: Readonly<Record<SfxCue, SfxAssetGroup>> = {
     keys: ['sfx-victory'],
     urls: ['./assets/audio/sfx/victory.ogg'],
     volume: 0.07,
-  },
-  'coin-reward': {
-    keys: ['sfx-coin-reward'],
-    urls: ['./assets/audio/sfx/coin-reward.ogg'],
-    volume: 0.10,
   },
 };
 

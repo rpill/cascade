@@ -50,9 +50,8 @@ test('when there is no move, scene points at Undo only when Undo exists', () => 
 });
 
 
-test('hint and compact victory reward copy are localized in English', () => {
+test('hint copy is localized in English', () => {
   assert.equal(ENGLISH['Подсказка'], 'Hint');
-  assert.equal(ENGLISH['монет'], 'coins');
 });
 
 

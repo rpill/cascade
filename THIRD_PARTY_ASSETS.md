@@ -7,22 +7,6 @@
 - License copy: `public/assets/licenses/vintage-demo-license.txt`
 - The supplied license permits use in free and commercial projects and permits modification. It prohibits redistributing or reselling the raw assets as standalone files/stock graphics/asset packs and prohibits claiming the raw files as your own. Attribution is appreciated but not required.
 
-## Poly Haven — Fine Grained Wood
-
-- Runtime location: `public/assets/theme/fine-grained-wood.jpg`
-- Source texture: Fine Grained Wood color/albedo map from Poly Haven.
-- License: CC0.
-- Used by the menu/detail treatment; normal, roughness, and AO maps are not shipped.
-
-
-## Poly Haven — Dark Wooden Planks
-
-- Runtime location: `public/assets/theme/menu-dark-wood.jpg`
-- Source material: `Dark Wooden Planks` diffuse map by Amal Kumar, supplied in the project asset bundle.
-- Source page: Poly Haven asset `dark_wooden_planks`.
-- License: CC0.
-- The runtime JPG is a size/quality-optimized derivative of the supplied diffuse map; no normal, roughness, AO, or displacement maps are shipped.
-
 ## ambientCG — Paper 001 and Paper 004
 
 - Runtime locations: `public/assets/ui/paper-001-color.jpg`, `public/assets/ui/paper-004-color.jpg`
@@ -44,7 +28,7 @@
 
 ## The Public Domain Deck — decorative card back
 
-- Runtime location: `public/assets/ui/decor/decor-card-back-red.png`
+- Runtime location: `public/assets/ui/decor/decor-card-back-red.webp`
 - Source: red card back from The Public Domain Deck supplied in the project asset bundle.
 - License copy: `public/assets/licenses/public-domain-deck-cc0.txt`
 - License: CC0 1.0 Universal.
@@ -60,7 +44,7 @@
 
 ## The Public Domain Deck — Home suit emblems and matching decorative queen
 
-- Runtime locations: `public/assets/ui/icons/spade-ornate.png`, `heart-suit.png`, `public/assets/ui/decor/decor-card-queen-spades.png`.
+- Runtime locations: `public/assets/ui/icons/spade-ornate.webp`, `heart-suit.webp`, `public/assets/ui/decor/decor-card-queen-spades.webp`.
 - Source: ace-of-spades / ace-of-hearts suit artwork and queen of spades from The Public Domain Deck supplied in the project asset bundle.
 - License copy: `public/assets/licenses/public-domain-deck-cc0.txt`.
 - License: CC0 1.0 Universal.
@@ -90,26 +74,11 @@
 - License copy: `public/assets/licenses/tabler-icons-license.txt`.
 - The four gameplay actions intentionally use the same 24×24 outline family and 2px stroke language.
 
-## Walnut Study theme refinement (2026-09-08)
-
-- `public/assets/themes/walnut-study/board-surface.webp`: generated with the built-in ImageGen tool, then encoded as WebP. The final prompt and provenance are recorded in `public/assets/themes/walnut-study/README.md`.
-- `public/assets/themes/walnut-study/card-back.svg` and the slot paths in `src/theme/SlotArtwork.ts`: original project vector artwork, no external font or icon dependency.
-- Existing public-domain card faces and the Green Felt Club assets are unchanged.
-
-## Burgundy Club refinement (2026-09-08)
-
-- `public/assets/themes/burgundy-club/board-surface-refined.webp`: ImageGen edit of the user-supplied scene, encoded as WebP. Both prompts and geometry are recorded in the theme README. The provenance/license of the imported source is not independently established here.
-- The user-supplied `card-back.png` ornament is unchanged; a runtime texture frame excludes transparent padding.
-- Separate slot frames, shared suit/stock glyphs and paper-edge SVGs are project vector artwork in `src/theme/SlotArtwork.ts` and `src/theme/ThemeAssets.ts`.
-
-## Navy Study
-- Board surface and card-back artwork are first-party theme assets prepared specifically for this project; no third-party license is required.
-
 ## Kenney — live tabletop SFX (2026-09-10)
 
 - Runtime directory: `public/assets/audio/sfx/`.
 - Card handling and reward foley source: **Casino Audio 1.1** by Kenney Vleugels (Kenney.nl), supplied as `kenney_casino-audio.zip`. License: CC0 1.0; license copy: `public/assets/licenses/kenney-casino-audio-cc0.txt`.
 - Menu click source: **UI SFX Set** by Kenney Vleugels (Kenney.nl), supplied as `UI_SFX_Set.zip`. The bundled readme grants use in personal and commercial projects and says credit is optional; copy: `public/assets/licenses/kenney-ui-sfx-readme.txt`.
 - Runtime OGG files are trimmed/level-adjusted derivatives of those live recordings. No synthesized/MIDI placeholder SFX remain in the runtime directory.
-- `card-touch-*` uses one stable short real card-shove/rustle transient; `deal-*` uses short cropped rustle transients from Kenney's real `card-shuffle.ogg` recording, one per dealt card; `card-place-*` uses card placement recordings for every successful landing including foundations; `undo-*` uses card slides. Victory uses a card fan; level-up and coin reward use real casino-chip foley.
+- `card-touch-*` uses one stable short real card-shove/rustle transient; `deal-*` uses short cropped rustle transients from Kenney's real `card-shuffle.ogg` recording, one per dealt card; `card-place-*` uses card placement recordings for every successful landing including foundations; `undo-*` uses card slides. Victory uses a card fan and rank-up feedback uses the shared live foley set.
 

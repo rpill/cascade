@@ -17,9 +17,8 @@ export interface HomeLayout {
   readonly newDealAction: UiRect;
   readonly daily: UiRect;
   readonly mastery: UiRect;
-  readonly themes: UiRect;
+  readonly leaders: UiRect;
   readonly serviceActions: UiRect;
-  readonly coinPill: UiRect;
 }
 
 function rect(x: number, y: number, width: number, height: number): UiRect {
@@ -55,16 +54,13 @@ export function computeHomeLayout(viewport: ResolvedUiViewport): HomeLayout {
     ? Math.max(16, Math.round(height * 0.018))
     : Math.max(8, Math.round(height * 0.014));
   const serviceHeight = Math.max(viewport.minTouchTarget, profile === 'desktop' ? 48 : 44);
-  const serviceWidth = Math.min(dashboard.width * 0.44, serviceHeight * 3 + innerGap * 2);
-  const coinWidth = Math.min(dashboard.width * 0.20, profile === 'desktop' ? 116 : 98);
+  const serviceWidth = serviceHeight * 2 + innerGap;
   const serviceActions = rect(dashboard.x + dashboard.width - serviceWidth, dashboard.y, serviceWidth, serviceHeight);
-  const coinPill = rect(serviceActions.x - innerGap - coinWidth, dashboard.y, coinWidth, serviceHeight);
 
   const contentTop = dashboard.y + serviceHeight + innerGap;
   const contentBottom = dashboard.y + dashboard.height;
   const contentHeight = Math.max(1, contentBottom - contentTop);
-  const verticalGaps = innerGap;
-  const cardsHeight = Math.max(1, contentHeight - verticalGaps);
+  const cardsHeight = Math.max(1, contentHeight - innerGap);
   const continueHeight = Math.max(cardsHeight * 0.54, viewport.minTouchTarget * 2 + 10);
   const pairHeight = cardsHeight - continueHeight;
 
@@ -106,7 +102,7 @@ export function computeHomeLayout(viewport: ResolvedUiViewport): HomeLayout {
   const pairWidth = (dashboard.width - pairGap * 2) / 3;
   const daily = rect(dashboard.x, pairY, pairWidth, pairHeight);
   const mastery = rect(daily.x + daily.width + pairGap, pairY, pairWidth, pairHeight);
-  const themes = rect(mastery.x + mastery.width + pairGap, pairY, pairWidth, pairHeight);
+  const leaders = rect(mastery.x + mastery.width + pairGap, pairY, pairWidth, pairHeight);
 
   return {
     brand,
@@ -118,8 +114,7 @@ export function computeHomeLayout(viewport: ResolvedUiViewport): HomeLayout {
     newDealAction,
     daily,
     mastery,
-    themes,
+    leaders,
     serviceActions,
-    coinPill,
   };
 }

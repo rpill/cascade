@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { t } from '../../localization/Localization.ts';
 import { ActionCard } from '../components/ActionCard.ts';
 import { ModalShell } from '../components/ModalShell.ts';
+import { CASCADE_UI_ART_KEYS } from '../assets/CascadeUiArt.ts';
 import { resolveUiViewport, scaleUiViewportForBacking, type ResolvedUiViewport } from '../layout/UiViewport.ts';
 
 export type NewDealConfirmKind = 'new-deal' | 'daily-ranking-restart';
@@ -19,15 +20,22 @@ export class NewDealConfirmOverlay {
   constructor(scene: Phaser.Scene, depth = 6100) {
     this.scene = scene;
     const viewport = this.resolveViewport();
-    this.shell = new ModalShell(scene, '', () => this.finish(false), depth);
+    this.shell = new ModalShell(scene, '', () => this.finish(false), depth, {
+      textureKey: CASCADE_UI_ART_KEYS.homeHero,
+      artworkAlpha: 0.82,
+      artworkWashAlpha: 0.76,
+      artworkMode: 'cover',
+      artworkFocusX: 0.46,
+      artworkFocusY: 0.50,
+    });
     this.copy = scene.add.text(0, 0, '', {
       color: '#64706a',
       fontFamily: 'system-ui, sans-serif',
       align: 'center',
       wordWrap: { width: Math.max(1, viewport.width * 0.44) },
     }).setOrigin(0.5).setDepth(depth + 2);
-    this.cancel = new ActionCard(scene, viewport, { title: t('ОТМЕНА'), enabled: true }, () => this.finish(false), depth + 2);
-    this.confirmAction = new ActionCard(scene, viewport, { title: t('НОВАЯ РАЗДАЧА'), emphasis: 'highlight', enabled: true }, () => this.finish(true), depth + 2);
+    this.cancel = new ActionCard(scene, viewport, { title: t('ОТМЕНА'), enabled: true, surfaceStyle: 'card' }, () => this.finish(false), depth + 2);
+    this.confirmAction = new ActionCard(scene, viewport, { title: t('НОВАЯ РАЗДАЧА'), emphasis: 'highlight', enabled: true, surfaceStyle: 'card' }, () => this.finish(true), depth + 2);
     this.scene.input.keyboard?.on('keydown-ESC', this.handleEscape, this);
     this.syncCopy();
     this.setVisible(false);
@@ -86,7 +94,7 @@ export class NewDealConfirmOverlay {
     this.copy.setText(rankingRestart
       ? t('Рейтинговая попытка будет завершена. Повторные попытки сегодня не изменят место в таблице.')
       : t('Текущая партия будет завершена.'));
-    this.cancel.setState({ title: t('ОТМЕНА'), enabled: true });
+    this.cancel.setState({ title: t('ОТМЕНА'), enabled: true, surfaceStyle: 'card' });
     this.confirmAction.setState({
       title: rankingRestart ? t('ПЕРЕЗАПУСТИТЬ') : t('НОВАЯ РАЗДАЧА'),
       emphasis: 'highlight',

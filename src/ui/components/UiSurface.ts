@@ -2,41 +2,74 @@ import * as Phaser from 'phaser';
 import type { UiRect } from '../layout/HomeLayout.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
 import { coverCrop } from '../assets/ArtworkLayout.ts';
-import { CASCADE_UI_ART_KEYS } from '../assets/CascadeUiArt.ts';
+
+export type ArtworkMode = 'cover' | 'contain';
 
 export type SurfaceTone = 'paper' | 'jade' | 'gold';
 
-/** Resolution-independent chrome; illustration belongs only to the hero. */
+/** Resolution-independent chrome; illustration stays visual-only and may be uniformly muted. */
 export class UiSurface {
   readonly object: Phaser.GameObjects.Container;
   private readonly body: Phaser.GameObjects.Graphics;
   private readonly frame: Phaser.GameObjects.Graphics;
   private readonly landscape: Phaser.GameObjects.Image | null;
+  private readonly artworkWash: Phaser.GameObjects.Graphics | null;
   private width = 1;
   private height = 1;
   private radius = 8;
-  private ornate = false;
   private tone: SurfaceTone = 'paper';
 
-  constructor(scene: Phaser.Scene, depth = 0, decorated = false, private readonly artworkAlpha = 1, artworkKey?: string) {
+  constructor(
+    scene: Phaser.Scene,
+    depth = 0,
+    decorated = false,
+    private readonly artworkAlpha = 1,
+    artworkKey?: string,
+    private readonly artworkWashAlpha = 0,
+    private readonly artworkMode: ArtworkMode = 'cover',
+    private readonly artworkFocusX = 0.5,
+    private readonly artworkFocusY = 0.48,
+  ) {
     this.body = scene.add.graphics();
-    this.landscape = decorated && artworkKey === CASCADE_UI_ART_KEYS.homeHero && scene.textures.exists(artworkKey)
+    this.landscape = decorated && artworkKey && scene.textures.exists(artworkKey)
       ? scene.add.image(0, 0, artworkKey).setOrigin(0) : null;
+    this.artworkWash = this.landscape && artworkWashAlpha > 0 ? scene.add.graphics() : null;
     this.frame = scene.add.graphics();
-    this.object = scene.add.container(0, 0, [this.body, ...(this.landscape ? [this.landscape] : []), this.frame]).setDepth(depth);
+    this.object = scene.add.container(0, 0, [
+      this.body,
+      ...(this.landscape ? [this.landscape] : []),
+      ...(this.artworkWash ? [this.artworkWash] : []),
+      this.frame,
+    ]).setDepth(depth);
   }
 
-  layout(bounds: UiRect, tone: SurfaceTone = 'paper', ornate = false): void {
-    this.tone = tone; this.ornate = ornate;
+  layout(bounds: UiRect, tone: SurfaceTone = 'paper', _ornate = false): void {
+    this.tone = tone;
     this.width = bounds.width; this.height = bounds.height;
     this.radius = Math.min(12, Math.max(5, bounds.height * 0.045));
     this.object.setPosition(bounds.x, bounds.y);
     if (this.landscape) {
       const inset = 5;
-      const crop = coverCrop(this.landscape.frame.realWidth, this.landscape.frame.realHeight, this.width - inset * 2, this.height - inset * 2, 0.5, 0.48);
-      const scale = (this.width - inset * 2) / crop.width;
-      this.landscape.setCrop(crop.x, crop.y, crop.width, crop.height)
-        .setPosition(inset - crop.x * scale, inset - crop.y * scale).setScale(scale).setAlpha(this.artworkAlpha);
+      const availableWidth = this.width - inset * 2;
+      const availableHeight = this.height - inset * 2;
+      const sourceWidth = this.landscape.frame.realWidth;
+      const sourceHeight = this.landscape.frame.realHeight;
+      if (this.artworkMode === 'contain') {
+        const scale = Math.min(availableWidth / sourceWidth, availableHeight / sourceHeight);
+        const drawWidth = sourceWidth * scale;
+        const drawHeight = sourceHeight * scale;
+        this.landscape.setCrop();
+        this.landscape.setPosition(inset + (availableWidth - drawWidth) / 2, inset + (availableHeight - drawHeight) / 2)
+          .setScale(scale).setAlpha(this.artworkAlpha);
+      } else {
+        const crop = coverCrop(sourceWidth, sourceHeight, availableWidth, availableHeight, this.artworkFocusX, this.artworkFocusY);
+        const scale = availableWidth / crop.width;
+        this.landscape.setCrop(crop.x, crop.y, crop.width, crop.height)
+          .setPosition(inset - crop.x * scale, inset - crop.y * scale).setScale(scale).setAlpha(this.artworkAlpha);
+      }
+      this.artworkWash?.clear()
+        .fillStyle(UI_TOKENS.color.paper, this.artworkWashAlpha)
+        .fillRoundedRect(inset, inset, availableWidth, availableHeight, Math.max(3, this.radius - 2));
     }
     this.feedback('normal');
   }
@@ -56,22 +89,6 @@ export class UiSurface {
       .strokeRoundedRect(0.5, 0.5, w - 1, h - 1, r)
       .lineStyle(1, this.tone === 'jade' ? 0x71a58a : 0xffffff, 0.28)
       .lineBetween(r, 2, w - r, 2);
-    if (this.ornate && w > 100 && h > 70) {
-      const inset = 5;
-      this.frame.lineStyle(0.7, UI_TOKENS.color.gold, 0.35)
-        .strokeRoundedRect(inset, inset, w - inset * 2, h - inset * 2, Math.max(2, r - 3));
-      const size = Math.min(21, h * 0.1);
-      for (const [x, y, sx, sy] of [[10, 10, 1, 1], [w - 10, 10, -1, 1], [10, h - 10, 1, -1], [w - 10, h - 10, -1, -1]]) {
-        this.frame.lineStyle(1, UI_TOKENS.color.gold, 0.65).beginPath()
-          .moveTo(x!, y! + sy! * size).lineTo(x!, y!).lineTo(x! + sx! * size, y!).strokePath();
-        this.frame.fillStyle(UI_TOKENS.color.gold, 0.65);
-        for (let i = 0; i < 3; i++) {
-          const d = 4 + i * 5;
-          this.frame.fillEllipse(x! + sx! * d, y! + sy! * d * 0.48, 5, 2.5);
-          this.frame.fillEllipse(x! + sx! * d * 0.48, y! + sy! * d, 2.5, 5);
-        }
-      }
-    }
     this.object.setAlpha(state === 'disabled' ? 0.58 : 1);
   }
   setDepth(depth: number): void { this.object.setDepth(depth); }

@@ -6,7 +6,6 @@ const componentFiles = [
   'src/ui/components/PaperPanel.ts',
   'src/ui/components/ActionCard.ts',
   'src/ui/components/IconButton.ts',
-  'src/ui/components/CoinPill.ts',
   'src/ui/components/ProgressMeter.ts',
   'src/ui/components/SegmentedControl.ts',
   'src/ui/components/ModalShell.ts',

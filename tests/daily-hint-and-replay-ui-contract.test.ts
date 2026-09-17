@@ -5,8 +5,8 @@ import { buildGameHudViewModel } from '../src/ui/game/GameHudViewModel.ts';
 
 test('Daily HUD exposes the single official hint quota', () => {
   const scene = readFileSync('src/game/scenes/GameScene.ts', 'utf8');
-  const available = buildGameHudViewModel({ moves: 0, activeMs: 0, canUndo: false, coins: 0, hintEligible: true, hintRemaining: 1, newDealEnabled: false }, 'ru');
-  const spent = buildGameHudViewModel({ moves: 0, activeMs: 0, canUndo: false, coins: 0, hintEligible: true, hintRemaining: 0, newDealEnabled: false }, 'ru');
+  const available = buildGameHudViewModel({ moves: 0, activeMs: 0, canUndo: false, hintEligible: true, hintRemaining: 1, newDealEnabled: false }, 'ru');
+  const spent = buildGameHudViewModel({ moves: 0, activeMs: 0, canUndo: false, hintEligible: true, hintRemaining: 0, newDealEnabled: false }, 'ru');
   assert.equal(available.hintLabel, 'Подсказка 1/1');
   assert.equal(available.hintEnabled, true);
   assert.equal(spent.hintLabel, 'Подсказка 0/1');

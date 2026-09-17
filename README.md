@@ -1,8 +1,8 @@
 # Cascade Solitaire
 
-Phaser-пасьянс с механикой Sawayama Solitaire. В ветке `revamp/product-visual` внешний продуктовый слой пересобран на UI-системе Trifold: Home, Daily, Mastery, Themes, Leaderboards, Settings, How to Play и продуктовые модалки используют общий Phaser UI-kit и единый responsive layout. Сам карточный стол, правила, drag/drop и анимации Cascade остаются отдельным gameplay core.
+Phaser-пасьянс с механикой Sawayama Solitaire. Внешний продуктовый слой использует общий Phaser UI-kit: Home, Daily, Mastery, Leaderboards, Settings, How to Play и продуктовые модалки работают в едином responsive layout. Сам карточный стол, правила, drag/drop и анимации Cascade остаются отдельным gameplay core.
 
-Текущие Trifold-art assets в `public/assets/ui/art` — временные. Экраны обращаются к ним через семантические ключи `CascadeUiArt`, поэтому финальный европейский/ботанический визуал можно заменить без перестройки layout. Старые XP/Level и adaptive Standard difficulty удалены; Standard использует явные Easy/Medium/Hard, а долгосрочная прогрессия строится на Mastery и монетных наградах.
+Экраны обращаются к европейским/ботаническим арт-ассетам через семантические ключи `CascadeUiArt`, поэтому визуал можно заменять без перестройки layout. Standard использует явные Easy/Medium/Hard, а долгосрочная прогрессия строится на Mastery, Daily и таблицах лидеров. Игровой стол использует одну фиксированную appearance-схему и рубашку `public/assets/cards/redBack.webp`.
 
 ## Что работает
 

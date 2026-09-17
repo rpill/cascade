@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 
 const requiredIcons = [
   'home', 'new-deal', 'undo', 'hint', 'settings',
-  'leaderboard', 'how-to-play', 'coin', 'daily', 'mastery', 'themes',
+  'leaderboard', 'how-to-play', 'daily', 'mastery',
 ] as const;
 
 test('shared Trifold UI icon assets are bundled under public/assets/ui/icons', () => {

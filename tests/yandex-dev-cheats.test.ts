@@ -14,10 +14,6 @@ test('yandex:dev uses the normal production build without dev cheats', () => {
   assert.doesNotMatch(envSource, /VITE_DEV_CHEATS\s*=\s*true/i);
 });
 
-test('development coin floor is limited to normal Vite DEV mode', () => {
-  assert.doesNotMatch(gameSceneSource, /VITE_DEV_CHEATS/);
-  assert.match(
-    gameSceneSource,
-    /if \(loaded && import\.meta\.env\.DEV\)[\s\S]{0,180}setDevelopmentCoinFloor\(999_999\)/,
-  );
+test('production scene contains no hidden development economy hooks', () => {
+  assert.doesNotMatch(gameSceneSource, /VITE_DEV_CHEATS|setDevelopmentCoinFloor/);
 });

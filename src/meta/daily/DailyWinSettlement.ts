@@ -1,5 +1,4 @@
 import { completeDailyAttempt } from '../DailyProgress.ts';
-import { claimCoinRewardOnce } from '../economy/CoinRewards.ts';
 import { recordMasteryEligibleDailyWin } from '../mastery/Mastery.ts';
 import type { MasteryRank, MetaSave } from '../MetaSave.ts';
 
@@ -14,7 +13,6 @@ export interface DailyWinInput {
 
 export interface DailyWinSettlementResult {
   readonly state: MetaSave;
-  readonly coinsGranted: number;
   readonly firstCompletion: boolean;
   readonly completedOnTime: boolean;
   readonly improvedBest: boolean;
@@ -43,24 +41,10 @@ export function settleDailyWin(state: MetaSave, input: DailyWinInput): DailyWinS
       ...result.state.daily,
       records: {
         ...result.state.daily.records,
-        [input.dailyId]: {
-          ...result.state.daily.records[input.dailyId],
-          completedOnTime,
-        },
+        [input.dailyId]: { ...result.state.daily.records[input.dailyId], completedOnTime },
       },
     },
   };
-
-  let coinsGranted = 0;
-  if (firstCompletion) {
-    const beforeCoins = next.progression.coins;
-    next = claimCoinRewardOnce(
-      next,
-      `daily:first:${input.dailyId}`,
-      onTimeNow ? 15 : 5,
-    );
-    coinsGranted = next.progression.coins - beforeCoins;
-  }
 
   let masteryAdvanced = false;
   let rankAdvancedTo: MasteryRank | null = null;
@@ -71,13 +55,5 @@ export function settleDailyWin(state: MetaSave, input: DailyWinInput): DailyWinS
     rankAdvancedTo = mastery.rankAdvancedTo;
   }
 
-  return {
-    state: next,
-    coinsGranted,
-    firstCompletion,
-    completedOnTime,
-    improvedBest: result.improvedBest,
-    masteryAdvanced,
-    rankAdvancedTo,
-  };
+  return { state: next, firstCompletion, completedOnTime, improvedBest: result.improvedBest, masteryAdvanced, rankAdvancedTo };
 }

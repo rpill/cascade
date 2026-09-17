@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SFX_ASSETS, SfxController } from '../src/settings/SfxController.ts';
 
-test('SFX catalog contains the complete first-pass solitaire feedback set', () => {
+test('SFX catalog contains the complete gameplay feedback set', () => {
   assert.deepEqual(Object.keys(SFX_ASSETS).sort(), [
-    'button','card-place','card-touch','coin-reward','deal','undo','victory',
+    'button','card-place','card-touch','deal','undo','victory',
   ]);
   for (const asset of Object.values(SFX_ASSETS)) {
     assert.ok(Array.isArray(asset.urls) && asset.urls.length > 0);
@@ -21,7 +21,6 @@ test('SfxController maps semantic cues to loaded Phaser audio keys and tuned vol
   assert.ok(SFX_ASSETS['card-place'].keys.includes(calls[0].key));
   assert.deepEqual(calls[0].config, {volume:SFX_ASSETS['card-place'].volume});
 });
-
 
 test('card handling cues share one quiet calibrated playback gain', () => {
   assert.equal(SFX_ASSETS['card-touch'].volume, 0.04);

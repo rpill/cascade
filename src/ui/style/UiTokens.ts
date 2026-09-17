@@ -9,6 +9,7 @@ export const UI_TOKENS = {
     mutedInk: 0x68746d,
     gold: 0xb69557,
     goldLight: 0xe6cc91,
+    progress: 0x4f9264,
     danger: 0xb86262,
     overlay: 0x0d1f1e,
   },
@@ -18,6 +19,5 @@ export const UI_TOKENS = {
   asset: {
     homeBackground: 'ui.home.background',
     paperPanel: 'ui.panel.paper',
-    coinIcon: 'ui.icon.coin',
   },
 } as const;

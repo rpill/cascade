@@ -5,6 +5,7 @@ import { normalizeTouchTarget } from '../layout/UiViewport.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
 import { ProgressMeter, type ProgressValue } from './ProgressMeter.ts';
 import { UiSurface } from './UiSurface.ts';
+import { ButtonSurface, type ButtonSurfaceTone } from './ButtonSurface.ts';
 import { UI_ICON_KEYS } from '../assets/UiAssets.ts';
 import { CASCADE_UI_ART_KEYS } from '../assets/CascadeUiArt.ts';
 import { playUiButtonSound } from '../sound/UiSound.ts';
@@ -15,12 +16,15 @@ export interface ActionCardState {
   readonly emphasis?: 'normal' | 'highlight';
   readonly enabled: boolean;
   readonly progress?: ProgressValue;
-  readonly artwork?: 'landscape' | 'daily' | 'mastery' | 'themes';
+  readonly artwork?: 'landscape' | 'daily' | 'mastery' | 'leaders';
   readonly artworkKey?: string;
+  readonly backgroundArtworkKey?: string;
+  readonly surfaceStyle?: 'auto' | 'card' | 'button';
 }
 
 export class ActionCard {
-  private readonly surface: UiSurface;
+  private readonly surface: UiSurface | ButtonSurface;
+  private readonly usesButtonSurface: boolean;
   private readonly motif: Phaser.GameObjects.Image | null;
   private readonly arrowBadge: Phaser.GameObjects.Graphics | null;
   private readonly arrow: Phaser.GameObjects.Image | null;
@@ -46,9 +50,21 @@ export class ActionCard {
     this.viewport = viewport;
     this.state = state;
     this.onPress = onPress;
-    this.surface = new UiSurface(scene, depth, Boolean(state.artwork), 1, state.artwork === 'landscape' ? CASCADE_UI_ART_KEYS.homeHero : undefined);
+    const backgroundArtworkKey = state.backgroundArtworkKey ?? (
+      state.artwork === 'landscape' ? CASCADE_UI_ART_KEYS.homeHero
+        : state.artwork === 'daily' ? CASCADE_UI_ART_KEYS.homeDaily
+          : state.artwork === 'mastery' ? CASCADE_UI_ART_KEYS.homeMastery
+            : state.artwork === 'leaders' ? CASCADE_UI_ART_KEYS.leaderboardPanelBg
+              : undefined
+    );
+    const artworkAlpha = state.artwork === 'landscape' ? 1 : 0.92;
+    const artworkWashAlpha = state.artwork === 'landscape' ? 0.32 : state.artwork ? 0.34 : 0;
+    this.usesButtonSurface = (state.surfaceStyle ?? 'auto') === 'button' || ((state.surfaceStyle ?? 'auto') === 'auto' && !state.artwork);
+    this.surface = this.usesButtonSurface
+      ? new ButtonSurface(scene, depth)
+      : new UiSurface(scene, depth, Boolean(state.artwork), artworkAlpha, backgroundArtworkKey, artworkWashAlpha);
     this.motif = state.artwork && state.artwork !== 'landscape'
-      ? scene.add.image(0, 0, state.artworkKey ?? (state.artwork === 'daily' ? CASCADE_UI_ART_KEYS.calendar : state.artwork === 'themes' ? CASCADE_UI_ART_KEYS.themeFan : CASCADE_UI_ART_KEYS.rank.novice)).setDepth(depth + 0.1) : null;
+      ? scene.add.image(0, 0, state.artworkKey ?? (state.artwork === 'daily' ? CASCADE_UI_ART_KEYS.calendar : state.artwork === 'leaders' ? CASCADE_UI_ART_KEYS.homeLeaders : CASCADE_UI_ART_KEYS.rank.novice)).setDepth(depth + 0.1) : null;
     this.calendarDay = state.artwork === 'daily' ? scene.add.text(0, 0, String(new Date().getDate()), { fontFamily: 'Georgia, serif', color: '#643f29' }).setOrigin(0.5).setAngle(6).setDepth(depth + 0.12) : null;
     this.arrowBadge = state.artwork ? scene.add.graphics().setDepth(depth + 0.08) : null;
     this.arrow = state.artwork ? scene.add.image(0, 0, UI_ICON_KEYS.chevronRight).setTint(UI_TOKENS.color.goldLight).setDepth(depth + 0.1) : null;
@@ -64,13 +80,33 @@ export class ActionCard {
     }).setOrigin(0.5).setDepth(depth + 0.1);
     this.zone = scene.add.zone(0, 0, 1, 1).setOrigin(0).setDepth(depth + 0.2).setInteractive();
     this.zone.input!.cursor = 'pointer';
-    this.zone.on('pointerover', () => { if (this.state.enabled) { this.surface.feedback('hover'); this.drawArrowBadge('hover'); } });
-    this.zone.on('pointerout', () => { this.armed = false; this.surface.feedback(this.state.enabled ? 'normal' : 'disabled'); this.drawArrowBadge(this.state.enabled ? 'normal' : 'disabled'); });
-    this.zone.on('pointerdown', () => { this.armed = this.state.enabled; if (this.armed) { this.surface.feedback('pressed'); this.drawArrowBadge('pressed'); } });
+    this.zone.on('pointerover', () => {
+      if (this.state.enabled) {
+        this.surface.feedback('hover');
+        this.drawArrowBadge('hover');
+      }
+    });
+    this.zone.on('pointerout', () => {
+      this.armed = false;
+      this.surface.feedback(this.state.enabled ? 'normal' : 'disabled');
+      this.drawArrowBadge(this.state.enabled ? 'normal' : 'disabled');
+    });
+    this.zone.on('pointerdown', () => {
+      this.armed = this.state.enabled;
+      if (this.armed) {
+        this.surface.feedback('pressed');
+        this.drawArrowBadge('pressed');
+      }
+    });
     this.zone.on('pointerup', () => {
       const activate = this.armed && this.state.enabled;
       this.armed = false;
-      if (activate) { this.surface.feedback('normal'); this.drawArrowBadge('hover'); playUiButtonSound(scene); this.onPress(); }
+      if (activate) {
+        this.surface.feedback('normal');
+        this.drawArrowBadge('hover');
+        playUiButtonSound(scene);
+        this.onPress();
+      }
     });
     this.progress = new ProgressMeter(scene, depth + 0.1);
   }
@@ -114,17 +150,24 @@ export class ActionCard {
     const side = decorated;
     const titleSize = Math.max(15 * css, Math.min(bounds.height * (decorated ? 0.28 : 0.30), (decorated ? 36 : 24) * this.viewport.uiScale));
     const subtitleSize = Math.max(11 * css, Math.min(17 * this.viewport.uiScale, titleSize * 0.53));
-    this.surface.layout(bounds, this.state.emphasis === 'highlight' ? 'gold' : 'paper', decorated);
+    if (this.usesButtonSurface) {
+      (this.surface as ButtonSurface).layout(bounds, this.resolveButtonTone(), 'wide');
+    } else {
+      (this.surface as UiSurface).layout(bounds, this.state.emphasis === 'highlight' ? 'gold' : 'paper', decorated);
+    }
     this.surface.feedback(this.state.enabled ? 'normal' : 'disabled');
 
     const hasSubtitle = Boolean(this.state.subtitle);
-    this.title.setOrigin(side ? 0 : 0.5, 0.5).setFontSize(titleSize).setAlpha(alpha).setPosition(
+    const buttonTone = this.resolveButtonTone();
+    const titleColor = !this.usesButtonSurface ? '#24302e' : buttonTone === 'jade' ? '#fff4dd' : '#24302e';
+    const subtitleColor = !this.usesButtonSurface ? '#64706a' : buttonTone === 'jade' ? '#efe3c0' : '#6f6040';
+    this.title.setColor(titleColor).setOrigin(side ? 0 : 0.5, 0.5).setFontSize(titleSize).setAlpha(alpha).setPosition(
       bounds.x + bounds.width * (side ? 0.08 : 0.5),
       bounds.y + bounds.height * (tile ? 0.16 : hasSubtitle ? 0.40 : 0.50),
     );
-    const available = bounds.width * (this.state.artwork === 'landscape' ? 0.73 : 0.84);
+    const available = bounds.width * (this.state.artwork === 'landscape' ? 0.73 : this.usesButtonSurface ? 0.76 : 0.84);
     if (this.title.width > available) this.title.setFontSize(titleSize * available / this.title.width);
-    this.subtitle.setOrigin(side ? 0 : 0.5, 0.5).setFontSize(subtitleSize).setWordWrapWidth(available).setAlpha(alpha).setVisible(this.visible && hasSubtitle).setPosition(
+    this.subtitle.setColor(subtitleColor).setOrigin(side ? 0 : 0.5, 0.5).setFontSize(subtitleSize).setWordWrapWidth(available).setAlpha(alpha).setVisible(this.visible && hasSubtitle).setPosition(
       bounds.x + bounds.width * (side ? 0.08 : 0.5),
       bounds.y + bounds.height * (tile ? 0.30 : 0.64),
     );
@@ -166,6 +209,10 @@ export class ActionCard {
         height: Math.max(5, bounds.height * 0.055),
       });
     }
+  }
+
+  private resolveButtonTone(): ButtonSurfaceTone {
+    return this.state.emphasis === 'highlight' ? 'gold' : 'paper';
   }
 
   private drawArrowBadge(feedback: 'normal' | 'hover' | 'pressed' | 'disabled'): void {

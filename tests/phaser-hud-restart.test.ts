@@ -12,7 +12,6 @@ test('Phaser HUD exposes localized Restart label', () => {
     moves: 0,
     activeMs: 0,
     canUndo: false,
-    coins: 0,
     hintEligible: false,
     newDealEnabled: true,
   };
@@ -20,12 +19,11 @@ test('Phaser HUD exposes localized Restart label', () => {
   assert.equal(buildGameHudViewModel(input, 'en').restartLabel, 'Restart');
 });
 
-test('Phaser HUD places Restart between New Deal and Undo', () => {
+test('Phaser HUD places Restart in the secondary group before New Deal', () => {
   const layout = calculateGameHudLayout(calculateViewportLayout(1728, 864));
-  assert.ok(layout.newDeal.y < layout.restart.y);
-  assert.ok(layout.restart.y < layout.undo.y);
   assert.ok(layout.undo.y < layout.hint.y);
-  assert.ok(layout.hint.y < layout.settings.y);
+  assert.ok(layout.hint.y < layout.restart.y);
+  assert.ok(layout.restart.y < layout.newDeal.y);
 });
 
 test('Phaser HUD wires Restart to same-deal restart and has a dedicated icon asset', () => {

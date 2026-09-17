@@ -32,7 +32,7 @@ export class ProgressMeter {
       radius,
     );
     if (ratio > 0) {
-      this.surface.fillStyle(UI_TOKENS.color.gold, 0.9).fillRoundedRect(
+      this.surface.fillStyle(UI_TOKENS.color.progress, 0.96).fillRoundedRect(
         bounds.x,
         bounds.y,
         bounds.width * ratio,

@@ -1,17 +1,19 @@
 import * as Phaser from 'phaser';
 import { getBoardSlots } from './layout.ts';
 import type { ViewportLayout } from './ViewportLayout.ts';
-import type { ThemeDefinition } from '../../theme/ThemeDefinition.ts';
+import type { GameAppearance } from '../appearance/GameAppearance.ts';
 import { UI_TOKENS } from '../../ui/style/UiTokens.ts';
 
 const FOUNDATION_SYMBOLS = ['♣', '♥', '♦', '♠'] as const;
 
 /** Lightweight slot outlines and glyphs for the game table. */
 export class TableAppearanceView {
+  private readonly perimeterFrame: Phaser.GameObjects.Graphics;
   private readonly slots: Phaser.GameObjects.Graphics;
   private readonly foundationIcons: Phaser.GameObjects.Text[];
 
-  constructor(scene: Phaser.Scene, _theme: ThemeDefinition, layout: ViewportLayout) {
+  constructor(scene: Phaser.Scene, _appearance: GameAppearance, layout: ViewportLayout) {
+    this.perimeterFrame = scene.add.graphics().setDepth(4.7);
     this.slots = scene.add.graphics().setDepth(5);
     this.foundationIcons = FOUNDATION_SYMBOLS.map((symbol) => scene.add.text(0, 0, symbol, {
       color: '#d7c08a',
@@ -22,11 +24,24 @@ export class TableAppearanceView {
     this.relayout(layout);
   }
 
-  setTheme(_theme: ThemeDefinition, layout: ViewportLayout): void {
+  setAppearance(_appearance: GameAppearance, layout: ViewportLayout): void {
     this.relayout(layout);
   }
 
   relayout(layout: ViewportLayout): void {
+    this.perimeterFrame.clear();
+    const frameInset = Math.max(10, Math.min(layout.viewportWidth, layout.viewportHeight) * 0.012);
+    const frameRadius = Math.max(7, frameInset * 0.70);
+    const frameWidth = Math.max(1.2, layout.cardWidth * 0.012);
+    this.perimeterFrame
+      .lineStyle(frameWidth, UI_TOKENS.color.gold, 0.86)
+      .strokeRoundedRect(
+        frameInset, frameInset,
+        Math.max(1, layout.viewportWidth - frameInset * 2),
+        Math.max(1, layout.viewportHeight - frameInset * 2),
+        frameRadius,
+      );
+
     this.slots.clear();
     const lineWidth = Math.max(0.9, layout.cardWidth * 0.0105);
     const radius = Math.max(4, layout.cardWidth * 0.055);
@@ -54,6 +69,7 @@ export class TableAppearanceView {
   }
 
   destroy(): void {
+    this.perimeterFrame.destroy();
     this.slots.destroy();
     this.foundationIcons.forEach((icon) => icon.destroy());
   }

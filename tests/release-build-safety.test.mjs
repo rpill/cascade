@@ -7,11 +7,10 @@ const sceneSource = fs.readFileSync(new URL('../src/game/scenes/GameScene.ts', i
 const envSource = fs.readFileSync(new URL('../.env.yandex-dev', import.meta.url), 'utf8');
 const stylesSource = fs.readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
 
-test('Yandex preview uses the normal production build and cannot enable the coin cheat', () => {
+test('Yandex preview uses the normal production build without dev-cheat flags', () => {
   assert.equal(packageJson.scripts['yandex:dev'], 'pnpm build && node scripts/yandex-dev-proxy.mjs');
   assert.equal(packageJson.scripts['build:yandex-dev'], undefined);
   assert.doesNotMatch(sceneSource, /VITE_DEV_CHEATS/);
-  assert.match(sceneSource, /if \(loaded && import\.meta\.env\.DEV\)[\s\S]{0,120}setDevelopmentCoinFloor\(999_999\)/);
   assert.doesNotMatch(envSource, /VITE_DEV_CHEATS\s*=\s*true/i);
 });
 

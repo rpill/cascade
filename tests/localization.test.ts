@@ -4,7 +4,6 @@ import { readdirSync, readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { ENGLISH } from '../src/localization/English.ts';
 import { LocalizationBindings, setLanguage, subscribeLanguage, t } from '../src/localization/Localization.ts';
-import { translateRewardLabel } from '../src/game/view/RewardSummaryView.ts';
 import { preferences } from '../src/settings/Preferences.ts';
 
 test('all Russian UI source strings have English translations with matching placeholders', () => {
@@ -43,14 +42,14 @@ test('language changes refresh bound labels and attributes both ways without rep
   const bindings = new LocalizationBindings();
   setLanguage('en');
   bindings.text(element as unknown as HTMLElement, () => t('Настройки'));
-  bindings.attribute(element as unknown as Element, 'aria-label', () => t('Монеты: {value0}', { value0: 25 }));
+  bindings.attribute(element as unknown as Element, 'aria-label', () => t('Лидеры'));
   assert.equal(element.textContent, 'Settings');
   setLanguage('ru'); bindings.refresh();
   assert.equal(element.textContent, 'Настройки');
-  assert.equal(element.attributes.get('aria-label'), 'Монеты: 25');
+  assert.equal(element.attributes.get('aria-label'), 'Лидеры');
   setLanguage('en'); bindings.refresh();
   assert.equal(element.textContent, 'Settings');
-  assert.equal(element.attributes.get('aria-label'), 'Coins: 25');
+  assert.equal(element.attributes.get('aria-label'), 'Leaders');
   setLanguage('ru');
 });
 
@@ -69,11 +68,3 @@ test('language subscribers ignore sound toggles and stop after unsubscribe', () 
   preferences.setSoundEnabled(true);
 });
 
-test('current reward labels translate on every language switch', () => {
-  setLanguage('en');
-  assert.equal(translateRewardLabel('Победа'), 'Victory');
-  assert.equal(translateRewardLabel('Новый ранг мастерства'), 'New mastery rank');
-  setLanguage('ru');
-  assert.equal(translateRewardLabel('Победа'), 'Победа');
-  assert.equal(translateRewardLabel('Новый ранг мастерства'), 'Новый ранг мастерства');
-});

@@ -10,9 +10,7 @@ export interface HomeViewModel {
   readonly selectedDifficulty: StandardDifficulty;
   readonly daily: { readonly title: string; readonly subtitle: string; readonly enabled: boolean };
   readonly mastery: { readonly rank: MasteryRank; readonly title: string; readonly subtitle: string; readonly enabled: boolean };
-  readonly themes: { readonly subtitle: string; readonly enabled: boolean };
-  readonly coins: number;
-  readonly leaderboardsEnabled: boolean;
+  readonly leaders: { readonly title: string; readonly subtitle: string; readonly enabled: boolean };
 }
 
 export interface HomeViewModelInput {
@@ -21,7 +19,6 @@ export interface HomeViewModelInput {
   readonly activeDifficulty: StandardDifficulty | null;
   readonly currentDailyId: string | null;
   readonly leaderboardsEnabled: boolean;
-  readonly themesTotal: number;
   readonly language?: Language;
 }
 
@@ -106,11 +103,10 @@ export function buildHomeViewModel(input: HomeViewModelInput): HomeViewModel {
       subtitle: masterySummary(input.state.mastery.rank, input.state.mastery.stage, language),
       enabled: true,
     },
-    themes: {
-      subtitle: `${input.state.collection.ownedThemes.length} / ${input.themesTotal}`,
+    leaders: {
+      title: tr(language, 'Лидеры'),
+      subtitle: input.leaderboardsEnabled ? tr(language, 'Лучшие результаты игроков') : tr(language, 'Результаты и рекорды'),
       enabled: true,
     },
-    coins: input.state.progression.coins,
-    leaderboardsEnabled: input.leaderboardsEnabled,
   };
 }

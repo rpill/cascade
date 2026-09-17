@@ -23,8 +23,6 @@ test('first-run onboarding emits tutorial start and completion conversion', () =
   assert.match(sceneSource, /analytics\.goal\('tutorial_complete'/);
 });
 
-test('shop and theme economy emit only success-boundary analytics', () => {
-  assert.match(sceneSource, /analytics\.event\('shop_open'/);
-  assert.match(sceneSource, /analytics\.goal\('theme_buy'/);
-  assert.match(sceneSource, /analytics\.event\('theme_equip'/);
+test('removed cosmetic economy no longer emits shop or purchase analytics', () => {
+  assert.doesNotMatch(sceneSource, /shop_open|theme_buy|theme_equip|iap_success|rewarded/);
 });

@@ -16,8 +16,7 @@ function platform(options: {
     playerStorage:{load:async()=>({}),save:async()=>undefined},trustedClock:{nowMs:()=>null},
     auth:{isAuthorized:()=>options.authorized??true,requestAuthorization:async()=>options.authorized??true,onAccountSelectionClosed:()=>()=>undefined},
     leaderboards:{available:options.available??true,getEntries:options.entries??(async()=>[]),getPlayerEntry:options.player??(async()=>null),setScore:options.write??(async()=>undefined)},
-    payments:{available:false,getCatalog:async()=>[],purchase:async()=>{throw new Error('no');},getPurchases:async()=>[],consumePurchase:async()=>undefined},
-    ads:{available:false,showInterstitial:async()=>false,showRewarded:async()=>false},platformPause:{isPaused:()=>false,subscribe:()=>()=>undefined},gameplay:{start:()=>undefined,stop:()=>undefined},ready:()=>undefined,
+    ads:{available:false,showInterstitial:async()=>false},platformPause:{isPaused:()=>false,subscribe:()=>()=>undefined},gameplay:{start:()=>undefined,stop:()=>undefined},ready:()=>undefined,
   };
 }
 

@@ -62,9 +62,6 @@ function isNullableString(value: unknown): value is string | null {
 function isMetaOperation(value: unknown): value is MetaOperation {
   if (!isObject(value) || typeof value.kind !== 'string') return false;
 
-  if (value.kind === 'purchase' || value.kind === 'equip') {
-    return typeof value.themeId === 'string' && value.themeId.length > 0;
-  }
 
   if (value.kind === 'set-standard-difficulty') {
     return isStandardDifficulty(value.difficulty);
@@ -80,9 +77,6 @@ function isMetaOperation(value: unknown): value is MetaOperation {
     return typeof value.attemptId === 'string' && value.attemptId.length > 0;
   }
 
-  if (value.kind === 'rewarded-ad') {
-    return typeof value.dayId === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.dayId);
-  }
 
   if (value.kind === 'daily-hint-used') {
     return typeof value.dailyId === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.dailyId);

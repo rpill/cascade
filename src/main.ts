@@ -8,7 +8,6 @@ import { GameScene } from './game/scenes/GameScene.ts';
 import { HomeScene } from './ui/scenes/HomeScene.ts';
 import { MasteryScene } from './ui/scenes/MasteryScene.ts';
 import { DailyScene } from './ui/scenes/DailyScene.ts';
-import { ThemesScene } from './ui/scenes/ThemesScene.ts';
 import { LeaderboardsScene } from './ui/scenes/LeaderboardsScene.ts';
 import { SettingsScene } from './ui/scenes/SettingsScene.ts';
 import { HowToPlayScene } from './ui/scenes/HowToPlayScene.ts';
@@ -40,7 +39,7 @@ void startWhenHostReady(
       height: initial.backingHeight,
       backgroundColor: '#082f27',
       disableContextMenu: true,
-      scene: [BootScene, GameScene, HomeScene, DailyScene, MasteryScene, ThemesScene, LeaderboardsScene, SettingsScene, HowToPlayScene],
+      scene: [BootScene, GameScene, HomeScene, DailyScene, MasteryScene, LeaderboardsScene, SettingsScene, HowToPlayScene],
       input: { activePointers: 3 },
       scale: {
         mode: Phaser.Scale.NONE,
