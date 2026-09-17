@@ -14,6 +14,7 @@ export class UiSurface {
   private readonly frame: Phaser.GameObjects.Graphics;
   private readonly landscape: Phaser.GameObjects.Image | null;
   private readonly artworkWash: Phaser.GameObjects.Graphics | null;
+  private readonly artworkCorners: Phaser.GameObjects.Graphics | null;
   private width = 1;
   private height = 1;
   private radius = 8;
@@ -34,11 +35,13 @@ export class UiSurface {
     this.landscape = decorated && artworkKey && scene.textures.exists(artworkKey)
       ? scene.add.image(0, 0, artworkKey).setOrigin(0) : null;
     this.artworkWash = this.landscape && artworkWashAlpha > 0 ? scene.add.graphics() : null;
+    this.artworkCorners = this.landscape ? scene.add.graphics() : null;
     this.frame = scene.add.graphics();
     this.object = scene.add.container(0, 0, [
       this.body,
       ...(this.landscape ? [this.landscape] : []),
       ...(this.artworkWash ? [this.artworkWash] : []),
+      ...(this.artworkCorners ? [this.artworkCorners] : []),
       this.frame,
     ]).setDepth(depth);
   }
@@ -84,6 +87,7 @@ export class UiSurface {
     const fill = colors[this.tone][state === 'hover' ? 1 : state === 'pressed' ? 2 : 0]!;
     this.body.clear().fillStyle(0x020c09, 0.22).fillRoundedRect(0, 4, w, h, r)
       .fillStyle(fill, 1).fillRoundedRect(0, 0, w, h, r);
+    this.drawArtworkCornerCutouts(fill);
     this.frame.clear()
       .lineStyle(1, state === 'hover' ? UI_TOKENS.color.goldLight : UI_TOKENS.color.gold, this.tone === 'paper' ? 0.9 : 0.65)
       .strokeRoundedRect(0.5, 0.5, w - 1, h - 1, r)
@@ -91,6 +95,48 @@ export class UiSurface {
       .lineBetween(r, 2, w - r, 2);
     this.object.setAlpha(state === 'disabled' ? 0.58 : 1);
   }
+  private drawArtworkCornerCutouts(fill: number): void {
+    if (!this.artworkCorners || !this.landscape) return;
+    const inset = 5;
+    const innerRadius = Math.max(3, this.radius - 2);
+    const left = inset;
+    const top = inset;
+    const right = this.width - inset;
+    const bottom = this.height - inset;
+    const segments = 8;
+
+    const arcPoints = (cx: number, cy: number, start: number, end: number): Phaser.Math.Vector2[] => {
+      const points: Phaser.Math.Vector2[] = [];
+      for (let index = 0; index <= segments; index += 1) {
+        const angle = start + (end - start) * (index / segments);
+        points.push(new Phaser.Math.Vector2(cx + Math.cos(angle) * innerRadius, cy + Math.sin(angle) * innerRadius));
+      }
+      return points;
+    };
+
+    this.artworkCorners.clear().fillStyle(fill, 1);
+    this.artworkCorners.fillPoints([
+      new Phaser.Math.Vector2(left, top),
+      new Phaser.Math.Vector2(left + innerRadius, top),
+      ...arcPoints(left + innerRadius, top + innerRadius, -Math.PI / 2, -Math.PI),
+    ], true);
+    this.artworkCorners.fillPoints([
+      new Phaser.Math.Vector2(right, top),
+      new Phaser.Math.Vector2(right, top + innerRadius),
+      ...arcPoints(right - innerRadius, top + innerRadius, 0, -Math.PI / 2),
+    ], true);
+    this.artworkCorners.fillPoints([
+      new Phaser.Math.Vector2(right, bottom),
+      new Phaser.Math.Vector2(right - innerRadius, bottom),
+      ...arcPoints(right - innerRadius, bottom - innerRadius, Math.PI / 2, 0),
+    ], true);
+    this.artworkCorners.fillPoints([
+      new Phaser.Math.Vector2(left, bottom),
+      new Phaser.Math.Vector2(left, bottom - innerRadius),
+      ...arcPoints(left + innerRadius, bottom - innerRadius, Math.PI, Math.PI / 2),
+    ], true);
+  }
+
   setDepth(depth: number): void { this.object.setDepth(depth); }
   setAlpha(alpha: number): void { this.object.setAlpha(alpha); }
   setVisible(visible: boolean): void { this.object.setVisible(visible); }
