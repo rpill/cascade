@@ -34,7 +34,7 @@ const UI_ICON_FILES: Readonly<Record<keyof typeof UI_ICON_KEYS, string>> = {
 export function preloadUiAssets(scene: Phaser.Scene): void {
   for (const rank of Object.keys(CASCADE_UI_ART_FILES.rank) as (keyof typeof CASCADE_UI_ART_FILES.rank)[]) {
     const key = CASCADE_UI_ART_KEYS.rank[rank];
-    if (!scene.textures.exists(key)) scene.load.svg(key, CASCADE_UI_ART_FILES.rank[rank], { width: 384, height: 384 });
+    if (!scene.textures.exists(key)) scene.load.image(key, CASCADE_UI_ART_FILES.rank[rank]);
   }
   for (const rank of Object.keys(CASCADE_UI_ART_FILES.rankLeaderboard) as (keyof typeof CASCADE_UI_ART_FILES.rankLeaderboard)[]) {
     const key = CASCADE_UI_ART_KEYS.rankLeaderboard[rank];

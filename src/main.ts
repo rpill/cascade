@@ -25,13 +25,18 @@ host.addEventListener('contextmenu', (event) => {
   event.preventDefault();
 });
 
+const desktopMaxAspectRatio = typeof window.matchMedia === 'function'
+  && window.matchMedia('(pointer: coarse)').matches
+  ? Number.POSITIVE_INFINITY
+  : 2;
+
 void startWhenHostReady(
   () => {
     const bounds = host.getBoundingClientRect();
     return { width: bounds.width, height: bounds.height };
   },
   ({ width, height }) => {
-    const initial = planHiDpiCanvas(width, height, window.devicePixelRatio);
+    const initial = planHiDpiCanvas(width, height, window.devicePixelRatio, desktopMaxAspectRatio);
     const game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: host,
@@ -59,7 +64,7 @@ void startWhenHostReady(
 
     const syncCanvasDensity = (): void => {
       const bounds = host.getBoundingClientRect();
-      const next = planHiDpiCanvas(bounds.width, bounds.height, window.devicePixelRatio);
+      const next = planHiDpiCanvas(bounds.width, bounds.height, window.devicePixelRatio, desktopMaxAspectRatio);
       const zoomChanged = Math.abs(lastCssZoom - next.cssZoom) > 0.0001;
       const sizeChanged = lastBackingWidth !== next.backingWidth
         || lastBackingHeight !== next.backingHeight;

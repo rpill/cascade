@@ -19,13 +19,21 @@ function normalizeDevicePixelRatio(value: number): number {
   return Math.min(MAX_RENDER_SCALE, value);
 }
 
+function normalizeMaxAspectRatio(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return Number.POSITIVE_INFINITY;
+  return value;
+}
+
 export function planHiDpiCanvas(
   width: number,
   height: number,
   devicePixelRatio: number,
+  maxAspectRatio = Number.POSITIVE_INFINITY,
 ): HiDpiCanvasPlan {
-  const logicalWidth = normalizeDimension(width);
+  const availableWidth = normalizeDimension(width);
   const logicalHeight = normalizeDimension(height);
+  const aspectCap = normalizeMaxAspectRatio(maxAspectRatio);
+  const logicalWidth = Math.max(1, Math.min(availableWidth, Math.round(logicalHeight * aspectCap)));
   const renderScale = normalizeDevicePixelRatio(devicePixelRatio);
   const backingWidth = Math.max(1, Math.round(logicalWidth * renderScale));
   const backingHeight = Math.max(1, Math.round(logicalHeight * renderScale));

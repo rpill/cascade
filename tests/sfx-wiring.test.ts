@@ -14,10 +14,9 @@ test('first-run boot preloads deal audio only and defers the remaining SFX', () 
   assert.match(scene, /this\.load\.audio/);
 });
 
-test('GameScene owns SFX controller and keeps DOM button feedback separate', () => {
+test('GameScene owns SFX controller and supplies button feedback to the Phaser HUD', () => {
   assert.match(scene, /new SfxController\(this\.sound\)/);
-  assert.match(scene, /handleButtonSfx/);
-  assert.match(scene, /this\.sfxController\.play\('button'\)/);
+  assert.match(scene, /sound:\s*\(\) => this\.sfxController\.play\('button'\)/);
 });
 
 test('clicking a playable card emits card-touch even before a drag begins', () => {

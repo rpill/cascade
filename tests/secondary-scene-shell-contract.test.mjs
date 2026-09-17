@@ -12,9 +12,7 @@ const how = read('src/ui/scenes/HowToPlayScene.ts');
 for (const [name, source] of [
   ['Daily', daily], ['Mastery', mastery], ['Leaderboards', leaderboard], ['Settings', settings], ['HowToPlay', how],
 ]) {
-  test(`${name} uses the shared SceneShell`, () => {
-    assert.match(source, /new SceneShell/);
-  });
+  test(`${name} uses the shared SceneShell`, () => assert.match(source, /new SceneShell/));
 }
 
 test('Daily delegates outer geometry to SceneShell', () => {
@@ -29,18 +27,18 @@ test('Mastery and Leaderboards share shell content edges without local page caps
   assert.match(leaderboard, /const content = shell\.content/);
 });
 
-test('Settings and HowToPlay use the shared narrow-panel rule and no bottom back action', () => {
-  assert.match(settings, /computeNarrowScenePanel\(shell\.content, viewport\)/);
-  assert.doesNotMatch(settings, /private back: ActionCard/);
-  assert.match(how, /computeNarrowScenePanel\(shell\.content, viewport\)/);
-  assert.doesNotMatch(how, /private back:ActionCard/);
+test('Settings and HowToPlay keep centered capped panels inside the shared shell content', () => {
+  assert.match(settings, /Math\.min\(shell\.content\.width, 760 \* css\)/);
+  assert.match(how, /Math\.min\(content\.width, 1080 \* css\)/);
+  assert.match(settings, /private closeButton: ActionCard/);
+  assert.match(settings, /t\('ЗАКРЫТЬ'\)/);
   assert.match(how, /t\('ЗАКРЫТЬ'\)/);
 });
 
 test('shell titles use natural localized casing', () => {
-  assert.match(daily, /new SceneShell\(this, viewport, 'Daily'/);
-  assert.match(mastery, /new SceneShell\(this, viewport, t\('Мастерство'\)/);
-  assert.match(leaderboard, /new SceneShell\(this, viewport, t\('Таблица лидеров'\)/);
-  assert.match(settings, /new SceneShell\(this, viewport, t\('Настройки'\)/);
-  assert.match(how, /new SceneShell\(this,viewport,t\('Как играть'\)/);
+  assert.match(daily, /new SceneShell\(this,\s*viewport,\s*'Daily'/);
+  assert.match(mastery, /new SceneShell\(this,\s*viewport,\s*t\('Мастерство'\)/);
+  assert.match(leaderboard, /new SceneShell\(this,\s*viewport,\s*t\('Таблица лидеров'\)/);
+  assert.match(settings, /new SceneShell\(this,\s*viewport,\s*t\('Настройки'\)/);
+  assert.match(how, /new SceneShell\(this,\s*viewport,\s*t\('Как играть'\)/);
 });

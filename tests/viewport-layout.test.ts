@@ -117,22 +117,26 @@ test('wide screens keep tableau gaps bounded instead of stretching edge-to-edge'
 });
 
 
-test('compact landscape reserves side rails for controls and increases card size after removing the top HUD bar', () => {
+test('compact landscape reserves a dedicated control rail while keeping cards above the compact minimum', () => {
   const phone = calculateViewportLayout(844, 390);
   assert.equal(phone.profile, 'compact-landscape');
   assert.ok(phone.boardBounds.x <= 16);
-  assert.ok(right(phone.boardBounds) <= 692);
+  assert.ok(right(phone.boardBounds) < phone.homeControl.x);
   assert.ok(phone.hudBounds.height <= 12);
-  assert.ok(phone.cardWidth >= 63);
+  assert.ok(phone.cardWidth >= 50);
 });
 
 
-test('compact landscape nearly fills the board height with the foundation rail while preserving slim outer margins', () => {
+test('compact landscape vertically centers the four foundations with slim outer margins', () => {
   const phone = calculateViewportLayout(844, 390);
-  assert.ok(phone.foundationRailBounds.y - phone.boardBounds.y <= 1e-9);
-  assert.ok(bottom(phone.boardBounds) - bottom(phone.foundationRailBounds) <= 1e-9);
-  assert.ok(phone.boardBounds.y >= 10);
-  assert.ok(phone.viewportHeight - bottom(phone.boardBounds) >= 8);
+  const topGap = phone.foundationRailBounds.y - phone.boardBounds.y;
+  const bottomGap = bottom(phone.boardBounds) - bottom(phone.foundationRailBounds);
+  assert.ok(topGap >= 0);
+  assert.ok(bottomGap >= 0);
+  assert.ok(Math.abs(topGap - bottomGap) < 1e-9);
+  assert.ok(topGap <= phone.cardHeight * 0.25);
+  assert.ok(phone.boardBounds.y >= 6);
+  assert.ok(phone.viewportHeight - bottom(phone.boardBounds) >= 6);
 });
 
 

@@ -3,10 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const scene = readFileSync(new URL('../src/game/scenes/GameScene.ts', import.meta.url), 'utf8');
 
-test('ordinary completion keeps statistics in meta while victory UI receives only result and product rewards', () => {
-  assert.match(scene, /completeRewardedAttempt\(this\.metaState,event\)/);
-  assert.match(scene, /const recorded=this\.dispatchMeta\(event\)/);
+test('ordinary completion records meta and sends only result plus mastery to the victory UI', () => {
+  assert.match(scene, /const recorded = this\.dispatchMeta\(event\)/);
   assert.match(scene, /this\.gameCompleteView\.show\(/);
-  assert.match(scene, /themePurchaseUnlocked/);
-  assert.doesNotMatch(scene, /totalXpBefore/);
+  assert.match(scene, /mastery:\s*completion\.mastery/);
+  assert.doesNotMatch(scene, /completeRewardedAttempt|themePurchaseUnlocked|coins|totalXpBefore/);
 });

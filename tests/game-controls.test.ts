@@ -11,8 +11,8 @@ const sceneSource = readFileSync(
   new URL('../src/game/scenes/GameScene.ts', import.meta.url),
   'utf8',
 );
-const controlsSource = readFileSync(
-  new URL('../src/game/view/GameControlsView.ts', import.meta.url),
+const hudSource = readFileSync(
+  new URL('../src/ui/game/GameHud.ts', import.meta.url),
   'utf8',
 );
 
@@ -205,14 +205,14 @@ test('Daily requires its deterministic seed and New Game replays the same deal',
 });
 
 
-test('keyboard shortcuts remain scene-owned while click controls live in GameControlsView', () => {
+test('keyboard shortcuts remain scene-owned while click controls live in Phaser GameHud', () => {
   assert.match(sceneSource, /keydown-R/);
   assert.match(sceneSource, /keydown-Z/);
   assert.match(sceneSource, /keydown-N/);
   assert.match(sceneSource, /keydown-ESC/);
-  assert.match(sceneSource, /new GameControlsView/);
-  assert.match(controlsSource, /actions\.home/);
-  assert.match(controlsSource, /actions\.newDeal/);
-  assert.match(controlsSource, /actions\.undo/);
-  assert.match(controlsSource, /actions\.restart/);
+  assert.match(sceneSource, /new GameHud/);
+  assert.match(hudSource, /actions\.home/);
+  assert.match(hudSource, /actions\.newDeal/);
+  assert.match(hudSource, /actions\.undo/);
+  assert.match(hudSource, /actions\.restart/);
 });

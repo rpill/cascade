@@ -52,10 +52,8 @@ test('source does not use Phaser 3 rendering APIs removed by Phaser 4', () => {
 
 test('scroll clipping uses a Phaser 4 filter mask in WebGL and GeometryMask only as Canvas fallback', () => {
   assert.match(scrollRegion, /renderer\.type\s*===\s*Phaser\.WEBGL/);
-  assert.match(scrollRegion, /interface\s+FilterCapableContainer\s+extends\s+Phaser\.GameObjects\.Container/);
-  assert.match(scrollRegion, /const\s+filterContent\s*=\s*this\.content\s+as\s+FilterCapableContainer/);
-  assert.match(scrollRegion, /filterContent\.enableFilters\s*\(\s*\)/);
-  assert.match(scrollRegion, /filterContent\.filters\.internal\.addMask\s*\(/);
+  assert.match(scrollRegion, /this\.content\.enableFilters\s*\(\s*\)/);
+  assert.match(scrollRegion, /this\.content\.filters!\.internal\.addMask\s*\(/);
   assert.match(scrollRegion, /['"]world['"]/);
   assert.match(scrollRegion, /createGeometryMask\s*\(\s*\)/);
   assert.match(scrollRegion, /\.setMask\s*\(/);

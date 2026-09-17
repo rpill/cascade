@@ -7,32 +7,12 @@
 - License copy: `public/assets/licenses/vintage-demo-license.txt`
 - The supplied license permits use in free and commercial projects and permits modification. It prohibits redistributing or reselling the raw assets as standalone files/stock graphics/asset packs and prohibits claiming the raw files as your own. Attribution is appreciated but not required.
 
-## ambientCG — Paper 001 and Paper 004
+## ambientCG — Paper 001
 
-- Runtime locations: `public/assets/ui/paper-001-color.jpg`, `public/assets/ui/paper-004-color.jpg`
-- Source materials: ambientCG `Paper 001` and `Paper 004` 2K JPG color maps supplied for this project.
+- Runtime location: `public/assets/ui/paper-001-color.jpg`
+- Source material: ambientCG `Paper 001` 2K JPG color map supplied for this project.
 - License: CC0.
-- The runtime JPGs are size/quality-optimized derivatives of the supplied color maps. PBR normal, roughness, displacement, and scene files are not shipped.
-
-## Wikimedia Commons — public-domain ornament sources
-
-- Runtime locations:
-  - `public/assets/ui/ornaments/art-nouveau-flourish.svg`
-  - `public/assets/ui/ornaments/redmond-corner.svg`
-  - `public/assets/ui/ornaments/harpels-flourish.svg`
-- Sources supplied for this project:
-  - `Art Nouveau flourish.svg` — ornament from a 1909 French graphic-design publication.
-  - `Ornamental corner by S. H. Redmond 01.svg` — ornament from an 1895 pattern book.
-  - `Harpel’s flourish 5.svg` — typographic ornament from an 1870 specimen book.
-- These source works are public-domain historical ornament material distributed through Wikimedia Commons. Runtime use recolors/scales them through CSS masks; the SVG source geometry is preserved.
-
-## The Public Domain Deck — decorative card back
-
-- Runtime location: `public/assets/ui/decor/decor-card-back-red.webp`
-- Source: red card back from The Public Domain Deck supplied in the project asset bundle.
-- License copy: `public/assets/licenses/public-domain-deck-cc0.txt`
-- License: CC0 1.0 Universal.
-- The runtime PNG is downscaled for menu decoration only; gameplay cards remain the Veilworks deck above.
+- The runtime JPG is a size/quality-optimized derivative; unused Paper 004 and historical ornament/frame derivatives are no longer shipped.
 
 ## Font Awesome Free 6.7.2 — menu and Daily presentation icons
 

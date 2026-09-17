@@ -12,9 +12,9 @@ test('metrics panel no longer renders the right-side decorative artwork and uses
   assert.doesNotMatch(hudSource, /coverCrop/);
 });
 
-test('table slots use slim gold outlines and visible slot icons for foundations and stock', () => {
+test('table slots use slim gold outlines and visible foundation suit glyphs', () => {
   assert.match(tableSource, /FOUNDATION_SYMBOLS = \['♣', '♥', '♦', '♠'\]/);
-  assert.match(tableSource, /STOCK_SYMBOL = '✦'/);
+  assert.doesNotMatch(tableSource, /STOCK_SYMBOL/);
   assert.match(tableSource, /UI_TOKENS\.color\.goldLight/);
-  assert.match(tableSource, /slot\.kind !== 'tableau'/);
+  assert.match(tableSource, /foundationIcons/);
 });

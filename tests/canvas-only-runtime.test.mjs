@@ -40,11 +40,12 @@ test('settings can be opened from the canvas game HUD and return to the paused g
   assert.doesNotMatch(settings, /if\s*\(\s*!this\.isUiSceneActive\(\)\s*\)\s*return/);
 });
 
-test('Cascade table slots use the Trifold base-table edge treatment while keeping Cascade geometry', () => {
-  assert.match(appearance, /0x8aa095/);
-  assert.match(appearance, /foundation[^\n]*\?\s*0\.56/);
-  assert.match(appearance, /tableau[^\n]*\?\s*0\.34/);
-  assert.match(appearance, /:\s*0\.42/);
+test('Cascade table slots use the shared flat gold edge treatment while keeping Cascade geometry', () => {
+  assert.match(appearance, /UI_TOKENS\.color\.gold/);
+  assert.match(appearance, /UI_TOKENS\.color\.goldLight/);
+  assert.match(appearance, /slot\.kind === 'foundation'/);
+  assert.match(appearance, /slot\.kind === 'tableau'/);
+  assert.match(appearance, /strokeRoundedRect/);
 });
 
 test('global CSS only hosts the canvas and contains no legacy DOM game layout', () => {

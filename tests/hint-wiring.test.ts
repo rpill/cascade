@@ -3,19 +3,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ENGLISH } from '../src/localization/English.ts';
 
-const controls = readFileSync(new URL('../src/game/view/GameControlsView.ts', import.meta.url), 'utf8');
-const icons = readFileSync(new URL('../src/game/view/ui/UiIcons.ts', import.meta.url), 'utf8');
+const hud = readFileSync(new URL('../src/ui/game/GameHud.ts', import.meta.url), 'utf8');
+const hudViewModel = readFileSync(new URL('../src/ui/game/GameHudViewModel.ts', import.meta.url), 'utf8');
 const scene = readFileSync(new URL('../src/game/scenes/GameScene.ts', import.meta.url), 'utf8');
 const board = readFileSync(new URL('../src/game/view/BoardView.ts', import.meta.url), 'utf8');
 
- test('gameplay HUD exposes a dedicated hint control before Home', () => {
-  assert.match(controls, /readonly hint:\s*\(\) => void/);
-  assert.match(controls, /icon:\s*'hint'/);
-  assert.match(controls, /label:\s*'Подсказка'/);
-  assert.match(icons, /\| 'hint'/);
-  const hint = controls.indexOf("icon: 'hint'");
-  const home = controls.indexOf("icon: 'home'");
-  assert.ok(hint >= 0 && hint < home);
+test('gameplay HUD exposes a dedicated Phaser hint action', () => {
+  assert.match(hud, /readonly hint:\s*\(\) => void/);
+  assert.match(hud, /UI_ICON_KEYS\.hint/);
+  assert.match(hud, /viewModel\.hintLabel/);
 });
 
 test('GameScene delegates hint clicks to BoardView without mutating game state', () => {
@@ -42,23 +38,14 @@ test('cancelling a hint during relayout cannot leave board input locked', () => 
   assert.match(stop, /this\.inputLocked = false/);
 });
 
-test('when there is no move, scene points at Undo only when Undo exists', () => {
-  const show = scene.match(/private showHint\(\): void \{[^]*?\n  \}/)?.[0] ?? '';
-  assert.match(show, /result === 'none'/);
-  assert.match(show, /this\.history\.canUndo/);
-  assert.match(show, /emphasizeUndo/);
-});
-
-
 test('hint copy is localized in English', () => {
   assert.equal(ENGLISH['Подсказка'], 'Hint');
 });
 
 
 test('hint control is disabled whenever the board has no available move hints', () => {
-  assert.match(controls, /private readonly hintButton: HTMLButtonElement/);
-  assert.match(controls, /setHintEnabled\(enabled: boolean\): void/);
-  assert.match(controls, /this\.hintButton\.disabled = !enabled/);
   assert.match(board, /hasMoveHints\(\): boolean/);
-  assert.match(scene, /setHintEnabled\(this\.board\?\.hasMoveHints\(\) \?\? false\)/);
+  assert.match(scene, /hintEligible:\s*this\.board\?\.hasMoveHints\(\) \?\? false/);
+  assert.match(hudViewModel, /hintEnabled:\s*input\.hintEligible/);
+  assert.match(hud, /this\.buttons\.hint\.enabled = viewModel\.hintEnabled/);
 });

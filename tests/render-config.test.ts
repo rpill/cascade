@@ -2,35 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const mainSource = readFileSync(
-  new URL('../src/main.ts', import.meta.url),
-  'utf8',
-);
-
-const bootSource = readFileSync(
-  new URL('../src/game/scenes/BootScene.ts', import.meta.url),
-  'utf8',
-);
-
-const packageSource = readFileSync(
-  new URL('../package.json', import.meta.url),
-  'utf8',
-);
-
-const controlsSource = readFileSync(
-  new URL('../src/game/view/GameControlsView.ts', import.meta.url),
-  'utf8',
-);
-
-const boardSource = readFileSync(
-  new URL('../src/game/view/BoardView.ts', import.meta.url),
-  'utf8',
-);
-
-const shellSource = readFileSync(
-  new URL('../src/game/view/AppShellView.ts', import.meta.url),
-  'utf8',
-);
+const mainSource = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+const bootSource = readFileSync(new URL('../src/game/scenes/BootScene.ts', import.meta.url), 'utf8');
+const packageSource = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
+const hudSource = readFileSync(new URL('../src/ui/game/GameHud.ts', import.meta.url), 'utf8');
+const boardSource = readFileSync(new URL('../src/game/view/BoardView.ts', import.meta.url), 'utf8');
+const shellSource = readFileSync(new URL('../src/ui/components/SceneShell.ts', import.meta.url), 'utf8');
 
 test('rendering uses a HiDPI backing store while preserving antialiased card textures', () => {
   assert.doesNotMatch(mainSource, /\bresolution\s*:/);
@@ -54,13 +31,13 @@ test('boot loads stable raster card textures instead of runtime SVGs', () => {
   assert.doesNotMatch(bootSource, /this\.load\.svg\(|cards-vector/);
 });
 
-test('text-heavy controls live in screen-space DOM outside the camera transform', () => {
+test('all player-facing controls stay in the Phaser canvas instead of DOM overlays', () => {
   assert.doesNotMatch(mainSource, /createContainer:\s*true/);
   assert.doesNotMatch(boardSource, /scene\.add\.dom\(/);
-  assert.doesNotMatch(shellSource, /scene\.add\.dom\(/);
-  assert.match(controlsSource, /canvas\.parentElement/);
-  assert.match(shellSource, /canvas\.parentElement/);
-  assert.doesNotMatch(shellSource, /scene\.add\.text\(/);
+  assert.doesNotMatch(hudSource, /document\.|HTMLButtonElement|scene\.add\.dom\(/);
+  assert.doesNotMatch(shellSource, /document\.|scene\.add\.dom\(/);
+  assert.match(hudSource, /scene\.add\.image/);
+  assert.match(shellSource, /scene\.add\.text/);
 });
 
 test('dev and build do not depend on runtime SVG asset generation', () => {
@@ -76,8 +53,5 @@ test('board geometry comes from the shared viewport layout instead of authored c
   assert.match(boardSource, /relayout\(layout: ViewportLayout\)/);
   assert.doesNotMatch(boardSource, /utilityDivider/);
   assert.match(boardSource, /this\.layout\.cardWidth/);
-  assert.doesNotMatch(
-    boardSource,
-    /\bCARD_WIDTH\b|\bCARD_HEIGHT\b|\bFOUNDATION_X\b|\bFOUNDATION_Y\b|\bSTOCK_X\b|\bSTOCK_Y\b|\bTABLEAU_X\b|\bTABLEAU_Y\b/,
-  );
+  assert.doesNotMatch(boardSource, /\bCARD_WIDTH\b|\bCARD_HEIGHT\b|\bFOUNDATION_X\b|\bFOUNDATION_Y\b|\bSTOCK_X\b|\bSTOCK_Y\b|\bTABLEAU_X\b|\bTABLEAU_Y\b/);
 });

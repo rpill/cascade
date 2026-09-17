@@ -2,10 +2,6 @@ import { getLanguage, setLanguage, t, type Language } from '../../localization/L
 import { preferences } from '../../settings/Preferences.ts';
 
 const SETTINGS_PAPER_PRIMARY = './assets/ui/paper-001-color.jpg';
-const SETTINGS_CORNER_TL = './assets/ui/ornaments/corners/home-corner-tl.webp';
-const SETTINGS_CORNER_TR = './assets/ui/ornaments/corners/home-corner-tr.webp';
-const SETTINGS_CORNER_BR = './assets/ui/ornaments/corners/home-corner-br.webp';
-const SETTINGS_CORNER_BL = './assets/ui/ornaments/corners/home-corner-bl.webp';
 
 function toCssUrl(path: string): string {
   return `url("${new URL(path, document.baseURI).href}")`;
@@ -26,10 +22,6 @@ export class SettingsView {
     this.root=document.createElement('dialog');
     this.root.className='settings-dialog';
     this.root.style.setProperty('--app-shell-paper-primary', toCssUrl(SETTINGS_PAPER_PRIMARY));
-    this.root.style.setProperty('--home-corner-tl', toCssUrl(SETTINGS_CORNER_TL));
-    this.root.style.setProperty('--home-corner-tr', toCssUrl(SETTINGS_CORNER_TR));
-    this.root.style.setProperty('--home-corner-br', toCssUrl(SETTINGS_CORNER_BR));
-    this.root.style.setProperty('--home-corner-bl', toCssUrl(SETTINGS_CORNER_BL));
     this.root.setAttribute('aria-labelledby','settings-title');
     this.title=document.createElement('h2');
     this.title.id='settings-title';

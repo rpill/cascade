@@ -13,7 +13,7 @@ function method(name: string): string {
 }
 
 test('authorization stages the guest profile before opening Yandex auth and reloads profile after success', () => {
-  const authorize = method('authorizeLeaderboard');
+  const authorize = method('authorizeProductLeaderboard');
   const stage = authorize.indexOf('stageProfileMergeTransfer');
   const request = authorize.indexOf('service.requestAuthorization()');
   const reload = authorize.indexOf('await this.loadMetaProfile()');
@@ -40,7 +40,7 @@ test('authorization remains available while an unfinished game is paused in the 
 });
 
 test('authorization checkpoints an unfinished game before Yandex can switch Player', () => {
-  const authorize = method('authorizeLeaderboard');
+  const authorize = method('authorizeProductLeaderboard');
   const checkpoint = authorize.indexOf('this.checkpointActiveGame(this.gameState)');
   const stage = authorize.indexOf('stageProfileMergeTransfer');
   assert.ok(checkpoint !== -1 && stage !== -1 && checkpoint < stage,

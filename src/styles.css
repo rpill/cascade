@@ -29,6 +29,7 @@ body {
 
 canvas {
   display: block;
+  margin-inline: auto;
   image-rendering: auto;
   outline: none;
   touch-action: none;

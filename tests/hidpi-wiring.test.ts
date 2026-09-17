@@ -23,3 +23,10 @@ test('GameScene keeps camera at 1x and scales the logical board layout into the 
   assert.match(scene, /\.setZoom\(1\)/);
   assert.doesNotMatch(scene, /\.setZoom\(renderScale\)/);
 });
+
+
+test('desktop canvas cap is applied before Phaser is created and on every resize', () => {
+  assert.match(main, /const desktopMaxAspectRatio/);
+  const calls = main.match(/planHiDpiCanvas\([^)]*desktopMaxAspectRatio\)/g) ?? [];
+  assert.ok(calls.length >= 2, `expected initial and resize aspect-capped plans, got ${calls.length}`);
+});
