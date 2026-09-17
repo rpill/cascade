@@ -54,7 +54,7 @@ export class ActionCard {
       state.artwork === 'landscape' ? CASCADE_UI_ART_KEYS.homeHero
         : state.artwork === 'daily' ? CASCADE_UI_ART_KEYS.homeDaily
           : state.artwork === 'mastery' ? CASCADE_UI_ART_KEYS.homeMastery
-            : state.artwork === 'leaders' ? CASCADE_UI_ART_KEYS.leaderboardPanelBg
+            : state.artwork === 'leaders' ? CASCADE_UI_ART_KEYS.homeLeadersBg
               : undefined
     );
     const artworkAlpha = state.artwork === 'landscape' ? 1 : 0.92;
