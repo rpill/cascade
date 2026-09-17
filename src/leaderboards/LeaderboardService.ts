@@ -22,6 +22,7 @@ export type LeaderboardMetric =
 export interface LeaderboardRow {
   readonly rank: number;
   readonly publicName: string;
+  readonly avatarUrl?: string;
   /** Legacy scalar kept for the retired DOM leaderboard view. */
   readonly value: number;
   readonly metric: LeaderboardMetric;
@@ -63,6 +64,7 @@ function normalizeStandardRow(entry: PlatformLeaderboardEntry): LeaderboardRow |
   return {
     rank: entry.rank,
     publicName: publicName(entry),
+    avatarUrl: entry.avatarUrl,
     value: entry.score,
     metric: { kind: 'standard', bestStreak: entry.score },
   };
@@ -75,6 +77,7 @@ function normalizeDailyRow(entry: PlatformLeaderboardEntry, dailyId: string): Le
   return {
     rank: entry.rank,
     publicName: publicName(entry),
+    avatarUrl: entry.avatarUrl,
     value: decoded.elapsedMs,
     metric: { kind: 'daily', moves: decoded.moves, elapsedMs: decoded.elapsedMs },
   };
@@ -87,6 +90,7 @@ function normalizeStreakRow(entry: PlatformLeaderboardEntry): LeaderboardRow | n
   return {
     rank: entry.rank,
     publicName: publicName(entry),
+    avatarUrl: entry.avatarUrl,
     value: decoded.current,
     metric: { kind: 'streak', current: decoded.current, best: decoded.best },
   };
@@ -99,6 +103,7 @@ function normalizeMasteryRow(entry: PlatformLeaderboardEntry): LeaderboardRow | 
   return {
     rank: entry.rank,
     publicName: publicName(entry),
+    avatarUrl: entry.avatarUrl,
     value: entry.score,
     metric: { kind: 'mastery', rank: decoded.rank, points: decoded.points },
   };

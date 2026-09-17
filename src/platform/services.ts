@@ -31,6 +31,7 @@ export interface PlatformLeaderboardEntry {
   readonly score: number;
   readonly playerId: string;
   readonly publicName: string;
+  readonly avatarUrl?: string;
 }
 
 export interface PlatformLeaderboards {

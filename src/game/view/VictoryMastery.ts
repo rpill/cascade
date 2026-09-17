@@ -22,7 +22,6 @@ export interface VictoryMasteryState {
 }
 
 export interface WinOverlayMasteryContent {
-  readonly title: string;
   readonly beforeRank: MasteryRank;
   readonly afterRank: MasteryRank;
   readonly beforeRankLabel: string;
@@ -97,7 +96,6 @@ export function presentVictoryMastery(content: VictoryMasteryState, language: La
   const beforeProgress = aggregateProgress(content.before.metrics);
   const afterProgress = aggregateProgress(content.after.metrics);
   return {
-    title: tr(language, 'МАСТЕРСТВО'),
     beforeRank: content.before.rank,
     afterRank: content.after.rank,
     beforeRankLabel: tr(language, RANK_LABELS[content.before.rank]),

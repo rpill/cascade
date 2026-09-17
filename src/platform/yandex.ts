@@ -14,6 +14,7 @@ interface YandexLeaderboardEntry {
   player: {
     publicName: string;
     uniqueID: string;
+    getAvatarSrc?: (size?: 'small' | 'medium' | 'large') => string;
   };
 }
 
@@ -114,11 +115,19 @@ async function ensureYandexSdkLoaded(): Promise<void> {
 }
 
 function toPlatformEntry(entry: YandexLeaderboardEntry): PlatformLeaderboardEntry {
+  let avatarUrl: string | undefined;
+  try {
+    const resolved = entry.player.getAvatarSrc?.('small')?.trim();
+    if (resolved) avatarUrl = resolved;
+  } catch {
+    avatarUrl = undefined;
+  }
   return {
     rank: entry.rank,
     score: entry.score,
     playerId: entry.player.uniqueID,
     publicName: entry.player.publicName,
+    ...(avatarUrl ? { avatarUrl } : {}),
   };
 }
 

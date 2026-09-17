@@ -9,7 +9,6 @@ import { CASCADE_UI_ART_KEYS } from '../assets/CascadeUiArt.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
 
 export interface WinOverlayMasteryContent {
-  readonly title: string;
   readonly beforeRank: keyof typeof CASCADE_UI_ART_KEYS.rank;
   readonly afterRank: keyof typeof CASCADE_UI_ART_KEYS.rank;
   readonly beforeRankLabel: string;
@@ -58,7 +57,6 @@ export class WinOverlay {
   private readonly detail: Phaser.GameObjects.Text;
   private readonly notice: Phaser.GameObjects.Text;
   private readonly masteryPanel: UiSurface;
-  private readonly masteryTitle: Phaser.GameObjects.Text;
   private readonly masteryBadge: Phaser.GameObjects.Image;
   private readonly masteryRank: Phaser.GameObjects.Text;
   private readonly masteryCaption: Phaser.GameObjects.Text;
@@ -90,7 +88,6 @@ export class WinOverlay {
     this.detail = this.makeText(scene, depth + 2, '#64706a', 'system-ui, sans-serif', false);
     this.notice = this.makeText(scene, depth + 2, '#8b7430', 'system-ui, sans-serif', true);
     this.masteryPanel = new UiSurface(scene, depth + 1.2);
-    this.masteryTitle = this.makeText(scene, depth + 2, '#24302e', 'Georgia, serif', true);
     this.masteryBadge = scene.add.image(0,0,CASCADE_UI_ART_KEYS.rank.novice).setDepth(depth + 2);
     this.masteryRank = this.makeText(scene, depth + 2, '#24302e', 'Georgia, serif', true);
     this.masteryCaption = this.makeText(scene, depth + 2, '#64706a', 'system-ui, sans-serif', false);
@@ -109,7 +106,7 @@ export class WinOverlay {
     this.visible = visible;
     this.dimmer.setVisible(visible).setActive(visible);
     this.panel.setVisible(visible);
-    for (const text of [this.kicker,this.title,this.result,this.detail,this.notice,this.masteryTitle,this.masteryRank,this.masteryCaption,this.masteryProgressLabel,this.masteryProgressValue,this.masteryReward]) text.setVisible(visible && text.text.length > 0);
+    for (const text of [this.kicker,this.title,this.result,this.detail,this.notice,this.masteryRank,this.masteryCaption,this.masteryProgressLabel,this.masteryProgressValue,this.masteryReward]) text.setVisible(visible && text.text.length > 0);
     this.masteryPanel.setVisible(visible && Boolean(this.content.mastery));
     this.masteryBadge.setVisible(visible && Boolean(this.content.mastery));
     this.masteryMeter.setVisible(visible && Boolean(this.content.mastery));
@@ -119,18 +116,43 @@ export class WinOverlay {
 
   playMasteryAnimation(): void {
     const mastery = this.content.mastery;
-    if (!this.visible || !mastery || !mastery.promoted) return;
-    this.masteryBadge.setTexture(CASCADE_UI_ART_KEYS.rank[mastery.beforeRank]).setScale(0.92).setAlpha(0.45);
-    this.scene.tweens.add({
-      targets:this.masteryBadge, alpha:1, scale:1, duration:320, ease:'Back.Out',
-      onComplete:()=>{
-        this.masteryBadge.setTexture(CASCADE_UI_ART_KEYS.rank[mastery.afterRank]);
+    if (!this.visible || !mastery) return;
+
+    this.masteryBadge.setTexture(CASCADE_UI_ART_KEYS.rank[mastery.beforeRank]).setScale(1).setAlpha(1);
+    this.masteryRank.setText(mastery.beforeRankLabel);
+    this.masteryCaption.setText(mastery.beforeCaption);
+    this.masteryReward.setText('');
+    this.updateMasteryMeter(mastery.beforeProgressCurrent, mastery.beforeProgressTotal);
+
+    if(mastery.promoted){
+      this.animateMasteryMeter(
+        mastery.beforeProgressCurrent,
+        mastery.beforeProgressTotal,
+        mastery.beforeProgressTotal,
+        420,
+        ()=>{
+          this.masteryBadge.setTexture(CASCADE_UI_ART_KEYS.rank[mastery.afterRank]).setScale(0.90).setAlpha(0.55);
+          this.masteryRank.setText(mastery.afterRankLabel);
+          this.masteryCaption.setText(mastery.afterCaption);
+          this.masteryReward.setText(mastery.rewardLine ?? '');
+          this.updateMasteryMeter(0, mastery.afterProgressTotal);
+          this.scene.tweens.add({ targets:this.masteryBadge, alpha:1, scale:1, duration:300, ease:'Back.Out' });
+          this.animateMasteryMeter(0, mastery.afterProgressCurrent, mastery.afterProgressTotal, 420);
+        },
+      );
+      return;
+    }
+
+    this.animateMasteryMeter(
+      mastery.beforeProgressCurrent,
+      mastery.afterProgressCurrent,
+      mastery.afterProgressTotal,
+      520,
+      ()=>{
         this.masteryRank.setText(mastery.afterRankLabel);
         this.masteryCaption.setText(mastery.afterCaption);
-        this.masteryReward.setText(mastery.rewardLine ?? '');
-        this.updateMasteryMeter(mastery.afterProgressCurrent, mastery.afterProgressTotal);
       },
-    });
+    );
   }
 
   layout(layout: ViewportLayout): void {
@@ -157,17 +179,21 @@ export class WinOverlay {
     this.masteryPanel.setVisible(this.visible && Boolean(mastery));
     if (mastery) {
       this.masteryPanel.layout(panelBounds,'paper',true);
-      this.masteryTitle.setPosition(cx,panelY+panelH*0.13).setFontSize(Math.max(14,panelH*0.11));
-      const badgeSize = Math.min(panelH*0.48,panelBounds.width*0.16);
-      this.masteryBadge.setPosition(panelBounds.x+panelBounds.width*0.18,panelY+panelH*0.52).setDisplaySize(badgeSize,badgeSize);
-      this.masteryRank.setPosition(panelBounds.x+panelBounds.width*0.43,panelY+panelH*0.31).setFontSize(Math.max(16,panelH*0.13));
-      this.masteryCaption.setPosition(panelBounds.x+panelBounds.width*0.43,panelY+panelH*0.49).setFontSize(Math.max(11,panelH*0.075)).setWordWrapWidth(panelBounds.width*0.48);
-      const meterBounds={x:panelBounds.x+panelBounds.width*0.43,y:panelY+panelH*0.68,width:panelBounds.width*0.43,height:Math.max(8,panelH*0.075)};
+      const badgeSize = Math.min(panelH*0.50,panelBounds.width*0.17);
+      this.masteryBadge.setPosition(panelBounds.x+panelBounds.width*0.18,panelY+panelH*0.50).setDisplaySize(badgeSize,badgeSize);
+      this.masteryRank.setPosition(panelBounds.x+panelBounds.width*0.43,panelY+panelH*0.26).setFontSize(Math.max(17,panelH*0.14));
+      this.masteryCaption.setOrigin(0,0.5).setPosition(panelBounds.x+panelBounds.width*0.43,panelY+panelH*0.45).setFontSize(Math.max(11,panelH*0.075)).setWordWrapWidth(panelBounds.width*0.48).setAlign('left');
+      const progressRowY=panelY+panelH*0.69;
+      const meterHeight=Math.max(8,panelH*0.075);
+      const labelX=panelBounds.x+panelBounds.width*0.43;
+      const meterX=panelBounds.x+panelBounds.width*0.61;
+      const valueX=panelBounds.x+panelBounds.width*0.88;
+      const meterBounds={x:meterX,y:progressRowY-meterHeight/2,width:panelBounds.width*0.22,height:meterHeight};
       this.masteryMeterBounds=meterBounds;
       this.masteryMeter.layout(meterBounds);
-      this.masteryProgressLabel.setOrigin(0,0.5).setPosition(meterBounds.x,meterBounds.y-meterBounds.height*1.0).setFontSize(Math.max(10,panelH*0.065));
-      this.masteryProgressValue.setOrigin(1,0.5).setPosition(meterBounds.x+meterBounds.width,meterBounds.y-meterBounds.height*1.0).setFontSize(Math.max(10,panelH*0.065));
-      this.masteryReward.setPosition(panelBounds.x+panelBounds.width*0.65,panelY+panelH*0.88).setFontSize(Math.max(10,panelH*0.065));
+      this.masteryProgressLabel.setOrigin(0,0.5).setPosition(labelX,progressRowY).setFontSize(Math.max(10,panelH*0.065));
+      this.masteryProgressValue.setOrigin(1,0.5).setPosition(valueX,progressRowY).setFontSize(Math.max(10,panelH*0.065));
+      this.masteryReward.setPosition(panelBounds.x+panelBounds.width*0.65,panelY+panelH*0.87).setFontSize(Math.max(10,panelH*0.065));
     }
 
     const buttonY=bounds.y+height*0.82, gap=bounds.width*0.025;
@@ -178,7 +204,7 @@ export class WinOverlay {
 
   destroy(): void {
     this.dimmer.destroy(); this.panel.destroy(); this.masteryPanel.destroy(); this.masteryMeter.destroy(); this.masteryBadge.destroy();
-    for(const text of [this.kicker,this.title,this.result,this.detail,this.notice,this.masteryTitle,this.masteryRank,this.masteryCaption,this.masteryProgressLabel,this.masteryProgressValue,this.masteryReward]) text.destroy();
+    for(const text of [this.kicker,this.title,this.result,this.detail,this.notice,this.masteryRank,this.masteryCaption,this.masteryProgressLabel,this.masteryProgressValue,this.masteryReward]) text.destroy();
     this.destroyButton(this.primary); this.destroyButton(this.secondary);
   }
 
@@ -192,7 +218,6 @@ export class WinOverlay {
     this.secondary.label.setText(this.content.secondaryActionLabel);
     const mastery=this.content.mastery;
     if(mastery){
-      this.masteryTitle.setText(mastery.title);
       this.masteryBadge.setTexture(CASCADE_UI_ART_KEYS.rank[mastery.afterRank]);
       this.masteryRank.setText(mastery.afterRankLabel);
       this.masteryCaption.setText(mastery.afterCaption);
@@ -203,9 +228,21 @@ export class WinOverlay {
     if(this.lastLayout) this.setVisible(this.visible);
   }
 
+  private animateMasteryMeter(from:number,to:number,total:number,duration:number,onComplete?:()=>void):void{
+    this.scene.tweens.addCounter({
+      from,
+      to,
+      duration,
+      ease:'Sine.Out',
+      onUpdate:(tween:Phaser.Tweens.Tween)=>this.updateMasteryMeter(Number(tween.getValue() ?? to),total),
+      onComplete:()=>{ this.updateMasteryMeter(to,total); onComplete?.(); },
+    });
+  }
+
   private updateMasteryMeter(current:number,total:number):void{
-    this.masteryMeter.setProgress({current,total:Math.max(1,total)});
-    this.masteryProgressValue.setText(`${current} / ${Math.max(1,total)}`);
+    const safeTotal=Math.max(1,total);
+    this.masteryMeter.setProgress({current,total:safeTotal});
+    this.masteryProgressValue.setText(`${Math.round(current)} / ${safeTotal}`);
     if(this.masteryMeterBounds)this.masteryMeter.layout(this.masteryMeterBounds);
   }
 

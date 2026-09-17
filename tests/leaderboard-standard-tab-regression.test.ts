@@ -41,7 +41,7 @@ test('Standard is a first-class leaderboard mode backed by standardwinstreak', a
   assert.deepEqual(result.playerEntry?.metric, { kind: 'standard', bestStreak: 5 });
 });
 
-test('leaderboard UI and fixtures expose Standard alongside Daily, streak and Mastery', () => {
+test('leaderboard UI exposes Standard alongside Daily and Mastery', () => {
   assert.match(sceneSource, /value:\s*'winnable'/);
   const fixtures = createLeaderboardFixtureResult('winnable');
   assert.ok(fixtures.entries.length >= 20);

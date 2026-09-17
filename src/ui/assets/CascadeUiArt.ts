@@ -21,6 +21,14 @@ export const CASCADE_UI_ART_KEYS = {
     master: 'cascade.ui.rank.master',
     grandmaster: 'cascade.ui.rank.grandmaster',
   },
+  rankLeaderboard: {
+    novice: 'cascade.ui.rank.leaderboard.novice',
+    player: 'cascade.ui.rank.leaderboard.player',
+    tactician: 'cascade.ui.rank.leaderboard.tactician',
+    expert: 'cascade.ui.rank.leaderboard.expert',
+    master: 'cascade.ui.rank.leaderboard.master',
+    grandmaster: 'cascade.ui.rank.leaderboard.grandmaster',
+  },
 } as const;
 
 export const CASCADE_UI_ART_FILES = {
@@ -46,5 +54,13 @@ export const CASCADE_UI_ART_FILES = {
     expert: './assets/ui/art/rank-expert.svg',
     master: './assets/ui/art/rank-master.svg',
     grandmaster: './assets/ui/art/rank-grandmaster.svg',
+  },
+  rankLeaderboard: {
+    novice: './assets/ui/art/rank-leaderboard-novice.png',
+    player: './assets/ui/art/rank-leaderboard-player.png',
+    tactician: './assets/ui/art/rank-leaderboard-tactician.png',
+    expert: './assets/ui/art/rank-leaderboard-expert.png',
+    master: './assets/ui/art/rank-leaderboard-master.png',
+    grandmaster: './assets/ui/art/rank-leaderboard-grandmaster.png',
   },
 } as const;

@@ -7,12 +7,12 @@ const serviceSource = readFileSync(new URL('../src/leaderboards/LeaderboardServi
 const sceneSource = readFileSync(new URL('../src/ui/scenes/LeaderboardsScene.ts', import.meta.url), 'utf8');
 const gameSceneSource = readFileSync(new URL('../src/game/scenes/GameScene.ts', import.meta.url), 'utf8');
 
-test('leaderboard product model is Standard + Daily + streak + Mastery', () => {
+test('backend keeps streak synchronization while the player-facing tabs are Standard + Daily + Mastery', () => {
   assert.match(configSource, /GlobalLeaderboardMode\s*=\s*'winnable'\s*\|\s*'daily'\s*\|\s*'streak'\s*\|\s*'mastery'/);
   assert.match(configSource, /DAILY_STREAK_LEADERBOARD_NAME/);
   assert.match(sceneSource, /value:\s*'winnable'/);
   assert.match(sceneSource, /value:\s*'daily'/);
-  assert.match(sceneSource, /value:\s*'streak'/);
+  assert.doesNotMatch(sceneSource, /value:\s*'streak'/);
   assert.match(sceneSource, /value:\s*'mastery'/);
 });
 
@@ -32,7 +32,6 @@ test('streak leaderboard carries current and best Daily streak', () => {
 test('leaderboard scene exposes product columns and a pinned player row', () => {
   assert.match(sceneSource, /Ходы/);
   assert.match(sceneSource, /Время/);
-  assert.match(sceneSource, /Текущая серия/);
   assert.match(sceneSource, /Лучшая серия/);
   assert.match(sceneSource, /Ранг/);
   assert.match(sceneSource, /Очки/);

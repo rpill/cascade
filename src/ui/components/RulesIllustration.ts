@@ -46,19 +46,20 @@ export class RulesIllustration {
     if (slide === 'foundations') {
       card('clubs-1', 100, 150, 148); card('clubs-2', 240, 150, 148); card('clubs-3', 380, 150, 148);
       arrow(163, 177, 150); arrow(303, 317, 150); label('A → 2 → 3 ··· K', 240, 263, 24);
-    } else if (slide === 'stock') {
-      rect(86, 166, 102, 144, 0xb69557); rect(81, 161, 102, 144, 0xf7efdc);
-      rect(81, 161, 90, 132, 0x24302e); outline(81, 161, 78, 120); label('♣', 81, 160, 42);
-      arrow(151, 210, 161); card('spades-9', 271, 140); card('hearts-8', 313, 160); card('clubs-7', 355, 180); label('× 3', 81, 267, 24);
-    } else if (slide === 'empty-column') {
-      card('spades-9', 115, 116, 136); card('hearts-8', 115, 153, 136); card('clubs-7', 115, 190, 136);
-      outline(365, 153, 102, 210); label('＋', 365, 153, 40); arrow(190, 294, 153);
-    } else if (slide === 'free-cell') {
-      card('hearts-8', 116, 156, 156); outline(365, 156, 117, 156); label('1', 365, 156, 46); arrow(194, 283, 156);
-    } else {
+    } else if (slide === 'alternating-colors') {
       card('spades-9', 220, 99, 138); card('hearts-8', 220, 151, 138); card('clubs-7', 220, 203, 138);
       label('9 ♠', 335, 68, 23); label('8 ♥', 335, 122, 23); label('7 ♣', 335, 176, 23);
       this.ink.lineStyle(1.5 * scale, 0xb69557, 0.6).lineBetween(x(302), y(67), x(302), y(187));
+    } else if (slide === 'free-spaces') {
+      this.ink.lineStyle(1.2 * scale, 0xb69557, 0.28).lineBetween(x(240), y(58), x(240), y(262));
+      card('spades-9', 78, 106, 116); card('hearts-8', 78, 142, 116); card('clubs-7', 78, 178, 116);
+      outline(190, 142, 82, 166); label('＋', 190, 142, 31); arrow(126, 149, 142);
+      card('hearts-8', 298, 145, 126); outline(412, 145, 92, 126); label('1', 412, 145, 34); arrow(346, 366, 145);
+      label('↕', 190, 245, 23); label('•', 412, 245, 28);
+    } else {
+      rect(86, 166, 102, 144, 0xb69557); rect(81, 161, 102, 144, 0xf7efdc);
+      rect(81, 161, 90, 132, 0x24302e); outline(81, 161, 78, 120); label('♣', 81, 160, 42);
+      arrow(151, 210, 161); card('spades-9', 271, 140); card('hearts-8', 313, 160); card('clubs-7', 355, 180); label('× 3', 81, 267, 24);
     }
   }
   destroy(): void { this.objects.forEach(object => object.destroy()); this.objects = []; this.ink.destroy(); }

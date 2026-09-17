@@ -36,6 +36,10 @@ export function preloadUiAssets(scene: Phaser.Scene): void {
     const key = CASCADE_UI_ART_KEYS.rank[rank];
     if (!scene.textures.exists(key)) scene.load.svg(key, CASCADE_UI_ART_FILES.rank[rank], { width: 384, height: 384 });
   }
+  for (const rank of Object.keys(CASCADE_UI_ART_FILES.rankLeaderboard) as (keyof typeof CASCADE_UI_ART_FILES.rankLeaderboard)[]) {
+    const key = CASCADE_UI_ART_KEYS.rankLeaderboard[rank];
+    if (!scene.textures.exists(key)) scene.load.image(key, CASCADE_UI_ART_FILES.rankLeaderboard[rank]);
+  }
   if (!scene.textures.exists(CASCADE_UI_ART_KEYS.calendar)) scene.load.image(CASCADE_UI_ART_KEYS.calendar, CASCADE_UI_ART_FILES.calendar);
   const raster = [
     [CASCADE_UI_ART_KEYS.homeBackdrop, CASCADE_UI_ART_FILES.homeBackdrop],

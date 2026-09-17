@@ -14,9 +14,10 @@ test('new player-facing shell exposes one Game entry plus Daily, Mastery and Lea
   assert.match(homeVm, /selectedDifficulty/);
 });
 
-test('new leaderboard screen exposes Daily, streak and Mastery instead of old statistics tabs', () => {
+test('new leaderboard screen exposes Standard, Daily and Mastery without a separate streak tab', () => {
+  assert.match(leaderboard, /value:\s*'winnable'/);
   assert.match(leaderboard, /value:\s*'daily'/);
-  assert.match(leaderboard, /value:\s*'streak'/);
+  assert.doesNotMatch(leaderboard, /value:\s*'streak'/);
   assert.match(leaderboard, /value:\s*'mastery'/);
 });
 

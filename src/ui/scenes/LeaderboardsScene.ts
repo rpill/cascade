@@ -20,15 +20,22 @@ interface RowVisual {
   readonly rankBadge: Phaser.GameObjects.Graphics;
   readonly rank: Phaser.GameObjects.Text;
   readonly avatar: Phaser.GameObjects.Graphics;
+  readonly avatarImage: Phaser.GameObjects.Image;
   readonly avatarInitial: Phaser.GameObjects.Text;
+  readonly rankIcon: Phaser.GameObjects.Image;
   readonly name: Phaser.GameObjects.Text;
   readonly valueA: Phaser.GameObjects.Text;
   readonly valueB: Phaser.GameObjects.Text;
   readonly pinned: boolean;
+  avatarReady: boolean;
+  visible: boolean;
 }
 
 const AVATAR_TONES = [0x315f55, 0x8a6a48, 0x536b78, 0x6e7656, 0x765667, 0x466a68] as const;
 const PODIUM_TONES = [0xd3aa50, 0xb8b8ae, 0xb47745] as const;
+const PODIUM_ROW_ALPHAS = [0.16, 0.10, 0.08] as const;
+type VisibleLeaderboardMode = Exclude<GlobalLeaderboardMode, 'streak'>;
+
 const RANK_LABELS = {
   novice: 'Новичок', player: 'Игрок', tactician: 'Тактик', expert: 'Эксперт', master: 'Мастер', grandmaster: 'Грандмастер',
 } as const;
@@ -61,7 +68,7 @@ function metricValues(metric: LeaderboardMetric): readonly [string, string] {
 
 export class LeaderboardsScene extends BaseUiScene {
   private shell: SceneShell | null = null;
-  private tabs: SegmentedControl<GlobalLeaderboardMode> | null = null;
+  private tabs: SegmentedControl<VisibleLeaderboardMode> | null = null;
   private panel: PaperPanel | null = null;
   private sectionTitle: Phaser.GameObjects.Text | null = null;
   private status: Phaser.GameObjects.Text | null = null;
@@ -74,11 +81,12 @@ export class LeaderboardsScene extends BaseUiScene {
   private rows: RowVisual[] = [];
   private pinnedRow: RowVisual | null = null;
   private signIn: ActionCard | null = null;
-  private selected: GlobalLeaderboardMode = 'winnable';
+  private selected: VisibleLeaderboardMode = 'winnable';
   private loading = false;
   private authorizing = false;
   private unsubscribe: (() => void) | null = null;
   private dailyId: string | null = null;
+  private avatarLoadChain: Promise<void> = Promise.resolve();
 
   constructor() { super('LeaderboardsScene'); }
 
@@ -91,7 +99,6 @@ export class LeaderboardsScene extends BaseUiScene {
     this.tabs = new SegmentedControl(this, viewport, [
       { value: 'winnable', label: t('Обычная') },
       { value: 'daily', label: 'Daily' },
-      { value: 'streak', label: t('Серия') },
       { value: 'mastery', label: t('Мастерство') },
     ], this.selected, (tab) => {
       this.selected = tab;
@@ -228,10 +235,6 @@ export class LeaderboardsScene extends BaseUiScene {
       this.headerA.setText(t('Ходы'));
       this.headerB.setText(t('Время'));
       this.sectionTitle.setText(this.dailyId ? `Daily · ${this.dailyId}` : 'Daily');
-    } else if (this.selected === 'streak') {
-      this.headerA.setText(t('Текущая серия'));
-      this.headerB.setText(t('Лучшая серия'));
-      this.sectionTitle.setText(t('Серия'));
     } else {
       this.headerA.setText(t('Ранг'));
       this.headerB.setText(t('Очки'));
@@ -249,18 +252,25 @@ export class LeaderboardsScene extends BaseUiScene {
       rankBadge: this.add.graphics().setDepth(22),
       rank: this.add.text(0, 0, entry.rank > 0 ? String(entry.rank) : '—', { color: '#26342f', fontFamily: 'system-ui, sans-serif', fontStyle: 'bold' }).setOrigin(0.5).setDepth(23),
       avatar: this.add.graphics().setDepth(22),
+      avatarImage: this.add.image(0, 0, CASCADE_UI_ART_KEYS.paperGrain).setOrigin(0.5).setDepth(22.5).setVisible(false),
       avatarInitial: this.add.text(0, 0, (name[0] ?? '?').toUpperCase(), { color: '#f7ecd6', fontFamily: 'Georgia, serif', fontStyle: 'bold' }).setOrigin(0.5).setDepth(23),
+      rankIcon: this.add.image(0, 0, CASCADE_UI_ART_KEYS.rankLeaderboard.novice)
+        .setOrigin(0.5).setDepth(23).setVisible(false),
       name: this.add.text(0, 0, name, { color: '#26342f', fontFamily: 'system-ui, sans-serif' }).setOrigin(0, 0.5).setDepth(23),
       valueA: this.add.text(0, 0, values[0], { color: '#26342f', fontFamily: 'system-ui, sans-serif', fontStyle: 'bold', align: 'center' }).setOrigin(0.5).setDepth(23),
       valueB: this.add.text(0, 0, values[1], { color: '#26342f', fontFamily: 'system-ui, sans-serif', fontStyle: 'bold', align: 'center' }).setOrigin(0.5).setDepth(23),
       pinned,
+      avatarReady: false,
+      visible: true,
     };
     if (scrollable && this.scroll) {
       this.scroll.add(row.background);
       this.scroll.add(row.rankBadge);
       this.scroll.add(row.rank);
       this.scroll.add(row.avatar);
+      this.scroll.add(row.avatarImage);
       this.scroll.add(row.avatarInitial);
+      this.scroll.add(row.rankIcon);
       this.scroll.add(row.name);
       this.scroll.add(row.valueA);
       this.scroll.add(row.valueB);
@@ -272,9 +282,14 @@ export class LeaderboardsScene extends BaseUiScene {
     const column = this.columnLayout(bounds, viewport);
     const radius = Math.max(6, Math.min(11, bounds.height * 0.22));
     row.background.clear();
+    const podiumRank = row.entry.rank >= 1 && row.entry.rank <= 3 ? row.entry.rank : null;
     if (row.pinned) {
       row.background.fillStyle(UI_TOKENS.color.goldLight, 0.44).fillRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
       row.background.lineStyle(1, UI_TOKENS.color.gold, 0.8).strokeRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
+    } else if (podiumRank !== null) {
+      const podiumTone = PODIUM_TONES[podiumRank - 1]!;
+      row.background.fillStyle(podiumTone, PODIUM_ROW_ALPHAS[podiumRank - 1]!).fillRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
+      row.background.lineStyle(1, podiumTone, podiumRank === 1 ? 0.54 : 0.34).strokeRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
     } else {
       row.background.fillStyle(UI_TOKENS.color.paper, row.entry.rank % 2 === 0 ? 0.16 : 0.05).fillRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
     }
@@ -282,8 +297,11 @@ export class LeaderboardsScene extends BaseUiScene {
     const cy = bounds.y + bounds.height / 2;
     const badgeR = Math.min(bounds.height * 0.28, viewport.profile === 'desktop' ? 14 : 11);
     row.rankBadge.clear();
-    if (row.entry.rank <= 3) {
-      row.rankBadge.fillStyle(PODIUM_TONES[row.entry.rank - 1]!, 0.95).fillCircle(column.rank, cy, badgeR);
+    if (podiumRank !== null) {
+      const podiumTone = PODIUM_TONES[podiumRank - 1]!;
+      row.rankBadge.fillStyle(podiumTone, 0.16).fillCircle(column.rank, cy, badgeR + 4);
+      row.rankBadge.lineStyle(podiumRank === 1 ? 2 : 1, podiumTone, 0.86).strokeCircle(column.rank, cy, badgeR + 2);
+      row.rankBadge.fillStyle(podiumTone, 0.96).fillCircle(column.rank, cy, badgeR);
       row.rank.setColor('#fff8e8');
     } else {
       row.rank.setColor('#26342f');
@@ -291,31 +309,51 @@ export class LeaderboardsScene extends BaseUiScene {
     row.rank.setPosition(column.rank, cy).setFontSize(Math.max(10, Math.min(15, bounds.height * 0.30)));
 
     const avatarR = Math.min(bounds.height * 0.31, viewport.profile === 'desktop' ? 15 : 12);
-    row.avatar.clear().fillStyle(AVATAR_TONES[hashName(row.entry.publicName) % AVATAR_TONES.length]!, 1).fillCircle(column.avatar, cy, avatarR);
-    row.avatar.lineStyle(1, UI_TOKENS.color.gold, 0.55).strokeCircle(column.avatar, cy, avatarR);
-    row.avatarInitial.setPosition(column.avatar, cy).setFontSize(Math.max(10, avatarR * 0.85));
+    const avatarSize = avatarR * 1.72;
+    row.avatar.clear();
+    if (row.avatarReady) {
+      row.avatar.lineStyle(1, UI_TOKENS.color.gold, 0.66)
+        .strokeRoundedRect(column.avatar - avatarSize / 2 - 1, cy - avatarSize / 2 - 1, avatarSize + 2, avatarSize + 2, Math.max(3, avatarSize * 0.18));
+    } else {
+      row.avatar.fillStyle(AVATAR_TONES[hashName(row.entry.publicName) % AVATAR_TONES.length]!, 1).fillCircle(column.avatar, cy, avatarR);
+      row.avatar.lineStyle(1, UI_TOKENS.color.gold, 0.55).strokeCircle(column.avatar, cy, avatarR);
+    }
+    row.avatarImage.setPosition(column.avatar, cy).setDisplaySize(avatarSize, avatarSize).setVisible(row.visible && row.avatarReady);
+    row.avatarInitial.setPosition(column.avatar, cy).setFontSize(Math.max(10, avatarR * 0.85)).setVisible(row.visible && !row.avatarReady);
 
     const fontSize = Math.max(10, Math.min(viewport.profile === 'desktop' ? 16 : 13, bounds.height * 0.33));
     const nameWidth = Math.max(60, column.valueA - column.player - bounds.width * 0.08);
     row.name.setPosition(column.player, cy).setFontSize(fontSize).setWordWrapWidth(nameWidth, false);
-    row.valueA.setPosition(column.valueA, cy).setFontSize(fontSize);
+    if (row.entry.metric.kind === 'mastery') {
+      const iconSize = Math.max(30, Math.min(viewport.profile === 'desktop' ? 40 : 34, bounds.height * 0.88));
+      const iconX = column.valueA - (viewport.profile === 'desktop' ? 72 : 54);
+      row.rankIcon.setTexture(CASCADE_UI_ART_KEYS.rankLeaderboard[row.entry.metric.rank])
+        .setPosition(iconX, cy).setDisplaySize(iconSize, iconSize).setAlpha(0.98).setVisible(row.visible);
+      row.valueA.setOrigin(0, 0.5).setPosition(iconX + iconSize * 0.72, cy).setFontSize(fontSize);
+    } else {
+      row.rankIcon.setVisible(false);
+      row.valueA.setOrigin(0.5, 0.5).setPosition(column.valueA, cy).setFontSize(fontSize);
+    }
     row.valueB.setPosition(column.valueB, cy).setFontSize(fontSize);
   }
 
   private setRowVisible(row: RowVisual, visible: boolean): void {
+    row.visible = visible;
     row.background.setVisible(visible);
     row.rankBadge.setVisible(visible);
     row.rank.setVisible(visible);
     row.avatar.setVisible(visible);
-    row.avatarInitial.setVisible(visible);
+    row.avatarImage.setVisible(visible && row.avatarReady);
+    row.avatarInitial.setVisible(visible && !row.avatarReady);
+    row.rankIcon.setVisible(visible && row.entry.metric.kind === 'mastery');
     row.name.setVisible(visible);
     row.valueA.setVisible(visible);
     row.valueB.setVisible(visible);
   }
 
   private destroyRow(row: RowVisual): void {
-    row.background.destroy(); row.rankBadge.destroy(); row.rank.destroy(); row.avatar.destroy();
-    row.avatarInitial.destroy(); row.name.destroy(); row.valueA.destroy(); row.valueB.destroy();
+    row.background.destroy(); row.rankBadge.destroy(); row.rank.destroy(); row.avatar.destroy(); row.avatarImage.destroy();
+    row.avatarInitial.destroy(); row.rankIcon.destroy(); row.name.destroy(); row.valueA.destroy(); row.valueB.destroy();
   }
 
   private clearRows(): void {
@@ -341,6 +379,61 @@ export class LeaderboardsScene extends BaseUiScene {
       }, true, false);
     }
     this.scroll?.scrollToTop();
+    void this.loadAvatarTextures();
+  }
+
+  private avatarTextureKey(url: string): string {
+    return `leaderboard.avatar.${hashName(url).toString(16)}`;
+  }
+
+  private allRows(): readonly RowVisual[] {
+    return this.pinnedRow ? [...this.rows, this.pinnedRow] : this.rows;
+  }
+
+  private syncAvatarTextures(): void {
+    for (const row of this.allRows()) {
+      const url = row.entry.avatarUrl?.trim();
+      if (!url) continue;
+      const key = this.avatarTextureKey(url);
+      if (!this.textures.exists(key)) continue;
+      row.avatarImage.setTexture(key);
+      row.avatarReady = true;
+      row.avatarImage.setVisible(row.visible);
+      row.avatarInitial.setVisible(false);
+    }
+    this.requestUiLayout();
+  }
+
+  private loadAvatarTextures(): Promise<void> {
+    const assets = new Map<string, string>();
+    for (const row of this.allRows()) {
+      const url = row.entry.avatarUrl?.trim();
+      if (!url) continue;
+      const key = this.avatarTextureKey(url);
+      if (!this.textures.exists(key)) assets.set(key, url);
+    }
+    if (assets.size === 0) {
+      this.syncAvatarTextures();
+      return Promise.resolve();
+    }
+
+    const task = this.avatarLoadChain.then(() => new Promise<void>((resolve) => {
+      if (!this.isUiSceneActive()) { resolve(); return; }
+      const finish = () => {
+        this.events.off(Phaser.Scenes.Events.SHUTDOWN, cancel);
+        resolve();
+      };
+      const cancel = () => {
+        this.load.off(Phaser.Loader.Events.COMPLETE, finish);
+        resolve();
+      };
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, cancel);
+      this.load.once(Phaser.Loader.Events.COMPLETE, finish);
+      for (const [key, url] of assets) if (!this.textures.exists(key)) this.load.image(key, url);
+      if (!this.load.isLoading()) this.load.start();
+    }));
+    this.avatarLoadChain = task.catch(() => undefined);
+    return task.then(() => { if (this.isUiSceneActive()) this.syncAvatarTextures(); });
   }
 
   private async refreshRows(): Promise<void> {

@@ -212,4 +212,12 @@ export const ENGLISH: Readonly<Record<string,string>> = {
   'Лидеры': 'Leaders',
   'Лучшие результаты игроков': 'Top player results',
   'Результаты и рекорды': 'Results and records',
+  'Соберите все масти': 'Build all suits',
+  'Соберите все карты в четыре основания: каждую масть отдельно, от туза до короля.': 'Move every card to the four foundations, one suit per foundation, from ace to king.',
+  'Чередуйте цвета': 'Alternate colors',
+  'На столе кладите карты по убыванию, чередуя цвет: красную на чёрную, чёрную на красную. Готовую последовательность можно переносить целиком.': 'Build down on the tableau while alternating colors: red on black, black on red. A completed sequence can move together.',
+  'Используйте свободные места': 'Use free spaces',
+  'В пустой столбец можно перенести карту или готовую последовательность. Когда колода закончится, место колоды становится дополнительной временной ячейкой для одной карты.': 'Move a card or a built sequence to an empty column. When the stock is empty, its space becomes one extra temporary cell for a single card.',
+  'Открывайте по три карты': 'Turn over three cards',
+  'Нажимайте на колоду, чтобы открыть следующие три карты. Играйте доступной верхней картой, освобождайте нужные карты и переносите их в основания.': 'Click the stock to turn over the next three cards. Play the available top card, uncover the cards you need, and move them to the foundations.',
 };
