@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { productBridge } from '../bridge/CascadeProductBridge.ts';
-import { t } from '../../localization/Localization.ts';
+import { getLanguage, t } from '../../localization/Localization.ts';
 import type { GlobalLeaderboardMode } from '../../leaderboards/LeaderboardConfig.ts';
 import type { LeaderboardLoadResult, LeaderboardMetric, LeaderboardRow } from '../../leaderboards/LeaderboardService.ts';
 import { ActionCard } from '../components/ActionCard.ts';
@@ -13,6 +13,7 @@ import type { ResolvedUiViewport } from '../layout/UiViewport.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
 import { CASCADE_UI_ART_KEYS } from '../assets/CascadeUiArt.ts';
 import { BaseUiScene } from './BaseUiScene.ts';
+import { formatDailyDateLabel } from '../daily/DailyDateFormat.ts';
 
 interface RowVisual {
   readonly entry: LeaderboardRow;
@@ -234,7 +235,7 @@ export class LeaderboardsScene extends BaseUiScene {
     } else if (this.selected === 'daily') {
       this.headerA.setText(t('Ходы'));
       this.headerB.setText(t('Время'));
-      this.sectionTitle.setText(this.dailyId ? `Daily · ${this.dailyId}` : 'Daily');
+      this.sectionTitle.setText(this.dailyId ? `Daily · ${formatDailyDateLabel(this.dailyId, getLanguage())}` : 'Daily');
     } else {
       this.headerA.setText(t('Ранг'));
       this.headerB.setText(t('Очки'));

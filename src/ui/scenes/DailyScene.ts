@@ -8,6 +8,7 @@ import { ModalShell } from '../components/ModalShell.ts';
 import { PaperPanel } from '../components/PaperPanel.ts';
 import { ButtonSurface } from '../components/ButtonSurface.ts';
 import { computeCalendarCellBounds, computeDailyLayout, computeMonthNavigationBounds } from '../daily/DailyCalendarLayout.ts';
+import { formatDailyDateLabel } from '../daily/DailyDateFormat.ts';
 import type { ResolvedUiViewport } from '../layout/UiViewport.ts';
 import type { UiRect } from '../layout/HomeLayout.ts';
 import { UI_TOKENS } from '../style/UiTokens.ts';
@@ -199,8 +200,8 @@ export class DailyScene extends BaseUiScene {
     const rowHeight = Math.max(1, (rowsBottom - rowsTop) / 3);
     const badgeSize = Math.max(30 * css, Math.min(52 * css, rowHeight * 0.58));
     const iconSize = badgeSize * 0.56;
-    const labelSize = Math.max(10 * css, Math.min(13 * css, rowHeight * 0.17));
-    const valueSize = Math.max(12 * css, Math.min(18 * css, rowHeight * 0.24));
+    const labelSize = Math.max(11 * css, Math.min(16 * css, rowHeight * 0.21));
+    const valueSize = Math.max(11 * css, Math.min(16 * css, rowHeight * 0.21));
     const iconX = inner.x + inner.width * 0.06 + badgeSize / 2;
     const textX = inner.x + inner.width * 0.22;
     const textWidth = inner.x + inner.width - textX - inner.width * 0.04;
@@ -213,8 +214,8 @@ export class DailyScene extends BaseUiScene {
       badge?.fillStyle(UI_TOKENS.color.goldLight, 0.22).fillCircle(iconX, centerY, badgeSize / 2);
       badge?.lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.18).strokeCircle(iconX, centerY, badgeSize / 2);
       this.summaryRowIcons[index]?.setDisplaySize(iconSize, iconSize).setPosition(iconX, centerY);
-      this.summaryRowLabels[index]?.setFontSize(labelSize).setPosition(textX, centerY - rowHeight * 0.15);
-      this.summaryRowValues[index]?.setFontSize(valueSize).setWordWrapWidth(textWidth).setPosition(textX, centerY + rowHeight * 0.15);
+      this.summaryRowLabels[index]?.setFontSize(labelSize).setPosition(textX, centerY - rowHeight * 0.11);
+      this.summaryRowValues[index]?.setFontSize(valueSize).setWordWrapWidth(textWidth).setPosition(textX, centerY + rowHeight * 0.11);
       if (index < 2) {
         const dividerY = rowY + rowHeight;
         this.summaryDividers?.lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.28)
@@ -361,7 +362,12 @@ export class DailyScene extends BaseUiScene {
     const rankingNote = isToday
       ? rankingLocked ? ` · ${t('Без изменения рейтинга')}` : ` · ${t('Первая попытка идёт в рейтинг')}`
       : '';
-    this.dailyAction?.setState({ title, subtitle: `${this.selectedDateKey}${rankingNote}`, emphasis: 'highlight', enabled: true });
+    this.dailyAction?.setState({
+      title,
+      subtitle: `${formatDailyDateLabel(this.selectedDateKey, getLanguage())}${rankingNote}`,
+      emphasis: 'highlight',
+      enabled: true,
+    });
 
     const streak = getDailyStreaks(snapshot.state.daily.records, this.todayKey);
     this.summaryRowLabels[0]?.setText(t('Серия'));

@@ -30,6 +30,7 @@ export class UiSurface {
     private readonly artworkMode: ArtworkMode = 'cover',
     private readonly artworkFocusX = 0.5,
     private readonly artworkFocusY = 0.48,
+    private readonly artworkFlipX = false,
   ) {
     this.body = scene.add.graphics();
     this.landscape = decorated && artworkKey && scene.textures.exists(artworkKey)
@@ -63,12 +64,12 @@ export class UiSurface {
         const drawHeight = sourceHeight * scale;
         this.landscape.setCrop();
         this.landscape.setPosition(inset + (availableWidth - drawWidth) / 2, inset + (availableHeight - drawHeight) / 2)
-          .setScale(scale).setAlpha(this.artworkAlpha);
+          .setScale(scale).setFlipX(this.artworkFlipX).setAlpha(this.artworkAlpha);
       } else {
         const crop = coverCrop(sourceWidth, sourceHeight, availableWidth, availableHeight, this.artworkFocusX, this.artworkFocusY);
         const scale = availableWidth / crop.width;
         this.landscape.setCrop(crop.x, crop.y, crop.width, crop.height)
-          .setPosition(inset - crop.x * scale, inset - crop.y * scale).setScale(scale).setAlpha(this.artworkAlpha);
+          .setPosition(inset - crop.x * scale, inset - crop.y * scale).setScale(scale).setFlipX(this.artworkFlipX).setAlpha(this.artworkAlpha);
       }
       this.artworkWash?.clear()
         .fillStyle(UI_TOKENS.color.paper, this.artworkWashAlpha)

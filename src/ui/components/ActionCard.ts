@@ -62,7 +62,18 @@ export class ActionCard {
     this.usesButtonSurface = (state.surfaceStyle ?? 'auto') === 'button' || ((state.surfaceStyle ?? 'auto') === 'auto' && !state.artwork);
     this.surface = this.usesButtonSurface
       ? new ButtonSurface(scene, depth)
-      : new UiSurface(scene, depth, Boolean(state.artwork), artworkAlpha, backgroundArtworkKey, artworkWashAlpha);
+      : new UiSurface(
+        scene,
+        depth,
+        Boolean(state.artwork),
+        artworkAlpha,
+        backgroundArtworkKey,
+        artworkWashAlpha,
+        'cover',
+        0.5,
+        0.48,
+        state.artwork === 'leaders',
+      );
     this.motif = state.artwork && state.artwork !== 'landscape'
       ? scene.add.image(0, 0, state.artworkKey ?? (state.artwork === 'daily' ? CASCADE_UI_ART_KEYS.calendar : state.artwork === 'leaders' ? CASCADE_UI_ART_KEYS.homeLeaders : CASCADE_UI_ART_KEYS.rank.novice)).setDepth(depth + 0.1) : null;
     this.calendarDay = state.artwork === 'daily' ? scene.add.text(0, 0, String(new Date().getDate()), { fontFamily: 'Georgia, serif', color: '#643f29' }).setOrigin(0.5).setAngle(6).setDepth(depth + 0.12) : null;
@@ -148,8 +159,12 @@ export class ActionCard {
     const decorated = Boolean(this.state.artwork);
     const tile = decorated && this.state.artwork !== 'landscape';
     const side = decorated;
-    const titleSize = Math.max(15 * css, Math.min(bounds.height * (decorated ? 0.28 : 0.30), (decorated ? 36 : 24) * this.viewport.uiScale));
-    const subtitleSize = Math.max(11 * css, Math.min(17 * this.viewport.uiScale, titleSize * 0.53));
+    const titleHeightRatio = tile ? 0.32 : decorated ? 0.28 : 0.30;
+    const titleMax = tile ? 40 : decorated ? 36 : 24;
+    const titleSize = Math.max(15 * css, Math.min(bounds.height * titleHeightRatio, titleMax * this.viewport.uiScale));
+    const subtitleSize = tile
+      ? Math.max(10 * css, Math.min(15 * this.viewport.uiScale, titleSize * 0.44))
+      : Math.max(11 * css, Math.min(17 * this.viewport.uiScale, titleSize * 0.53));
     if (this.usesButtonSurface) {
       (this.surface as ButtonSurface).layout(bounds, this.resolveButtonTone(), 'wide');
     } else {
@@ -160,7 +175,7 @@ export class ActionCard {
     const hasSubtitle = Boolean(this.state.subtitle);
     const buttonTone = this.resolveButtonTone();
     const titleColor = !this.usesButtonSurface ? '#24302e' : buttonTone === 'jade' ? '#fff4dd' : '#24302e';
-    const subtitleColor = !this.usesButtonSurface ? '#64706a' : buttonTone === 'jade' ? '#efe3c0' : '#6f6040';
+    const subtitleColor = !this.usesButtonSurface ? '#3f4944' : buttonTone === 'jade' ? '#efe3c0' : '#6f6040';
     this.title.setColor(titleColor).setOrigin(side ? 0 : 0.5, 0.5).setFontSize(titleSize).setAlpha(alpha).setPosition(
       bounds.x + bounds.width * (side ? 0.08 : 0.5),
       bounds.y + bounds.height * (tile ? 0.16 : hasSubtitle ? 0.40 : 0.50),
@@ -173,7 +188,7 @@ export class ActionCard {
     );
     this.subtitle.setAlign(side ? 'left' : 'center');
     if (hasSubtitle) {
-      const gap = Math.max(3 * css, bounds.height * 0.025);
+      const gap = Math.max(2 * css, bounds.height * (tile ? 0.012 : 0.025));
       if (tile) this.subtitle.setY(this.title.y + this.title.height / 2 + gap + this.subtitle.height / 2);
       else {
         const blockHeight = this.title.height + gap + this.subtitle.height;
@@ -188,7 +203,8 @@ export class ActionCard {
     const motifSize = Math.max(1, Math.min(motifBottom - motifTop, bounds.height * 0.60, bounds.width * 0.70));
     const motifY = (motifTop + motifBottom) / 2;
     this.motif?.setPosition(bounds.x + bounds.width * 0.46, motifY).setDisplaySize(motifSize, motifSize);
-    this.calendarDay?.setFontSize(motifSize * 0.24).setPosition(bounds.x + bounds.width * 0.46, motifY + motifSize * 0.10);
+    const calendarDayX = bounds.x + bounds.width * 0.50;
+    this.calendarDay?.setFontSize(motifSize * 0.24).setPosition(calendarDayX, motifY + motifSize * 0.07);
     const arrowCap = tile ? (this.viewport.profile === 'mobile-landscape' ? 32 : 44) : 48;
     const arrowDiameter = Math.min(bounds.height * (tile ? 0.27 : 0.28), arrowCap * css);
     const arrowSize = arrowDiameter * 0.44;
