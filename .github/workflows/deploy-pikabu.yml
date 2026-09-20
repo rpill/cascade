@@ -1,0 +1,57 @@
+name: Deploy Pikabu
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'pikabu-*'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build Pikabu
+        run: pnpm build:pikabu
+        env:
+          VITE_PLATFORM_TARGET: pikabu
+          VITE_BACKEND_URL: https://nxnldyzfjhlnkibjmqrh.supabase.co/functions/v1/cascade-api
+
+      - name: Verify build
+        run: test -f dist/index.html
+
+      - name: Publish dist to GitVerse
+        env:
+          GITVERSE_TOKEN: ${{ secrets.GITVERSE_TOKEN }}
+        run: |
+          cd dist
+          git init -b main
+          git config user.name "cascade-deploy"
+          git config user.email "cascade-deploy@users.noreply.github.com"
+          git add -A
+          git commit -m "Deploy ${GITHUB_SHA}"
+          git remote add origin "https://${GITVERSE_TOKEN}@gitverse.ru/rpill/cascade-pikabu-build.git"
+          git push --force origin main
