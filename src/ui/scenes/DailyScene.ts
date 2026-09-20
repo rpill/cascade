@@ -180,6 +180,9 @@ export class DailyScene extends BaseUiScene {
     const shell = this.shell.layout(viewport);
     const bounds = computeDailyLayout(viewport, shell.content);
     const css = viewport.minTouchTarget / 44;
+    const desktopTypeScale = viewport.profile === 'desktop'
+      ? Math.max(1, Math.min(1.15, (viewport.height / css) / 960))
+      : 1;
     this.dailyAction.setViewport(viewport);
     this.previousMonth?.setViewport(viewport);
     this.nextMonth?.setViewport(viewport);
@@ -200,10 +203,13 @@ export class DailyScene extends BaseUiScene {
     const rowHeight = Math.max(1, (rowsBottom - rowsTop) / 3);
     const badgeSize = Math.max(30 * css, Math.min(52 * css, rowHeight * 0.58));
     const iconSize = badgeSize * 0.56;
-    const labelSize = Math.max(11 * css, Math.min(16 * css, rowHeight * 0.21));
-    const valueSize = Math.max(11 * css, Math.min(16 * css, rowHeight * 0.21));
+    const labelSize = Math.max(11 * css * desktopTypeScale, Math.min(18 * css * desktopTypeScale, rowHeight * 0.21));
+    const valueSize = Math.max(11 * css * desktopTypeScale, Math.min(19 * css * desktopTypeScale, rowHeight * 0.23));
     const iconX = inner.x + inner.width * 0.06 + badgeSize / 2;
-    const textX = inner.x + inner.width * 0.22;
+    const mobileSummaryTextX = iconX + badgeSize / 2 + 10 * css;
+    const textX = viewport.profile === 'mobile-landscape'
+      ? Math.max(inner.x + inner.width * 0.22, mobileSummaryTextX)
+      : inner.x + inner.width * 0.22;
     const textWidth = inner.x + inner.width - textX - inner.width * 0.04;
     this.summaryDividers?.clear();
     for (let index = 0; index < 3; index += 1) {
@@ -228,12 +234,12 @@ export class DailyScene extends BaseUiScene {
     this.previousMonth?.layout(monthNav.previous);
     this.nextMonth?.layout(monthNav.next);
     this.monthText?.setPosition(bounds.calendarHeader.x + bounds.calendarHeader.width / 2, bounds.calendarHeader.y + bounds.calendarHeader.height / 2)
-      .setFontSize(Math.max(14, Math.min(24, bounds.calendarHeader.height * 0.32)));
+      .setFontSize(Math.max(14 * css * desktopTypeScale, Math.min(24 * css * desktopTypeScale, bounds.calendarHeader.height * 0.32)));
 
     const cellBounds = computeCalendarCellBounds(bounds.calendarGrid, 42);
     this.weekdays.forEach((text, index) => {
       const cell = cellBounds[index]!;
-      text.setPosition(cell.x + cell.width / 2, bounds.calendarGrid.y - 12 * css).setFontSize(12 * css);
+      text.setPosition(cell.x + cell.width / 2, bounds.calendarGrid.y - 12 * css).setFontSize(13 * css * desktopTypeScale);
     });
     const snapshot = productBridge.snapshot();
     const records = snapshot.state.daily.records;
@@ -298,6 +304,10 @@ export class DailyScene extends BaseUiScene {
 
   private layoutCell(cell: CalendarCell, bounds: UiRect, viewport: ResolvedUiViewport, records: DailyRecordMap): void {
     cell.bounds = bounds;
+    const css = viewport.minTouchTarget / 44;
+    const desktopTypeScale = viewport.profile === 'desktop'
+      ? Math.max(1, Math.min(1.15, (viewport.height / css) / 960))
+      : 1;
     const record = cell.dateKey ? records[cell.dateKey] : undefined;
     const selected = cell.dateKey === this.selectedDateKey;
     const hovered = cell.hovered && cell.selectable && !selected;
@@ -325,7 +335,7 @@ export class DailyScene extends BaseUiScene {
     }
     cell.label.setColor(selected ? '#fff2d4' : '#24302e').setVisible(Boolean(cell.dateKey)).setAlpha(alpha).setScale(hovered ? 1.04 : 1)
       .setPosition(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
-      .setFontSize(Math.max(10 * viewport.minTouchTarget / 44, Math.min(18 * viewport.minTouchTarget / 44, bounds.height * 0.30)));
+      .setFontSize(Math.max(10 * viewport.minTouchTarget / 44 * desktopTypeScale, Math.min(18 * viewport.minTouchTarget / 44 * desktopTypeScale, bounds.height * 0.30)));
     const hitHeight = Math.max(bounds.height, viewport.minTouchTarget);
     cell.zone.setPosition(bounds.x, bounds.y - (hitHeight - bounds.height) / 2).setSize(bounds.width, hitHeight);
   }

@@ -50,6 +50,14 @@ export type LeaderboardLoadResult =
 
 export type LeaderboardSyncResult = 'submitted' | 'unchanged' | 'skipped';
 
+const LEADERBOARD_CACHE_TTL_MS = 60_000;
+const LEADERBOARD_ERROR_COOLDOWN_MS = 5_000;
+
+interface CachedLeaderboardLoad {
+  readonly expiresAt: number;
+  readonly result: LeaderboardLoadResult;
+}
+
 function validRank(entry: PlatformLeaderboardEntry): boolean {
   return Number.isInteger(entry.rank) && entry.rank >= 1;
 }
@@ -112,9 +120,16 @@ function normalizeMasteryRow(entry: PlatformLeaderboardEntry): LeaderboardRow | 
 export class LeaderboardService {
   private readonly platform: PlatformServices;
   private readonly submissions: LeaderboardSubmissionQueue;
+  private readonly nowMs: () => number;
+  private readonly cache = new Map<string, CachedLeaderboardLoad>();
+  private readonly inFlight = new Map<string, Promise<LeaderboardLoadResult>>();
+  private readonly cacheVersion: Record<GlobalLeaderboardMode, number> = {
+    winnable: 0, daily: 0, streak: 0, mastery: 0,
+  };
 
-  constructor(platform: PlatformServices) {
+  constructor(platform: PlatformServices, nowMs: () => number = () => Date.now()) {
     this.platform = platform;
+    this.nowMs = nowMs;
     this.submissions = new LeaderboardSubmissionQueue(
       (technicalName, score) => platform.leaderboards.setScore(technicalName, score),
     );
@@ -122,13 +137,43 @@ export class LeaderboardService {
 
   get available(): boolean { return this.platform.leaderboards.available; }
   get authorized(): boolean { return this.platform.auth.isAuthorized(); }
-  requestAuthorization(): Promise<boolean> { return this.platform.auth.requestAuthorization(); }
+
+  async requestAuthorization(): Promise<boolean> {
+    const authorized = await this.platform.auth.requestAuthorization();
+    if (authorized) this.invalidateAll();
+    return authorized;
+  }
 
   async load(mode: GlobalLeaderboardMode, dailyId?: string): Promise<LeaderboardLoadResult> {
     const authorized = this.authorized;
     if (!this.available) return { status: 'unavailable', authorized, entries: [], playerEntry: null };
     if (mode === 'daily' && dailyId === undefined) return { status: 'error', authorized, entries: [], playerEntry: null };
 
+    const cacheKey = this.loadCacheKey(mode, dailyId, authorized);
+    const cached = this.cache.get(cacheKey);
+    if (cached !== undefined && cached.expiresAt > this.nowMs()) return cached.result;
+    if (cached !== undefined) this.cache.delete(cacheKey);
+
+    const pending = this.inFlight.get(cacheKey);
+    if (pending !== undefined) return pending;
+
+    const loadPromise = this.loadFresh(mode, dailyId, authorized);
+    this.inFlight.set(cacheKey, loadPromise);
+    try {
+      const result = await loadPromise;
+      const ttlMs = result.status === 'ready'
+        ? LEADERBOARD_CACHE_TTL_MS
+        : result.status === 'error'
+          ? LEADERBOARD_ERROR_COOLDOWN_MS
+          : 0;
+      if (ttlMs > 0) this.cache.set(cacheKey, { expiresAt: this.nowMs() + ttlMs, result });
+      return result;
+    } finally {
+      if (this.inFlight.get(cacheKey) === loadPromise) this.inFlight.delete(cacheKey);
+    }
+  }
+
+  private async loadFresh(mode: GlobalLeaderboardMode, dailyId: string | undefined, authorized: boolean): Promise<LeaderboardLoadResult> {
     const technicalName = getLeaderboardName(mode);
     const normalize = mode === 'winnable'
       ? normalizeStandardRow
@@ -158,6 +203,21 @@ export class LeaderboardService {
     return { status: 'ready', authorized: true, entries, playerEntry };
   }
 
+  private loadCacheKey(mode: GlobalLeaderboardMode, dailyId: string | undefined, authorized: boolean): string {
+    return `${mode}:${this.cacheVersion[mode]}:${dailyId ?? ''}:${authorized ? 'auth' : 'anon'}`;
+  }
+
+  private invalidate(mode: GlobalLeaderboardMode): void {
+    this.cacheVersion[mode] += 1;
+  }
+
+  private invalidateAll(): void {
+    this.invalidate('winnable');
+    this.invalidate('daily');
+    this.invalidate('streak');
+    this.invalidate('mastery');
+  }
+
   async syncStandardStreak(localBestStreak: number): Promise<LeaderboardSyncResult> {
     if (!this.available || !this.authorized || !Number.isSafeInteger(localBestStreak) || localBestStreak <= 0) return 'skipped';
     const technicalName = getLeaderboardName('winnable');
@@ -165,6 +225,7 @@ export class LeaderboardService {
       const server = await this.platform.leaderboards.getPlayerEntry(technicalName);
       if (server !== null && Number.isSafeInteger(server.score) && server.score >= localBestStreak) return 'unchanged';
       await this.submissions.enqueue(technicalName, localBestStreak);
+      this.invalidate('winnable');
       return 'submitted';
     } catch { return 'skipped'; }
   }
@@ -190,6 +251,7 @@ export class LeaderboardService {
         if (decoded !== null && decoded.dailyId > dailyId) return 'skipped';
       }
       await this.submissions.enqueue(technicalName, localScore, 'latest');
+      this.invalidate('daily');
       return 'submitted';
     } catch { return 'skipped'; }
   }
@@ -204,6 +266,7 @@ export class LeaderboardService {
       const server = await this.platform.leaderboards.getPlayerEntry(technicalName);
       if (server?.score === localScore) return 'unchanged';
       await this.submissions.enqueue(technicalName, localScore, 'latest');
+      this.invalidate('streak');
       return 'submitted';
     } catch { return 'skipped'; }
   }
@@ -215,6 +278,7 @@ export class LeaderboardService {
       const server = await this.platform.leaderboards.getPlayerEntry(technicalName);
       if (server !== null && Number.isSafeInteger(server.score) && server.score >= localScore) return 'unchanged';
       await this.submissions.enqueue(technicalName, localScore);
+      this.invalidate('mastery');
       return 'submitted';
     } catch { return 'skipped'; }
   }

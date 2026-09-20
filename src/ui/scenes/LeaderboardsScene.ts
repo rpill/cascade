@@ -83,7 +83,7 @@ export class LeaderboardsScene extends BaseUiScene {
   private pinnedRow: RowVisual | null = null;
   private signIn: ActionCard | null = null;
   private selected: VisibleLeaderboardMode = 'winnable';
-  private loading = false;
+  private refreshRequestId = 0;
   private authorizing = false;
   private unsubscribe: (() => void) | null = null;
   private dailyId: string | null = null;
@@ -102,6 +102,7 @@ export class LeaderboardsScene extends BaseUiScene {
       { value: 'daily', label: 'Daily' },
       { value: 'mastery', label: t('Мастерство') },
     ], this.selected, (tab) => {
+      if (tab === this.selected) return;
       this.selected = tab;
       this.tabs?.setSelected(tab);
       this.scroll?.scrollToTop();
@@ -150,17 +151,21 @@ export class LeaderboardsScene extends BaseUiScene {
     const content = shell.content;
     const contentX = content.x;
     const contentW = content.width;
-    const gap = viewport.profile === 'desktop' ? 12 : 8;
+    const css = viewport.minTouchTarget / 44;
+    const desktopTypeScale = viewport.profile === 'desktop'
+      ? Math.max(1, Math.min(1.15, (viewport.height / css) / 960))
+      : 1;
+    const gap = viewport.profile === 'desktop' ? 12 * css : 8 * css;
 
     this.tabs.setViewport(viewport);
     this.signIn.setViewport(viewport);
 
     const tabsY = content.y;
-    const tabsH = Math.max(viewport.minTouchTarget, viewport.profile === 'desktop' ? 50 : 44);
+    const tabsH = Math.max(viewport.minTouchTarget, viewport.profile === 'desktop' ? 56 * css : 44 * css);
     this.tabs.layout({ x: contentX, y: tabsY, width: contentW, height: tabsH });
 
     const auth = productBridge.leaderboardSnapshot();
-    const authH = auth.authorized ? 0 : Math.max(viewport.minTouchTarget, viewport.profile === 'desktop' ? 66 : 56);
+    const authH = auth.authorized ? 0 : Math.max(viewport.minTouchTarget, viewport.profile === 'desktop' ? 66 * css : 56 * css);
     this.signIn.setVisible(!auth.authorized);
     const panelY = tabsY + tabsH + gap;
     const panelH = Math.max(150, content.y + content.height - panelY - (authH > 0 ? authH + gap : 0));
@@ -168,15 +173,16 @@ export class LeaderboardsScene extends BaseUiScene {
     this.panel.layout(panelBounds);
     if (authH > 0) this.signIn.layout({ x: contentX, y: panelY + panelH + gap, width: contentW, height: authH });
 
-    const inset = Math.max(12, Math.min(22, panelBounds.width * 0.025));
+    const inset = Math.max(12 * css, Math.min(22 * css, panelBounds.width * 0.025));
     const inner: UiRect = { x: panelBounds.x + inset, y: panelBounds.y + inset, width: panelBounds.width - inset * 2, height: panelBounds.height - inset * 2 };
-    const sectionH = viewport.profile === 'desktop' ? 34 : 28;
-    const headerRowH = viewport.profile === 'desktop' ? 34 : 28;
-    this.sectionTitle.setPosition(inner.x + inner.width / 2, inner.y + sectionH * 0.46).setFontSize(viewport.profile === 'desktop' ? 20 : 15);
+    const sectionH = viewport.profile === 'desktop' ? 34 * css : 28 * css;
+    const headerRowH = viewport.profile === 'desktop' ? 34 * css : 28 * css;
+    this.sectionTitle.setPosition(inner.x + inner.width / 2, inner.y + sectionH * 0.46)
+      .setFontSize(viewport.profile === 'desktop' ? 20 * css * desktopTypeScale : 15 * css);
 
     const headerY = inner.y + sectionH;
     const column = this.columnLayout(inner, viewport);
-    const headerFont = viewport.profile === 'desktop' ? 14 : 11;
+    const headerFont = viewport.profile === 'desktop' ? 14 * css * desktopTypeScale : 11 * css;
     this.headerRank.setPosition(column.rank, headerY + headerRowH / 2).setFontSize(headerFont);
     this.headerPlayer.setPosition(column.player, headerY + headerRowH / 2).setFontSize(headerFont);
     this.headerA.setPosition(column.valueA, headerY + headerRowH / 2).setFontSize(headerFont);
@@ -185,11 +191,11 @@ export class LeaderboardsScene extends BaseUiScene {
 
     const hasPinned = this.pinnedRow !== null;
     const pinnedGap = hasPinned ? gap : 0;
-    const pinnedH = hasPinned ? (viewport.profile === 'desktop' ? 54 : 44) : 0;
-    const rowsTop = headerY + headerRowH + 4;
+    const pinnedH = hasPinned ? (viewport.profile === 'desktop' ? 54 * css : 44 * css) : 0;
+    const rowsTop = headerY + headerRowH + 4 * css;
     const rowsBottom = inner.y + inner.height - pinnedH - pinnedGap;
     const rowsH = Math.max(0, rowsBottom - rowsTop);
-    const rowH = viewport.profile === 'desktop' ? 46 : 38;
+    const rowH = viewport.profile === 'desktop' ? 46 * css : 38 * css;
 
     this.scroll.layout({ x: inner.x, y: rowsTop, width: inner.width, height: rowsH });
     this.scroll.setContentHeight(this.rows.length * rowH);
@@ -206,7 +212,7 @@ export class LeaderboardsScene extends BaseUiScene {
     }
 
     this.status.setPosition(inner.x + inner.width / 2, rowsTop + rowsH / 2)
-      .setFontSize(viewport.profile === 'desktop' ? 17 : 13);
+      .setFontSize(viewport.profile === 'desktop' ? 17 * css * desktopTypeScale : 13 * css);
   }
 
   private createHeader(label: string): Phaser.GameObjects.Text {
@@ -281,53 +287,60 @@ export class LeaderboardsScene extends BaseUiScene {
 
   private layoutRow(row: RowVisual, bounds: UiRect, viewport: ResolvedUiViewport): void {
     const column = this.columnLayout(bounds, viewport);
-    const radius = Math.max(6, Math.min(11, bounds.height * 0.22));
+    const css = viewport.minTouchTarget / 44;
+    const desktopTypeScale = viewport.profile === 'desktop'
+      ? Math.max(1, Math.min(1.15, (viewport.height / css) / 960))
+      : 1;
+    const radius = Math.max(6 * css, Math.min(11 * css, bounds.height * 0.22));
+    const rowEdgeInset = row.pinned ? 0 : 1 * css;
+    const backgroundX = bounds.x + rowEdgeInset;
+    const backgroundWidth = Math.max(0, bounds.width - rowEdgeInset * 2);
     row.background.clear();
     const podiumRank = row.entry.rank >= 1 && row.entry.rank <= 3 ? row.entry.rank : null;
     if (row.pinned) {
-      row.background.fillStyle(UI_TOKENS.color.goldLight, 0.44).fillRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
-      row.background.lineStyle(1, UI_TOKENS.color.gold, 0.8).strokeRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
+      row.background.fillStyle(UI_TOKENS.color.goldLight, 0.44).fillRoundedRect(backgroundX, bounds.y, backgroundWidth, bounds.height, radius);
+      row.background.lineStyle(1, UI_TOKENS.color.gold, 0.8).strokeRoundedRect(backgroundX, bounds.y, backgroundWidth, bounds.height, radius);
     } else if (podiumRank !== null) {
       const podiumTone = PODIUM_TONES[podiumRank - 1]!;
-      row.background.fillStyle(podiumTone, PODIUM_ROW_ALPHAS[podiumRank - 1]!).fillRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
-      row.background.lineStyle(1, podiumTone, podiumRank === 1 ? 0.54 : 0.34).strokeRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
+      row.background.fillStyle(podiumTone, PODIUM_ROW_ALPHAS[podiumRank - 1]!).fillRoundedRect(backgroundX, bounds.y, backgroundWidth, bounds.height, radius);
+      row.background.lineStyle(1, podiumTone, podiumRank === 1 ? 0.54 : 0.34).strokeRoundedRect(backgroundX, bounds.y, backgroundWidth, bounds.height, radius);
     } else {
-      row.background.fillStyle(UI_TOKENS.color.paper, row.entry.rank % 2 === 0 ? 0.16 : 0.05).fillRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
+      row.background.fillStyle(UI_TOKENS.color.paper, row.entry.rank % 2 === 0 ? 0.16 : 0.05).fillRoundedRect(backgroundX, bounds.y, backgroundWidth, bounds.height, radius);
     }
 
     const cy = bounds.y + bounds.height / 2;
-    const badgeR = Math.min(bounds.height * 0.28, viewport.profile === 'desktop' ? 14 : 11);
+    const badgeR = Math.min(bounds.height * 0.28, viewport.profile === 'desktop' ? 14 * css : 11 * css);
     row.rankBadge.clear();
     if (podiumRank !== null) {
       const podiumTone = PODIUM_TONES[podiumRank - 1]!;
       row.rankBadge.fillStyle(podiumTone, 0.16).fillCircle(column.rank, cy, badgeR + 4);
-      row.rankBadge.lineStyle(podiumRank === 1 ? 2 : 1, podiumTone, 0.86).strokeCircle(column.rank, cy, badgeR + 2);
+      row.rankBadge.lineStyle(podiumRank === 1 ? 2 * css : Math.max(1, css), podiumTone, 0.86).strokeCircle(column.rank, cy, badgeR + 2 * css);
       row.rankBadge.fillStyle(podiumTone, 0.96).fillCircle(column.rank, cy, badgeR);
       row.rank.setColor('#fff8e8');
     } else {
       row.rank.setColor('#26342f');
     }
-    row.rank.setPosition(column.rank, cy).setFontSize(Math.max(10, Math.min(15, bounds.height * 0.30)));
+    row.rank.setPosition(column.rank, cy).setFontSize(Math.max(10 * css, Math.min(15 * css * desktopTypeScale, bounds.height * 0.30)));
 
-    const avatarR = Math.min(bounds.height * 0.31, viewport.profile === 'desktop' ? 15 : 12);
-    const avatarSize = avatarR * 1.72;
+    const avatarR = Math.min(bounds.height * 0.31, viewport.profile === 'desktop' ? 15 * css : 12 * css);
+    const avatarSize = avatarR * 2;
     row.avatar.clear();
     if (row.avatarReady) {
-      row.avatar.lineStyle(1, UI_TOKENS.color.gold, 0.66)
-        .strokeRoundedRect(column.avatar - avatarSize / 2 - 1, cy - avatarSize / 2 - 1, avatarSize + 2, avatarSize + 2, Math.max(3, avatarSize * 0.18));
+      row.avatar.lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.66)
+        .strokeCircle(column.avatar, cy, avatarR + css);
     } else {
       row.avatar.fillStyle(AVATAR_TONES[hashName(row.entry.publicName) % AVATAR_TONES.length]!, 1).fillCircle(column.avatar, cy, avatarR);
-      row.avatar.lineStyle(1, UI_TOKENS.color.gold, 0.55).strokeCircle(column.avatar, cy, avatarR);
+      row.avatar.lineStyle(Math.max(1, css), UI_TOKENS.color.gold, 0.55).strokeCircle(column.avatar, cy, avatarR);
     }
     row.avatarImage.setPosition(column.avatar, cy).setDisplaySize(avatarSize, avatarSize).setVisible(row.visible && row.avatarReady);
-    row.avatarInitial.setPosition(column.avatar, cy).setFontSize(Math.max(10, avatarR * 0.85)).setVisible(row.visible && !row.avatarReady);
+    row.avatarInitial.setPosition(column.avatar, cy).setFontSize(Math.max(10 * css, avatarR * 0.85)).setVisible(row.visible && !row.avatarReady);
 
-    const fontSize = Math.max(10, Math.min(viewport.profile === 'desktop' ? 16 : 13, bounds.height * 0.33));
-    const nameWidth = Math.max(60, column.valueA - column.player - bounds.width * 0.08);
+    const fontSize = Math.max(10 * css, Math.min(viewport.profile === 'desktop' ? 16 * css * desktopTypeScale : 13 * css, bounds.height * 0.33));
+    const nameWidth = Math.max(60 * css, column.valueA - column.player - bounds.width * 0.08);
     row.name.setPosition(column.player, cy).setFontSize(fontSize).setWordWrapWidth(nameWidth, false);
     if (row.entry.metric.kind === 'mastery') {
-      const iconSize = Math.max(30, Math.min(viewport.profile === 'desktop' ? 40 : 34, bounds.height * 0.88));
-      const iconX = column.valueA - (viewport.profile === 'desktop' ? 72 : 54);
+      const iconSize = Math.max(30 * css, Math.min(viewport.profile === 'desktop' ? 40 * css : 34 * css, bounds.height * 0.88));
+      const iconX = column.valueA - (viewport.profile === 'desktop' ? 72 * css : 54 * css);
       row.rankIcon.setTexture(CASCADE_UI_ART_KEYS.rankLeaderboard[row.entry.metric.rank])
         .setPosition(iconX, cy).setDisplaySize(iconSize, iconSize).setAlpha(0.98).setVisible(row.visible);
       row.valueA.setOrigin(0, 0.5).setPosition(iconX + iconSize * 0.72, cy).setFontSize(fontSize);
@@ -387,6 +400,34 @@ export class LeaderboardsScene extends BaseUiScene {
     return `leaderboard.avatar.${hashName(url).toString(16)}`;
   }
 
+  private circularAvatarTextureKey(url: string): string {
+    return `${this.avatarTextureKey(url)}.circle`;
+  }
+
+  private ensureCircularAvatarTexture(sourceKey: string, circularKey: string): boolean {
+    if (this.textures.exists(circularKey)) return true;
+    const source = this.textures.get(sourceKey).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+    const sourceWidth = source.width;
+    const sourceHeight = source.height;
+    const size = Math.floor(Math.min(sourceWidth, sourceHeight));
+    if (size <= 0) return false;
+
+    const texture = this.textures.createCanvas(circularKey, size, size);
+    if (!texture) return false;
+    const context = texture.getContext();
+    const sourceX = (sourceWidth - size) / 2;
+    const sourceY = (sourceHeight - size) / 2;
+    context.save();
+    context.clearRect(0, 0, size, size);
+    context.beginPath();
+    context.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    context.clip();
+    context.drawImage(source, sourceX, sourceY, size, size, 0, 0, size, size);
+    context.restore();
+    texture.refresh();
+    return true;
+  }
+
   private allRows(): readonly RowVisual[] {
     return this.pinnedRow ? [...this.rows, this.pinnedRow] : this.rows;
   }
@@ -397,7 +438,9 @@ export class LeaderboardsScene extends BaseUiScene {
       if (!url) continue;
       const key = this.avatarTextureKey(url);
       if (!this.textures.exists(key)) continue;
-      row.avatarImage.setTexture(key);
+      const circularKey = this.circularAvatarTextureKey(url);
+      if (!this.ensureCircularAvatarTexture(key, circularKey)) continue;
+      row.avatarImage.setTexture(circularKey);
       row.avatarReady = true;
       row.avatarImage.setVisible(row.visible);
       row.avatarInitial.setVisible(false);
@@ -438,25 +481,21 @@ export class LeaderboardsScene extends BaseUiScene {
   }
 
   private async refreshRows(): Promise<void> {
-    if (this.loading) return;
-    this.loading = true;
+    const requestedMode = this.selected;
+    const requestId = ++this.refreshRequestId;
     this.status?.setText(t('Загрузка…')).setVisible(true);
     this.updateHeaders();
-    try {
-      const result = await productBridge.loadLeaderboard(this.selected);
-      if (!this.isUiSceneActive()) return;
-      if (result.status === 'ready') {
-        this.rebuildRows(result);
-        this.status?.setText(result.entries.length === 0 ? t('Пока нет результатов') : '').setVisible(result.entries.length === 0);
-      } else {
-        this.clearRows();
-        this.status?.setText(result.status === 'unavailable' ? t('Таблица лидеров недоступна') : t('Не удалось загрузить таблицу лидеров')).setVisible(true);
-      }
-      this.updateSignInState();
-      this.requestUiLayout();
-    } finally {
-      this.loading = false;
+    const result = await productBridge.loadLeaderboard(requestedMode);
+    if (!this.isUiSceneActive() || requestId !== this.refreshRequestId || this.selected !== requestedMode) return;
+    if (result.status === 'ready') {
+      this.rebuildRows(result);
+      this.status?.setText(result.entries.length === 0 ? t('Пока нет результатов') : '').setVisible(result.entries.length === 0);
+    } else {
+      this.clearRows();
+      this.status?.setText(result.status === 'unavailable' ? t('Таблица лидеров недоступна') : t('Не удалось загрузить таблицу лидеров')).setVisible(true);
     }
+    this.updateSignInState();
+    this.requestUiLayout();
   }
 
   private updateSignInState(): void {
@@ -486,6 +525,6 @@ export class LeaderboardsScene extends BaseUiScene {
     this.scroll?.destroy();
     this.shell = null; this.tabs = null; this.panel = null; this.sectionTitle = null; this.status = null;
     this.headerRank = null; this.headerPlayer = null; this.headerA = null; this.headerB = null; this.divider = null; this.scroll = null; this.signIn = null;
-    this.loading = false; this.authorizing = false;
+    this.refreshRequestId += 1; this.authorizing = false;
   }
 }
