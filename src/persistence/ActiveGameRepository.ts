@@ -10,6 +10,12 @@ export interface ActiveGameStorageLike {
 }
 
 const ACTIVE_GAME_KEY = 'cascadeActiveGame';
+const ACTIVE_GAME_UPDATED_AT_KEY = 'cascadeActiveGameUpdatedAtMs';
+
+export interface StoredActiveGameCheckpoint {
+  readonly save: ActiveGameSaveV2;
+  readonly updatedAtMs: number;
+}
 
 function resolveBrowserStorage(): ActiveGameStorageLike | null {
   try {
@@ -55,7 +61,25 @@ export class ActiveGameRepository {
     }
   }
 
-  save(save: ActiveGameSaveV2): void {
+  loadCheckpoint(): StoredActiveGameCheckpoint | null {
+    const save = this.load();
+    if (save === null) return null;
+    if (this.storage === null) return { save, updatedAtMs: 0 };
+
+    try {
+      const raw = this.storage.getItem(ACTIVE_GAME_UPDATED_AT_KEY);
+      if (raw === null) return { save, updatedAtMs: 0 };
+      const parsed = Number(raw);
+      return {
+        save,
+        updatedAtMs: Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : 0,
+      };
+    } catch {
+      return { save, updatedAtMs: 0 };
+    }
+  }
+
+  save(save: ActiveGameSaveV2, updatedAtMs = Date.now()): void {
     if (this.storage === null) {
       return;
     }
@@ -66,8 +90,13 @@ export class ActiveGameRepository {
       return;
     }
 
+    const timestamp = Number.isFinite(updatedAtMs) && updatedAtMs >= 0
+      ? Math.floor(updatedAtMs)
+      : Date.now();
+
     try {
       this.storage.setItem(ACTIVE_GAME_KEY, JSON.stringify(normalized));
+      this.storage.setItem(ACTIVE_GAME_UPDATED_AT_KEY, String(timestamp));
     } catch {
       // Active-game persistence is best-effort; gameplay must remain functional.
     }
@@ -84,6 +113,7 @@ export class ActiveGameRepository {
 
     try {
       this.storage.removeItem(ACTIVE_GAME_KEY);
+      this.storage.removeItem(ACTIVE_GAME_UPDATED_AT_KEY);
     } catch {
       // Ignore browser storage failures.
     }

@@ -29,3 +29,14 @@ test('Cascade UI art is addressed through semantic keys', () => {
   }
   assert.equal(source.includes('japan'), false);
 });
+
+
+test('every declared Cascade raster asset exists on disk', () => {
+  const source = readFileSync('src/ui/assets/CascadeUiArt.ts', 'utf8');
+  const matches = [...source.matchAll(/['"](\.\/assets\/ui\/art\/[^'"]+)['"]/g)];
+  assert.ok(matches.length > 0, 'expected Cascade raster asset declarations');
+  for (const [, relativePath] of matches) {
+    const publicPath = `public/${relativePath.replace(/^\.\//, '')}`;
+    assert.equal(existsSync(publicPath), true, `${publicPath} must exist`);
+  }
+});

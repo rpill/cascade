@@ -88,8 +88,29 @@ test('latest coalescing keeps a downward streak update instead of max score', as
     () => now,
     0,
   );
-  const first = queue.enqueue('dailystreak', 900015, 'latest');
-  const second = queue.enqueue('dailystreak', 15, 'latest');
+  const first = queue.enqueue('dailystreak', 900015, undefined, 'latest');
+  const second = queue.enqueue('dailystreak', 15, undefined, 'latest');
   await Promise.all([first, second]);
   assert.deepEqual(calls, [{ name: 'dailystreak', score: 15 }]);
+});
+
+
+test('coalesced write keeps context that corresponds to the retained score', async () => {
+  const calls: Array<{ name: string; score: number; context: unknown }> = [];
+  const queue = new LeaderboardSubmissionQueue(
+    async (name, score, context) => { calls.push({ name, score, context }); },
+    async () => undefined,
+    () => 0,
+    0,
+  );
+  const a = queue.enqueue('standardwinstreak', 7, { kind: 'standard', bestStreak: 7 }, 'max');
+  const b = queue.enqueue('standardwinstreak', 9, { kind: 'standard', bestStreak: 9 }, 'max');
+  const c = queue.enqueue('standardwinstreak', 8, { kind: 'standard', bestStreak: 8 }, 'max');
+  await Promise.all([a, b, c]);
+  assert.deepEqual(calls, [{ name: 'standardwinstreak', score: 9, context: { kind: 'standard', bestStreak: 9 } }]);
+
+  const d = queue.enqueue('dailystreak', 10, { kind: 'streak', todayId: '2026-09-19' }, 'latest');
+  const e = queue.enqueue('dailystreak', 5, { kind: 'streak', todayId: '2026-09-20' }, 'latest');
+  await Promise.all([d, e]);
+  assert.deepEqual(calls[1], { name: 'dailystreak', score: 5, context: { kind: 'streak', todayId: '2026-09-20' } });
 });

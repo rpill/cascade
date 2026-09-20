@@ -1,0 +1,4 @@
+project_id = "cascade-solitaire"
+
+[functions.cascade-api]
+verify_jwt = false

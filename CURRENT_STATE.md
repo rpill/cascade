@@ -38,3 +38,14 @@
 2. Validate all leaderboards in a real Yandex draft.
 3. Run profile persistence / Daily / Mastery E2E on the platform.
 4. Finalize audio, responsive spacing and release packaging.
+
+## Pikabu / platform-independent backend (implementation branch)
+
+- Phase 1 keeps the existing Yandex player-storage and Yandex leaderboard path unchanged.
+- Pikabu uses browser-local guest progress; authorized players can merge/sync through the platform-independent Supabase backend.
+- Cloud profile sync uses BASE / LOCAL / CLOUD semantic merge, revision CAS, persistent idempotent operations and offline backoff.
+- Pikabu backend leaderboards use structured submissions; Daily first official result is protected by backend uniqueness and Daily streak is derived server-side.
+- Pikabu client build mode is `pnpm build:pikabu` with public `VITE_PLATFORM_TARGET` / `VITE_BACKEND_URL` values only.
+- Backend schema, Edge Function and pgTAP contracts are present in `supabase/`.
+- **Verification pending outside this sandbox:** local/remote Supabase pgTAP run, full pnpm build/test, two-browser Pikabu Studio smoke test, and Yandex production smoke test.
+- **Release gate still open:** written confirmation that the selected GitVerse Pages Free plan permits hosting the monetized game.

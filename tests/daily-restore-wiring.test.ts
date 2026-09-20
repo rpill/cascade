@@ -22,7 +22,7 @@ function assertOrdered(source: string, first: string, second: string): void {
   assert.ok(firstIndex < secondIndex, `${first} must precede ${second}`);
 }
 
-test('Daily checkpoints are deferred until trusted platform identity is available', () => {
+test('Daily checkpoints wait for the platform Daily clock before restore', () => {
   assert.match(scene, /pendingDailyRestore:\s*ActiveGameSaveV2 \| null/);
   assert.match(
     scene,
@@ -30,7 +30,7 @@ test('Daily checkpoints are deferred until trusted platform identity is availabl
   );
   assert.match(
     scene,
-    /trustedClock\.nowMs\(\)[^]*this\.dailyContext\s*=\s*\{[^]*tryRestoreDailySession/,
+    /dailyClockNowMs\(\)[^]*this\.dailyContext\s*=\s*\{[^]*tryRestoreDailySession/,
   );
 });
 

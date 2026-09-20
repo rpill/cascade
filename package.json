@@ -17,13 +17,19 @@
     "deals:verify-sample": "node --test tests/verified-proof-sample.test.ts",
     "deals:verify-all": "node tools/deals/verify-all.mjs",
     "deals:report": "node tools/deals/report.mjs",
-    "deals:probe": "node tools/deals/probe.mjs"
+    "deals:probe": "node tools/deals/probe.mjs",
+    "backend:start": "supabase start",
+    "backend:test:db": "supabase test db",
+    "build:pikabu": "tsc && vite build --mode pikabu",
+    "supabase:test": "supabase test db",
+    "supabase:serve": "supabase functions serve cascade-api --no-verify-jwt"
   },
   "dependencies": {
     "phaser": "^4.2.1"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
+    "supabase": "^2.117.0",
     "typescript": "^5.9.2",
     "vite": "^7.1.3"
   }

@@ -49,7 +49,6 @@ export function preloadUiAssets(scene: Phaser.Scene): void {
     [CASCADE_UI_ART_KEYS.homeLeaders, CASCADE_UI_ART_FILES.homeLeaders],
     [CASCADE_UI_ART_KEYS.homeLeadersBg, CASCADE_UI_ART_FILES.homeLeadersBg],
     [CASCADE_UI_ART_KEYS.paperPanel, CASCADE_UI_ART_FILES.paperPanel],
-    [CASCADE_UI_ART_KEYS.paperLandscape, CASCADE_UI_ART_FILES.paperLandscape],
     [CASCADE_UI_ART_KEYS.dailyPanelBg, CASCADE_UI_ART_FILES.dailyPanelBg],
     [CASCADE_UI_ART_KEYS.masteryPanelBg, CASCADE_UI_ART_FILES.masteryPanelBg],
     [CASCADE_UI_ART_KEYS.leaderboardPanelBg, CASCADE_UI_ART_FILES.leaderboardPanelBg],

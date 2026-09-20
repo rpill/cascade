@@ -9,3 +9,8 @@ tools/*.exe
 _chatgpt_bundle/
 
 # Generated from Decks/Horizontal2/svgs before dev/build
+.env.pikabu
+.env.pikabu.local
+supabase/.temp/
+supabase/functions/.env
+supabase/functions/.env.local

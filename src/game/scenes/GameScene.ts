@@ -36,8 +36,15 @@ import { type ModeCompletionResult, type OrdinaryGameMode } from '../../meta/Gam
 import { createDefaultMetaSave, DAILY_ALGORITHM_VERSION, type MetaSave, type StandardDifficulty } from '../../meta/MetaSave.ts';
 import { ActiveGameRepository } from '../../persistence/ActiveGameRepository.ts';
 import { activeGameSaveToDeal, createActiveGameSave, type ActiveGameSaveV2 } from '../../persistence/ActiveGameSave.ts';
-import { initializePlatform } from '../../platform/yandex.ts';
+import { initializePlatform } from '../../platform/index.ts';
 import type { PlatformServices } from '../../platform/services.ts';
+import { authorizationUsesProfileScopeTransfer } from '../../platform/AuthorizationPolicy.ts';
+import { BackendClient } from '../../backend/BackendClient.ts';
+import { resolveBackendUrl } from '../../backend/BackendConfig.ts';
+import { CloudProfileService } from '../../backend/CloudProfileService.ts';
+import { CloudSyncCoordinator } from '../../cloud/CloudSyncCoordinator.ts';
+import { CLOUD_SNAPSHOT_VERSION, type CloudSnapshot } from '../../cloud/CloudSnapshot.ts';
+import { CloudSyncStateStore } from '../../cloud/CloudSyncState.ts';
 import { deriveGameplayActivity } from '../../platform/GameplayActivity.ts';
 import { LeaderboardService } from '../../leaderboards/LeaderboardService.ts';
 import { encodeMasteryLeaderboardScore, type GlobalLeaderboardMode } from '../../leaderboards/LeaderboardConfig.ts';
@@ -127,6 +134,7 @@ export class GameScene extends Phaser.Scene {
   private unsubscribePlatformPause: (() => void) | null = null;
   private readonly platformResumeWaiters = new Set<() => void>();
   private leaderboardService: LeaderboardService | null = null;
+  private cloudSync: CloudSyncCoordinator | null = null;
   private metaState: MetaSave = createDefaultMetaSave();
   private verifiedDealCatalog!: VerifiedDealCatalog;
   private activeStandardSelection: StandardDealSelection | null = null;
@@ -221,13 +229,21 @@ export class GameScene extends Phaser.Scene {
     void this.metaSession.flush();
 
     this.leaderboardService = new LeaderboardService(this.platform);
+    this.configureCloudSync();
+    void this.cloudSync?.sync('startup');
     this.unsubscribeAccountSelection?.();
     this.unsubscribeAccountSelection = this.platform.auth.onAccountSelectionClosed(() => {
-      window.location.reload();
+      if (authorizationUsesProfileScopeTransfer(this.platform!)) {
+        window.location.reload();
+        return;
+      }
+      void this.cloudSync?.sync('authorization');
+      void this.platform?.leaderboards.retryPending?.();
+      this.refreshMenuMeta();
     });
     this.refreshMenuMeta();
 
-    const now = this.platform.trustedClock.nowMs();
+    const now = this.dailyClockNowMs();
     if (now !== null && this.metaSession.status === 'ready') {
       const dailyId = getDailyId(now);
       this.dailyContext = {
@@ -251,6 +267,62 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.refreshMenuMeta();
+  }
+
+  private configureCloudSync(): void {
+    this.cloudSync?.dispose();
+    this.cloudSync = null;
+    window.removeEventListener('online', this.handleCloudOnline);
+    const platform = this.platform;
+    const identity = platform?.backendIdentity;
+    const backendUrl = resolveBackendUrl();
+    if (!platform || !identity || backendUrl === null) return;
+
+    const profiles = new CloudProfileService(new BackendClient(backendUrl, identity));
+    this.cloudSync = new CloudSyncCoordinator({
+      identity,
+      profiles,
+      local: {
+        readSnapshot: () => this.readCloudSnapshot(),
+        applySnapshot: (snapshot) => this.applyCloudSnapshot(snapshot),
+        todayId: () => getDailyId(this.dailyClockNowMs() ?? Date.now()),
+      },
+      stateStoreFactory: (provider, key) => new CloudSyncStateStore(provider, key),
+    });
+    window.addEventListener('online', this.handleCloudOnline);
+  }
+
+  private readCloudSnapshot(): CloudSnapshot {
+    const activeGame = this.activeGameRepository.loadCheckpoint();
+    return {
+      schemaVersion: CLOUD_SNAPSHOT_VERSION,
+      meta: structuredClone(this.metaState),
+      ...(activeGame === null ? {} : { activeGame }),
+    };
+  }
+
+  private async applyCloudSnapshot(snapshot: CloudSnapshot): Promise<boolean> {
+    const saved = await this.metaSession.replaceAndFlush(snapshot.meta);
+    if (!saved) return false;
+    if (snapshot.activeGame === undefined) this.activeGameRepository.clear();
+    else this.activeGameRepository.save(snapshot.activeGame.save, snapshot.activeGame.updatedAtMs);
+    this.pendingActiveSave = snapshot.activeGame?.save ?? null;
+    this.pendingDailyRestore = snapshot.activeGame?.save.mode === 'daily' ? snapshot.activeGame.save : null;
+    this.refreshSessionState();
+    return true;
+  }
+
+  private readonly handleCloudOnline = (): void => {
+    void this.cloudSync?.sync('online');
+    void this.platform?.leaderboards.retryPending?.();
+  };
+
+  private dailyClockNowMs(): number | null {
+    const trusted = this.platform?.trustedClock.nowMs() ?? null;
+    if (trusted !== null) return trusted;
+    // Pikabu has no trusted clock in phase 1. Local time keeps guest Daily playable;
+    // the backend still validates submitted Daily dates against server time.
+    return this.platform?.backendIdentity ? Date.now() : null;
   }
 
   private refreshMenuMeta(): void {
@@ -384,13 +456,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private currentDailyContext(): DailyContext|null {
-    const now=this.platform?.trustedClock.nowMs() ?? null;
+    const now=this.dailyClockNowMs();
     if(now===null || this.metaSession.status!=='ready') return null;
     return this.dailyContextForId(getDailyId(now));
   }
 
   private completionEvent(mode:GameMode,elapsedMs:number): CompletionEvent {
-    const now=this.platform?.trustedClock.nowMs() ?? null;
+    const now=this.dailyClockNowMs();
     return {kind:'complete',mode,attemptId:this.attemptId,elapsedMs:Math.max(1,elapsedMs),moves:Math.max(1,this.history.moveCount),
       trustedDay:now===null ? null : getDailyId(now),trustedWeek:now===null ? null : getIsoWeekId(now),
       ...(mode==='daily' && this.dailyContext ? {dailyId:this.dailyContext.dailyId,weekId:this.dailyContext.weekId} : {}),
@@ -574,7 +646,7 @@ export class GameScene extends Phaser.Scene {
       this.attemptFinalized = false;
       this.reconcileGameplayActivity();
 
-      const trustedNow = this.platform?.trustedClock.nowMs() ?? null;
+      const trustedNow = this.dailyClockNowMs();
       const dailyRankingEligible = isDaily
         && trustedNow !== null
         && getDailyId(trustedNow) === context!.dailyId;
@@ -643,7 +715,11 @@ export class GameScene extends Phaser.Scene {
 
     if (recorded && mode === 'winnable') {
       void this.leaderboardService?.syncStandardStreak(this.metaState.standardWinStreak.best);
-      void this.leaderboardService?.syncMasteryScore(encodeMasteryLeaderboardScore(this.metaState));
+      void this.leaderboardService?.syncMasteryScore(encodeMasteryLeaderboardScore(this.metaState), this.metaState);
+    }
+    if (recorded) {
+      void this.cloudSync?.sync('game-complete');
+      void this.platform?.leaderboards.retryPending?.();
     }
   }
 
@@ -761,11 +837,21 @@ export class GameScene extends Phaser.Scene {
       const dailyRecord = this.metaState.daily.records[context.dailyId];
       const rankingCompletion = event.trustedDay === context.dailyId && dailyRecord?.rankingAttemptId === event.attemptId;
       if (rankingCompletion) {
-        void this.leaderboardService?.syncDailyBest(context.dailyId, dailyRecord?.bestMoves, dailyRecord?.bestMovesTimeMs);
+        void this.leaderboardService?.syncDailyBest(
+          context.dailyId,
+          dailyRecord?.bestMoves,
+          dailyRecord?.bestMovesTimeMs,
+          {
+            completedOnTime: dailyRecord?.completedOnTime === true,
+            attemptId: dailyRecord?.rankingAttemptId,
+          },
+        );
       }
       const dailyStreak = getDailyStreaks(this.metaState.daily.records, context.dailyId);
-      void this.leaderboardService?.syncDailyStreak(dailyStreak.current, dailyStreak.best);
-      void this.leaderboardService?.syncMasteryScore(encodeMasteryLeaderboardScore(this.metaState));
+      void this.leaderboardService?.syncDailyStreak(dailyStreak.current, dailyStreak.best, context.dailyId);
+      void this.leaderboardService?.syncMasteryScore(encodeMasteryLeaderboardScore(this.metaState), this.metaState);
+      void this.cloudSync?.sync('game-complete');
+      void this.platform?.leaderboards.retryPending?.();
     }
     this.pendingDailyRestore = null;
     this.refreshMenuMeta();
@@ -919,6 +1005,10 @@ export class GameScene extends Phaser.Scene {
 
   private showProductHome(canCancel: boolean): void {
     this.stopProductUiScenes();
+    if (this.metaSession?.status === 'ready') {
+      void this.cloudSync?.sync('home');
+      void this.platform?.leaderboards.retryPending?.();
+    }
     if (canCancel) this.board?.setUiPaused(true);
     if (!this.scene.isActive('HomeScene')) this.scene.launch('HomeScene');
     else this.scene.bringToTop('HomeScene');
@@ -1007,21 +1097,23 @@ export class GameScene extends Phaser.Scene {
     this.leaderboardAuthPending = true;
     productBridge.notify();
     const wasAuthorized = service.authorized;
+    const usesScopeTransfer = this.platform !== null && authorizationUsesProfileScopeTransfer(this.platform);
     if (!wasAuthorized && this.gameState !== null && !this.gameState.isWon) this.checkpointActiveGame(this.gameState);
-    if (!wasAuthorized && !stageProfileMergeTransfer(this.metaScope, this.metaState)) {
+    if (!wasAuthorized && usesScopeTransfer && !stageProfileMergeTransfer(this.metaScope, this.metaState)) {
       this.leaderboardAuthPending = false;
       productBridge.notify();
       return false;
     }
     const authorized = await service.requestAuthorization();
     if (!authorized) {
-      if (!wasAuthorized) clearProfileMergeTransfer();
+      if (!wasAuthorized && usesScopeTransfer) clearProfileMergeTransfer();
       this.leaderboardAuthPending = false;
       productBridge.notify();
       return false;
     }
     if (!wasAuthorized) {
-      await this.loadMetaProfile();
+      if (usesScopeTransfer) await this.loadMetaProfile();
+      else await this.cloudSync?.sync('authorization');
       if (this.platform) this.standardAdController = new StandardAdController(this.platform);
     }
     await this.syncHistoricalLeaderboards();
@@ -1128,12 +1220,15 @@ export class GameScene extends Phaser.Scene {
     if (dailyContext !== null) {
       const record = this.metaState.daily.records[dailyContext.dailyId];
       if (record?.bestMoves !== undefined && record.bestMovesTimeMs !== undefined) {
-        tasks.push(service.syncDailyBest(dailyContext.dailyId, record.bestMoves, record.bestMovesTimeMs));
+        tasks.push(service.syncDailyBest(dailyContext.dailyId, record.bestMoves, record.bestMovesTimeMs, {
+          completedOnTime: record.completedOnTime === true,
+          attemptId: record.rankingAttemptId,
+        }));
       }
       const streak = getDailyStreaks(this.metaState.daily.records, dailyContext.dailyId);
-      tasks.push(service.syncDailyStreak(streak.current, streak.best));
+      tasks.push(service.syncDailyStreak(streak.current, streak.best, dailyContext.dailyId));
     }
-    tasks.push(service.syncMasteryScore(encodeMasteryLeaderboardScore(this.metaState)));
+    tasks.push(service.syncMasteryScore(encodeMasteryLeaderboardScore(this.metaState), this.metaState));
     await Promise.all(tasks);
   }
 
@@ -1570,6 +1665,9 @@ export class GameScene extends Phaser.Scene {
     window.removeEventListener('blur', this.handleWindowBlur);
     window.removeEventListener('focus', this.handleWindowFocus);
     window.removeEventListener('pagehide', this.handlePageHide);
+    window.removeEventListener('online', this.handleCloudOnline);
+    this.cloudSync?.dispose();
+    this.cloudSync = null;
     this.unsubscribeAccountSelection?.();
     this.unsubscribeAccountSelection = null;
     this.attemptTimer.reset();

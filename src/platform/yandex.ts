@@ -350,6 +350,7 @@ export async function createYandexPlatformServices(
       nowMs: () => ysdk.serverTime(),
     },
     auth: {
+      playerStorageScopeChangesOnAuthorization: true,
       isAuthorized: () => player?.isAuthorized() ?? false,
       requestAuthorization: async () => {
         const currentPlayer = await getPlayer();

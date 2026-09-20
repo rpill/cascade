@@ -44,3 +44,18 @@
 - Browser fallback must keep ordinary local play functional when Yandex APIs are absent.
 - Leaderboard/auth failures are non-fatal to gameplay.
 - Fullscreen ads are optional and shown only at logical pauses/transitions.
+
+## Platform-independent backend / Pikabu
+
+- `src/backend/` — target-neutral HTTP client, profile API wrapper, backend leaderboard adapter and public backend URL config.
+- `src/cloud/` — cloud snapshot, semantic merge, per-identity durable sync state and local-first coordinator.
+- `src/platform/pikabu.ts` — Pikabu SDK loader/auth/identity adapter; guest player data remains in browser storage.
+- `supabase/migrations/` — Postgres schema/RPCs for identities, revisioned cloud profiles, Daily results, leaderboard rows and idempotency.
+- `supabase/functions/cascade-api/` — Pikabu signed-data verification and the profile/leaderboard HTTP API.
+- `supabase/tests/` — pgTAP database contract.
+
+The browser never receives `PIKABU_GAME_SECRET` or a Supabase service-role credential. `VITE_BACKEND_URL` is public by design. Backend failure must not prevent game startup or local persistence; sync/leaderboard mutations remain pending and retry later.
+
+`pnpm build` remains the normal/default build. `pnpm build:pikabu` selects Vite mode `pikabu`; `.env.pikabu.local` is intentionally untracked.
+
+Backend deployment uses Supabase Edge Functions. `--use-api` is required by the documented deploy path because the function reuses pure TypeScript modules outside `supabase/functions/`.

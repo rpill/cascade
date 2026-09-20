@@ -16,11 +16,11 @@ test('mastery leaderboard uses dedicated raster rank icons instead of symbolic g
 
 test('all six leaderboard rank raster assets exist', () => {
   for (const rank of ['novice','player','tactician','expert','master','grandmaster']) {
-    assert.equal(existsSync(`public/assets/ui/art/rank-leaderboard-${rank}.png`), true, rank);
+    assert.equal(existsSync(`public/assets/ui/art/rank-leaderboard-${rank}.webp`), true, rank);
   }
 });
 
 test('mastery rank medals are large enough to remain legible in leaderboard rows', () => {
-  assert.match(scene, /viewport\.profile === 'desktop' \? 40 : 34/);
+  assert.match(scene, /viewport\.profile === 'desktop' \? 40 \* css : 34 \* css/);
   assert.match(scene, /bounds\.height \* 0\.88/);
 });

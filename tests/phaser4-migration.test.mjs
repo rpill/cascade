@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 const root = new URL('../', import.meta.url);
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -19,7 +20,7 @@ function collectTypeScriptFiles(directory) {
 }
 
 const srcDir = new URL('../src/', import.meta.url);
-const sourceFiles = collectTypeScriptFiles(srcDir.pathname);
+const sourceFiles = collectTypeScriptFiles(fileURLToPath(srcDir));
 const allSource = sourceFiles.map((file) => readFileSync(file, 'utf8')).join('\n');
 
 test('project resolves Phaser 4.2.1 in package metadata and pnpm lockfile', () => {

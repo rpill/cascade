@@ -225,3 +225,39 @@ test('active game save preserves the monotonic player move count', () => {
   const normalized = normalizeActiveGameSave(clone(withMoves));
   assert.equal((normalized as typeof normalized & { moveCount?: number })?.moveCount, 17);
 });
+
+import { ActiveGameRepository } from '../src/persistence/ActiveGameRepository.ts';
+
+class MemoryActiveStorage {
+  readonly values = new Map<string, string>();
+  getItem(key: string): string | null { return this.values.get(key) ?? null; }
+  setItem(key: string, value: string): void { this.values.set(key, value); }
+  removeItem(key: string): void { this.values.delete(key); }
+}
+
+test('active repository stores timestamp separately from the existing save payload', () => {
+  const storage = new MemoryActiveStorage();
+  const repository = new ActiveGameRepository(storage);
+  const save = createValidSave();
+  repository.save(save, 123456);
+  assert.deepEqual(JSON.parse(storage.getItem('cascadeActiveGame')!), normalizeActiveGameSave(save));
+  assert.equal(storage.getItem('cascadeActiveGameUpdatedAtMs'), '123456');
+  assert.equal(repository.loadCheckpoint()?.updatedAtMs, 123456);
+});
+
+test('legacy active save without timestamp loads with updatedAtMs zero', () => {
+  const storage = new MemoryActiveStorage();
+  const save = createValidSave();
+  storage.setItem('cascadeActiveGame', JSON.stringify(save));
+  const repository = new ActiveGameRepository(storage);
+  assert.equal(repository.loadCheckpoint()?.updatedAtMs, 0);
+});
+
+test('clear removes save and timestamp keys together', () => {
+  const storage = new MemoryActiveStorage();
+  const repository = new ActiveGameRepository(storage);
+  repository.save(createValidSave(), 77);
+  repository.clear();
+  assert.equal(storage.getItem('cascadeActiveGame'), null);
+  assert.equal(storage.getItem('cascadeActiveGameUpdatedAtMs'), null);
+});

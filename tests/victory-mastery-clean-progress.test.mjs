@@ -11,10 +11,10 @@ test('victory mastery card has no redundant MASTERY heading', () => {
 });
 
 test('victory progress label, meter and value share one horizontal progress row', () => {
-  assert.match(overlay, /const progressRowY=/);
-  assert.match(overlay, /masteryProgressLabel[^\n]*setPosition\([^,]+,progressRowY\)/);
-  assert.match(overlay, /masteryProgressValue[^\n]*setPosition\([^,]+,progressRowY\)/);
-  assert.match(overlay, /meterBounds=\{[^}]*y:progressRowY-meterHeight\/2/s);
+  assert.match(overlay, /const row3Y =/);
+  assert.match(overlay, /masteryProgressLabel[\s\S]*?\.setPosition\(contentLeft, row3Y\)/);
+  assert.match(overlay, /masteryProgressValue[\s\S]*?\.setPosition\(contentRight, row3Y\)/);
+  assert.match(overlay, /const meterBounds = \{[\s\S]*?y: row3Y - meterHeight \/ 2,/);
 });
 
 test('mastery progress animates for every fresh victory and handles promotion as a two-stage fill', () => {

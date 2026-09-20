@@ -20,7 +20,19 @@ export interface GameplayMarkup {
   stop(): void;
 }
 
+export interface PlatformIdentityAssertion {
+  readonly provider: string;
+  readonly value: string;
+}
+
+export interface BackendIdentityProvider {
+  isAuthorized(): boolean;
+  getAssertion(): Promise<PlatformIdentityAssertion | null>;
+  localIdentityKey(): string | null;
+}
+
 export interface PlatformAuth {
+  readonly playerStorageScopeChangesOnAuthorization?: boolean;
   isAuthorized(): boolean;
   requestAuthorization(): Promise<boolean>;
   onAccountSelectionClosed(listener: () => void): () => void;
@@ -34,14 +46,26 @@ export interface PlatformLeaderboardEntry {
   readonly avatarUrl?: string;
 }
 
+export interface PlatformLeaderboardReadOptions {
+  readonly quantityTop: number;
+  readonly scopeKey?: string;
+}
+
+export type PlatformLeaderboardSubmissionContext =
+  | { readonly kind: 'standard'; readonly bestStreak: number }
+  | { readonly kind: 'daily'; readonly dailyId: string; readonly moves: number; readonly elapsedMs: number; readonly completedOnTime: boolean; readonly attemptId?: string }
+  | { readonly kind: 'streak'; readonly todayId?: string }
+  | { readonly kind: 'mastery'; readonly profile: unknown };
+
 export interface PlatformLeaderboards {
   readonly available: boolean;
   getEntries(
     technicalName: string,
-    options: { readonly quantityTop: number },
+    options: PlatformLeaderboardReadOptions,
   ): Promise<PlatformLeaderboardEntry[]>;
-  getPlayerEntry(technicalName: string): Promise<PlatformLeaderboardEntry | null>;
-  setScore(technicalName: string, score: number): Promise<void>;
+  getPlayerEntry(technicalName: string, options?: { readonly scopeKey?: string }): Promise<PlatformLeaderboardEntry | null>;
+  setScore(technicalName: string, score: number, context?: PlatformLeaderboardSubmissionContext): Promise<void>;
+  retryPending?(): Promise<void>;
 }
 
 
@@ -60,6 +84,7 @@ export interface PlatformServices {
   readonly ads: PlatformAds;
   readonly platformPause: PlatformPause;
   readonly gameplay: GameplayMarkup;
+  readonly backendIdentity?: BackendIdentityProvider;
   readonly ready: () => void;
 }
 

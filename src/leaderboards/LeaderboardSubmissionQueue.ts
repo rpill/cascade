@@ -1,6 +1,9 @@
+import type { PlatformLeaderboardSubmissionContext } from '../platform/services.ts';
+
 export type LeaderboardSubmit = (
   technicalName: string,
   score: number,
+  context?: PlatformLeaderboardSubmissionContext,
 ) => Promise<void>;
 
 export type LeaderboardDelay = (ms: number) => Promise<void>;
@@ -15,6 +18,7 @@ type CoalescePolicy = 'max' | 'latest';
 
 interface PendingWrite {
   score: number;
+  context?: PlatformLeaderboardSubmissionContext;
   policy: CoalescePolicy;
   waiters: PendingWaiter[];
 }
@@ -56,7 +60,12 @@ export class LeaderboardSubmissionQueue {
     return this.pending.size + this.activeWrites;
   }
 
-  enqueue(technicalName: string, score: number, policy: CoalescePolicy = 'max'): Promise<void> {
+  enqueue(
+    technicalName: string,
+    score: number,
+    context?: PlatformLeaderboardSubmissionContext,
+    policy: CoalescePolicy = 'max',
+  ): Promise<void> {
     if (!Number.isFinite(score) || score <= 0) {
       return Promise.reject(
         new Error('Leaderboard score must be finite and positive.'),
@@ -66,12 +75,19 @@ export class LeaderboardSubmissionQueue {
     const promise = new Promise<void>((resolve, reject) => {
       const existing = this.pending.get(technicalName);
       if (existing !== undefined) {
-        existing.score = policy === 'latest' ? score : Math.max(existing.score, score);
+        if (policy === 'latest') {
+          existing.score = score;
+          existing.context = context;
+        } else if (score > existing.score) {
+          existing.score = score;
+          existing.context = context;
+        }
         existing.policy = policy;
         existing.waiters.push({ resolve, reject });
       } else {
         this.pending.set(technicalName, {
           score,
+          context,
           policy,
           waiters: [{ resolve, reject }],
         });
@@ -123,7 +139,7 @@ export class LeaderboardSubmissionQueue {
           }
 
           this.lastSubmitAt = this.now();
-          await this.submit(technicalName, pending.score);
+          await this.submit(technicalName, pending.score, pending.context);
           for (const waiter of pending.waiters) {
             waiter.resolve();
           }

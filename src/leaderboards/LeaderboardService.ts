@@ -1,5 +1,6 @@
 import type {
   PlatformLeaderboardEntry,
+  PlatformLeaderboardSubmissionContext,
   PlatformServices,
 } from '../platform/services.ts';
 import {
@@ -131,7 +132,7 @@ export class LeaderboardService {
     this.platform = platform;
     this.nowMs = nowMs;
     this.submissions = new LeaderboardSubmissionQueue(
-      (technicalName, score) => platform.leaderboards.setScore(technicalName, score),
+      (technicalName, score, context) => platform.leaderboards.setScore(technicalName, score, context),
     );
   }
 
@@ -185,7 +186,8 @@ export class LeaderboardService {
 
     let entries: LeaderboardRow[];
     try {
-      const rawEntries = await this.platform.leaderboards.getEntries(technicalName, { quantityTop: 20 });
+      const scopeKey = mode === 'daily' || mode === 'streak' ? dailyId : undefined;
+      const rawEntries = await this.platform.leaderboards.getEntries(technicalName, { quantityTop: 20, ...(scopeKey ? { scopeKey } : {}) });
       entries = rawEntries.map(normalize).filter((entry): entry is LeaderboardRow => entry !== null);
     } catch {
       return { status: 'error', authorized, entries: [], playerEntry: null };
@@ -195,7 +197,8 @@ export class LeaderboardService {
 
     let playerEntry: LeaderboardRow | null = null;
     try {
-      const raw = await this.platform.leaderboards.getPlayerEntry(technicalName);
+      const scopeKey = mode === 'daily' || mode === 'streak' ? dailyId : undefined;
+      const raw = await this.platform.leaderboards.getPlayerEntry(technicalName, scopeKey ? { scopeKey } : undefined);
       playerEntry = raw === null ? null : normalize(raw);
     } catch {
       playerEntry = null;
@@ -224,7 +227,7 @@ export class LeaderboardService {
     try {
       const server = await this.platform.leaderboards.getPlayerEntry(technicalName);
       if (server !== null && Number.isSafeInteger(server.score) && server.score >= localBestStreak) return 'unchanged';
-      await this.submissions.enqueue(technicalName, localBestStreak);
+      await this.submissions.enqueue(technicalName, localBestStreak, { kind: 'standard', bestStreak: localBestStreak }, 'max');
       this.invalidate('winnable');
       return 'submitted';
     } catch { return 'skipped'; }
@@ -234,6 +237,7 @@ export class LeaderboardService {
     dailyId: string,
     bestMoves: number | undefined,
     bestMovesTimeMs: number | undefined,
+    recordContext?: { readonly completedOnTime?: boolean; readonly attemptId?: string },
   ): Promise<LeaderboardSyncResult> {
     if (!this.available || !this.authorized || bestMoves === undefined || bestMovesTimeMs === undefined) return 'skipped';
     let localScore: number;
@@ -242,7 +246,7 @@ export class LeaderboardService {
 
     const technicalName = getLeaderboardName('daily');
     try {
-      const server = await this.platform.leaderboards.getPlayerEntry(technicalName);
+      const server = await this.platform.leaderboards.getPlayerEntry(technicalName, { scopeKey: dailyId });
       if (server !== null) {
         const decoded = decodeDailyLeaderboardScore(server.score);
         if (decoded !== null && decoded.dailyId === dailyId
@@ -250,34 +254,42 @@ export class LeaderboardService {
           && decoded.elapsedMs === Math.round(bestMovesTimeMs)) return 'unchanged';
         if (decoded !== null && decoded.dailyId > dailyId) return 'skipped';
       }
-      await this.submissions.enqueue(technicalName, localScore, 'latest');
+      await this.submissions.enqueue(technicalName, localScore, {
+        kind: 'daily',
+        dailyId,
+        moves: bestMoves,
+        elapsedMs: Math.round(bestMovesTimeMs),
+        completedOnTime: recordContext?.completedOnTime === true,
+        ...(recordContext?.attemptId ? { attemptId: recordContext.attemptId } : {}),
+      }, 'latest');
       this.invalidate('daily');
       return 'submitted';
     } catch { return 'skipped'; }
   }
 
-  async syncDailyStreak(current: number, best: number): Promise<LeaderboardSyncResult> {
+  async syncDailyStreak(current: number, best: number, todayId?: string): Promise<LeaderboardSyncResult> {
     if (!this.available || !this.authorized) return 'skipped';
     let localScore: number;
     try { localScore = encodeDailyStreakLeaderboardScore(current, best); }
     catch { return 'skipped'; }
     const technicalName = getLeaderboardName('streak');
     try {
-      const server = await this.platform.leaderboards.getPlayerEntry(technicalName);
+      const server = await this.platform.leaderboards.getPlayerEntry(technicalName, todayId ? { scopeKey: todayId } : undefined);
       if (server?.score === localScore) return 'unchanged';
-      await this.submissions.enqueue(technicalName, localScore, 'latest');
+      await this.submissions.enqueue(technicalName, localScore, { kind: 'streak', ...(todayId ? { todayId } : {}) }, 'latest');
       this.invalidate('streak');
       return 'submitted';
     } catch { return 'skipped'; }
   }
 
-  async syncMasteryScore(localScore: number): Promise<LeaderboardSyncResult> {
+  async syncMasteryScore(localScore: number, profile?: unknown): Promise<LeaderboardSyncResult> {
     if (!this.available || !this.authorized || !Number.isSafeInteger(localScore) || localScore <= 0) return 'skipped';
     const technicalName = getLeaderboardName('mastery');
     try {
       const server = await this.platform.leaderboards.getPlayerEntry(technicalName);
       if (server !== null && Number.isSafeInteger(server.score) && server.score >= localScore) return 'unchanged';
-      await this.submissions.enqueue(technicalName, localScore);
+      const context: PlatformLeaderboardSubmissionContext | undefined = profile === undefined ? undefined : { kind: 'mastery', profile };
+      await this.submissions.enqueue(technicalName, localScore, context, 'max');
       this.invalidate('mastery');
       return 'submitted';
     } catch { return 'skipped'; }
