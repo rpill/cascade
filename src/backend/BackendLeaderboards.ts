@@ -150,14 +150,14 @@ export class BackendLeaderboards implements PlatformLeaderboards {
 
   async getEntries(technicalName: string, options: PlatformLeaderboardReadOptions): Promise<PlatformLeaderboardEntry[]> {
     const board = boardFor(technicalName);
-    const body = await this.readBoard(board, options.quantityTop, options.scopeKey);
+    const body = await this.readBoard(board, options.quantityTop, options.scopeKey, false);
     return body.entries.map((row) => mapMetric(row, board));
   }
 
   async getPlayerEntry(technicalName: string, options: { readonly scopeKey?: string } = {}): Promise<PlatformLeaderboardEntry | null> {
     if (!this.identity.isAuthorized()) return null;
     const board = boardFor(technicalName);
-    const body = await this.readBoard(board, 20, options.scopeKey);
+    const body = await this.readBoard(board, 20, options.scopeKey, true);
     return body.playerEntry === null ? null : mapMetric(body.playerEntry, board);
   }
 
@@ -190,9 +190,9 @@ export class BackendLeaderboards implements PlatformLeaderboards {
     }
   }
 
-  private async readBoard(board: BackendBoard, limit: number, scopeKey?: string): Promise<BackendReadBody> {
+  private async readBoard(board: BackendBoard, limit: number, scopeKey: string | undefined, authorizedRead: boolean): Promise<BackendReadBody> {
     const normalizedLimit = Number.isSafeInteger(limit) ? Math.max(1, Math.min(100, limit)) : 20;
-    const cacheKey = `${board}:${scopeKey ?? ''}:${this.identity.isAuthorized() ? 'auth' : 'guest'}`;
+    const cacheKey = `${board}:${scopeKey ?? ''}:${authorizedRead ? 'auth' : 'guest'}`;
     const cached = this.reads.get(cacheKey);
     if (cached !== undefined && cached.expiresAt > this.nowMs()) return cached.value;
     if (cached !== undefined) this.reads.delete(cacheKey);
@@ -206,7 +206,7 @@ export class BackendLeaderboards implements PlatformLeaderboards {
       params.set('today', scopeKey);
     }
     const request = this.client.request<BackendReadBody>(`/v1/leaderboards/${board}?${params.toString()}`, {
-      authorized: this.identity.isAuthorized(),
+      authorized: authorizedRead,
     });
     this.reads.set(cacheKey, { expiresAt: this.nowMs() + READ_REUSE_MS, value: request });
     try { return await request; }

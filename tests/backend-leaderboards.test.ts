@@ -36,6 +36,27 @@ test('guest top-list read omits Authorization and maps rows to PlatformLeaderboa
   assert.equal(authorization,null);assert.deepEqual(rows,[{rank:1,score:8,playerId:'a',publicName:'Ada'}]);
 });
 
+
+test('authorized top-list read stays public and does not require a signed assertion', async()=>{
+  let fetchCalls=0; let assertionCalls=0; let authorization:string|null='unset';
+  const flakyIdentity: BackendIdentityProvider = {
+    isAuthorized: () => true,
+    localIdentityKey: () => 'p1',
+    getAssertion: async () => { assertionCalls += 1; throw new Error('signed data unavailable'); },
+  };
+  const fetchImpl:typeof fetch=async(_input,init)=>{
+    fetchCalls += 1;
+    authorization = new Headers(init?.headers).get('authorization');
+    return response({entries:[{rank:1,playerId:'a',publicName:'Ada',metric:{bestStreak:8}}],playerEntry:null});
+  };
+  const {boards}=create(fetchImpl,flakyIdentity);
+  const rows=await boards.getEntries('standardwinstreak',{quantityTop:20});
+  assert.equal(fetchCalls,1);
+  assert.equal(assertionCalls,0);
+  assert.equal(authorization,null);
+  assert.equal(rows[0]?.score,8);
+});
+
 test('Daily read forwards scope date and encodes metric for existing Daily decoder', async()=>{
   let url='';
   const fetchImpl:typeof fetch=async(input)=>{url=String(input);return response({entries:[{rank:2,playerId:'b',publicName:'Bee',metric:{dailyId:'2026-09-20',moves:41,elapsedMs:80000}}],playerEntry:null});};
@@ -44,13 +65,21 @@ test('Daily read forwards scope date and encodes metric for existing Daily decod
   assert.match(url,/scope=2026-09-20/);assert.deepEqual(decodeDailyLeaderboardScore(row!.score),{dailyId:'2026-09-20',moves:41,elapsedMs:80000});
 });
 
-test('getEntries followed by getPlayerEntry reuses one short in-flight backend response', async()=>{
-  let calls=0;
-  const fetchImpl:typeof fetch=async()=>{calls++;return response({entries:[],playerEntry:{rank:7,playerId:'me',publicName:'Me',metric:{bestStreak:4}}});};
+test('getEntries stays public while getPlayerEntry uses a separate authenticated read', async()=>{
+  let calls=0; const authorizations:(string|null)[]=[];
+  const fetchImpl:typeof fetch=async(_input,init)=>{
+    calls++;
+    authorizations.push(new Headers(init?.headers).get('authorization'));
+    return response(calls === 1
+      ? {entries:[],playerEntry:null}
+      : {entries:[],playerEntry:{rank:7,playerId:'me',publicName:'Me',metric:{bestStreak:4}}});
+  };
   const {boards}=create(fetchImpl);
   await boards.getEntries('standardwinstreak',{quantityTop:20});
   const me=await boards.getPlayerEntry('standardwinstreak');
-  assert.equal(calls,1);assert.equal(me?.score,4);
+  assert.equal(calls,2);
+  assert.deepEqual(authorizations,[null,'Bearer signed-token']);
+  assert.equal(me?.score,4);
 });
 
 test('standard submission posts structured bestStreak not opaque score', async()=>{
