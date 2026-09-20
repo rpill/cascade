@@ -41,6 +41,10 @@ const RANK_LABELS = {
   novice: 'Новичок', player: 'Игрок', tactician: 'Тактик', expert: 'Эксперт', master: 'Мастер', grandmaster: 'Грандмастер',
 } as const;
 
+const LEADERBOARD_AUTH_SUBTITLE = import.meta.env.VITE_PLATFORM_TARGET?.trim().toLowerCase() === 'pikabu'
+  ? 'Войдите в аккаунт Пикабу, чтобы сохранить рекорд и увидеть своё место в таблице.'
+  : 'Войдите с Яндекс ID, чтобы сохранить рекорд и увидеть своё место в таблице.';
+
 function formatTime(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000));
   const minutes = Math.floor(total / 60);
@@ -132,7 +136,7 @@ export class LeaderboardsScene extends BaseUiScene {
     this.scroll = new ScrollRegion(this, 20);
     this.signIn = new ActionCard(this, viewport, {
       title: t('ВОЙТИ'),
-      subtitle: t('Войдите с Яндекс ID, чтобы сохранить рекорд и увидеть своё место в таблице.'),
+      subtitle: t(LEADERBOARD_AUTH_SUBTITLE),
       enabled: false,
     }, () => { void this.authorizeAndReload(); }, 30);
     this.updateHeaders();
@@ -503,7 +507,7 @@ export class LeaderboardsScene extends BaseUiScene {
     this.signIn?.setVisible(!state.authorized);
     this.signIn?.setState({
       title: t('ВОЙТИ'),
-      subtitle: t('Войдите с Яндекс ID, чтобы сохранить рекорд и увидеть своё место в таблице.'),
+      subtitle: t(LEADERBOARD_AUTH_SUBTITLE),
       enabled: state.available && state.authorizationAllowed && !state.authorized && !state.authPending && !this.authorizing,
     });
     this.requestUiLayout();

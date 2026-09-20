@@ -83,6 +83,7 @@ export const ENGLISH: Readonly<Record<string,string>> = {
   'Ваш результат: пока нет результата': 'Your result: no score yet',
   'Включён': 'On',
   'Войдите с Яндекс ID, чтобы сохранить рекорд и увидеть своё место в таблице.': 'Sign in with Yandex ID to save your best time and see your rank.',
+  'Войдите в аккаунт Пикабу, чтобы сохранить рекорд и увидеть своё место в таблице.': 'Sign in to Pikabu to save your best time and see your rank.',
   'Время: {value0}': 'Time: {value0}',
   'Ходы: {value0}': 'Moves: {value0}',
   'Все': 'All',

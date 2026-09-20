@@ -8,6 +8,8 @@ export function normalizeBackendUrl(value: unknown): string | null {
 }
 
 export function resolveBackendUrl(): string | null {
-  const meta = import.meta as ImportMeta & { readonly env?: { readonly VITE_BACKEND_URL?: string } };
-  return normalizeBackendUrl(meta.env?.VITE_BACKEND_URL);
+  const value = typeof import.meta.env === 'object'
+    ? import.meta.env.VITE_BACKEND_URL
+    : undefined;
+  return normalizeBackendUrl(value);
 }
