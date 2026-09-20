@@ -38,7 +38,9 @@ test('leaderboard overlay keeps public browsing while controlling authorization 
   assert.match(source, /Вход…/);
   assert.match(source, /Вход станет доступен после сохранения текущего прогресса\./);
   assert.doesNotMatch(source, /Завершите текущую партию, чтобы войти/);
-  assert.match(source, /Войдите с Яндекс ID, чтобы сохранить рекорд/);
+  assert.match(source, /getLeaderboardAuthCopy\(\)/);
+  assert.doesNotMatch(source, /Войдите с Яндекс ID/);
+  assert.doesNotMatch(source, /Войдите в аккаунт Пикабу/);
   assert.match(source, /пока нет результата/);
   assert.match(source, /disabled/);
 });

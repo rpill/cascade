@@ -2,6 +2,7 @@ import { t, LocalizationBindings } from '../../localization/Localization.ts';
 import type * as Phaser from 'phaser';
 import type { LeaderboardRow } from '../../leaderboards/LeaderboardService.ts';
 import type { OrdinaryGameMode } from '../../meta/GameStats.ts';
+import { getLeaderboardAuthCopy } from '../../platform/PlatformCopy.ts';
 
 export type LeaderboardViewStatus =
   | 'loading'
@@ -207,7 +208,7 @@ export class LeaderboardView {
     } else if (state.message !== undefined) {
       this.localization.text(this.authCopy, () => t(state.message ?? ''));
     } else {
-      this.localization.text(this.authCopy, () => t('Войдите с Яндекс ID, чтобы сохранить рекорд и увидеть своё место в таблице.'));
+      this.localization.text(this.authCopy, () => t(getLeaderboardAuthCopy()));
     }
 
     this.authButton.disabled = state.authPending || !state.authorizationAllowed;

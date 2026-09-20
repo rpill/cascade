@@ -1,6 +1,7 @@
 import { t, LocalizationBindings } from '../../localization/Localization.ts';
 import { hasGlobalLeaderboard, type StatisticsMode } from '../../leaderboards/LeaderboardConfig.ts';
 import type { LeaderboardRow } from '../../leaderboards/LeaderboardService.ts';
+import { getLeaderboardAuthCopy } from '../../platform/PlatformCopy.ts';
 
 export interface StatisticsPageModeState {
   readonly played: number;
@@ -312,7 +313,7 @@ export class StatisticsPageView {
     } else if (state.message !== undefined) {
       this.localization.text(this.authCopy, () => t(state.message ?? ''));
     } else {
-      this.localization.text(this.authCopy, () => t('Войдите с Яндекс ID, чтобы сохранить результат и увидеть своё место в таблице.'));
+      this.localization.text(this.authCopy, () => t(getLeaderboardAuthCopy('result')));
     }
     this.authButton.disabled = state.authPending || !state.authorizationAllowed;
     this.localization.text(this.authButton, () => state.authPending ? t('Вход…') : t('ВОЙТИ'));
