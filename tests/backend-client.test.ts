@@ -15,6 +15,27 @@ function identity(value: string | null = 'signed.jwt.value') {
   return {provider,get calls(){return calls;}};
 }
 
+
+
+test('default browser fetch keeps the global receiver', async () => {
+  const id = identity();
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+
+  globalThis.fetch = function (this: typeof globalThis, _input: RequestInfo | URL, _init?: RequestInit): Promise<Response> {
+    calls += 1;
+    if (this !== globalThis) throw new TypeError('Illegal invocation');
+    return Promise.resolve(new Response('{}', { status: 200 }));
+  } as typeof fetch;
+
+  try {
+    const client = new BackendClient('https://api.test', id.provider);
+    await client.request('/v1/leaderboards/standard', { authorized: false });
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 test('authorized request attaches exact signed assertion as Bearer token', async () => {
   const id=identity();
   let auth:string|null=null;

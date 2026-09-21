@@ -17,10 +17,10 @@ export class BackendClient {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
 
-  constructor(baseUrl: string, identity: BackendIdentityProvider, fetchImpl: typeof fetch = fetch, timeoutMs = 10_000) {
+  constructor(baseUrl: string, identity: BackendIdentityProvider, fetchImpl?: typeof fetch, timeoutMs = 10_000) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.identity = identity;
-    this.fetchImpl = fetchImpl;
+    this.fetchImpl = fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
     this.timeoutMs = timeoutMs;
   }
 
