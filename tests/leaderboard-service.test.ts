@@ -50,9 +50,20 @@ test('Daily load rejects missing day and filters other dates', async()=>{
   assert.equal(result.entries.length,1);assert.deepEqual(result.entries[0]?.metric,{kind:'daily',moves:40,elapsedMs:80_000});
 });
 
-test('transport failures return non-fatal error state', async()=>{
-  const service=new LeaderboardService(platform({entries:async()=>{throw new Error('network');}}));
-  assert.equal((await service.load('mastery')).status,'error');
+test('transport failures return non-fatal error state and log the underlying cause', async()=>{
+  const failure = new Error('network');
+  const calls: unknown[][] = [];
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => { calls.push(args); };
+  try {
+    const service=new LeaderboardService(platform({entries:async()=>{throw failure;}}));
+    assert.equal((await service.load('mastery')).status,'error');
+    assert.equal(calls.length,1);
+    assert.equal(calls[0]?.[0],'[Cascade] Leaderboard entries load failed');
+    assert.deepEqual(calls[0]?.[1],{mode:'mastery',technicalName:'cascademastery',error:failure});
+  } finally {
+    console.error = originalError;
+  }
 });
 
 test('syncDailyBest keeps the fixed local first-attempt pair authoritative for the same day', async()=>{

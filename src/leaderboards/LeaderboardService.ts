@@ -189,7 +189,8 @@ export class LeaderboardService {
       const scopeKey = mode === 'daily' || mode === 'streak' ? dailyId : undefined;
       const rawEntries = await this.platform.leaderboards.getEntries(technicalName, { quantityTop: 20, ...(scopeKey ? { scopeKey } : {}) });
       entries = rawEntries.map(normalize).filter((entry): entry is LeaderboardRow => entry !== null);
-    } catch {
+    } catch (error) {
+      console.error('[Cascade] Leaderboard entries load failed', { mode, technicalName, error });
       return { status: 'error', authorized, entries: [], playerEntry: null };
     }
 
