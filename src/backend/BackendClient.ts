@@ -1,5 +1,7 @@
 import type { BackendIdentityProvider } from '../platform/services.ts';
 
+export const DEFAULT_BACKEND_REQUEST_TIMEOUT_MS = 30_000;
+
 export class BackendHttpError extends Error {
   readonly status: number;
   readonly body: unknown;
@@ -17,7 +19,7 @@ export class BackendClient {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
 
-  constructor(baseUrl: string, identity: BackendIdentityProvider, fetchImpl?: typeof fetch, timeoutMs = 10_000) {
+  constructor(baseUrl: string, identity: BackendIdentityProvider, fetchImpl?: typeof fetch, timeoutMs = DEFAULT_BACKEND_REQUEST_TIMEOUT_MS) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.identity = identity;
     this.fetchImpl = fetchImpl ?? ((input, init) => globalThis.fetch(input, init));

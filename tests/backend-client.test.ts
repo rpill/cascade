@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BackendClient, BackendHttpError } from '../src/backend/BackendClient.ts';
+import { BackendClient, BackendHttpError, DEFAULT_BACKEND_REQUEST_TIMEOUT_MS } from '../src/backend/BackendClient.ts';
 import { CloudProfileService } from '../src/backend/CloudProfileService.ts';
 import { createDefaultMetaSave } from '../src/meta/MetaSave.ts';
 import type { BackendIdentityProvider } from '../src/platform/services.ts';
@@ -36,6 +36,12 @@ test('default browser fetch keeps the global receiver', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test('default backend timeout leaves headroom for slow production requests', () => {
+  assert.equal(DEFAULT_BACKEND_REQUEST_TIMEOUT_MS, 30_000);
+});
+
 test('authorized request attaches exact signed assertion as Bearer token', async () => {
   const id=identity();
   let auth:string|null=null;
