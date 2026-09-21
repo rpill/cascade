@@ -38,7 +38,8 @@ jobs:
         run: pnpm build:pikabu
         env:
           VITE_PLATFORM_TARGET: pikabu
-          VITE_BACKEND_URL: https://nxnldyzfjhlnkibjmqrh.supabase.co/functions/v1/cascade-api
+          VITE_GAMEPUSH_PROJECT_ID: 30632
+          VITE_GAMEPUSH_PUBLIC_TOKEN: c5GdZPx08oVCDei40pc5DJDx68TZDUEb
 
       - name: Verify build
         run: test -f dist/index.html

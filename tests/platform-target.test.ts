@@ -16,8 +16,9 @@ test('GameScene imports platform initialization from the target-neutral platform
   assert.doesNotMatch(scene, /from '\.\.\/\.\.\/platform\/yandex\.ts'/);
 });
 
-test('undefined platform target preserves the Yandex initializer as the default path', () => {
+test('undefined platform target preserves Yandex while Pikabu selects GamePush', () => {
   assert.match(selector, /VITE_PLATFORM_TARGET/);
   assert.match(selector, /initializeYandexPlatform/);
-  assert.match(selector, /target === 'pikabu'/);
+  assert.match(selector, /initializeGamePushPlatform/);
+  assert.match(selector, /target === 'pikabu'[\s\S]*initializeGamePushPlatform\(\)[\s\S]*initializeYandexPlatform\(\)/);
 });
