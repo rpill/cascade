@@ -24,11 +24,11 @@ export const UI_ICON_KEYS = {
 } as const;
 
 const UI_ICON_FILES: Readonly<Record<keyof typeof UI_ICON_KEYS, string>> = {
-  home:'home.svg',newDeal:'new-deal.svg',restart:'restart.svg',undo:'undo.svg',hint:'hint.svg',settings:'settings.svg',back:'back.svg',close:'close.svg',
-  leaderboard:'leaderboard.svg',howToPlay:'how-to-play.svg',daily:'daily.svg',archive:'archive.svg',history:'history.svg',
-  mastery:'mastery.svg',laurel:'laurel.svg',streak:'streak.svg',soundOn:'sound-on.svg',soundOff:'sound-off.svg',music:'music.svg',
-  profile:'profile.svg',check:'check.svg',fire:'fire.svg',trophy:'trophy.svg',crown:'crown.svg',lock:'lock.svg',info:'info.svg',more:'more.svg',
-  chevronLeft:'chevron-left.svg',chevronRight:'chevron-right.svg',chevronUp:'chevron-up.svg',chevronDown:'chevron-down.svg',
+  home: 'home.svg', newDeal: 'new-deal.svg', restart: 'restart.svg', undo: 'undo.svg', hint: 'hint.svg', settings: 'settings.svg', back: 'back.svg', close: 'close.svg',
+  leaderboard: 'leaderboard.svg', howToPlay: 'how-to-play.svg', daily: 'daily.svg', archive: 'archive.svg', history: 'history.svg',
+  mastery: 'mastery.svg', laurel: 'laurel.svg', streak: 'streak.svg', soundOn: 'sound-on.svg', soundOff: 'sound-off.svg', music: 'music.svg',
+  profile: 'profile.svg', check: 'check.svg', fire: 'fire.svg', trophy: 'trophy.svg', crown: 'crown.svg', lock: 'lock.svg', info: 'info.svg', more: 'more.svg',
+  chevronLeft: 'chevron-left.svg', chevronRight: 'chevron-right.svg', chevronUp: 'chevron-up.svg', chevronDown: 'chevron-down.svg',
 };
 
 export function preloadUiAssets(scene: Phaser.Scene): void {
@@ -49,7 +49,6 @@ export function preloadUiAssets(scene: Phaser.Scene): void {
     [CASCADE_UI_ART_KEYS.homeLeaders, CASCADE_UI_ART_FILES.homeLeaders],
     [CASCADE_UI_ART_KEYS.homeLeadersBg, CASCADE_UI_ART_FILES.homeLeadersBg],
     [CASCADE_UI_ART_KEYS.paperPanel, CASCADE_UI_ART_FILES.paperPanel],
-    [CASCADE_UI_ART_KEYS.paperLandscape, CASCADE_UI_ART_FILES.paperLandscape],
     [CASCADE_UI_ART_KEYS.dailyPanelBg, CASCADE_UI_ART_FILES.dailyPanelBg],
     [CASCADE_UI_ART_KEYS.masteryPanelBg, CASCADE_UI_ART_FILES.masteryPanelBg],
     [CASCADE_UI_ART_KEYS.leaderboardPanelBg, CASCADE_UI_ART_FILES.leaderboardPanelBg],
