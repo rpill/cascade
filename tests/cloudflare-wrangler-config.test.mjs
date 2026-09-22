@@ -29,7 +29,19 @@ test('wrangler source config contains only Pikabu/bridge secrets and exact origi
     CASCADE_ALLOWED_ORIGINS: 'http://localhost:5173,http://127.0.0.1:5173,https://games.pikabu.ru',
   });
   assert.doesNotMatch(source, /GAMEPUSH_/i);
-  assert.equal(parsed.d1_databases, undefined, 'source config must not commit a fake D1 UUID');
+
+  if (parsed.d1_databases !== undefined) {
+    assert.equal(parsed.d1_databases.length, 1, 'configured source must contain exactly one D1 binding');
+    const [database] = parsed.d1_databases;
+    assert.equal(database.binding, 'DB');
+    assert.equal(database.database_name, 'cascade-db');
+    assert.equal(database.migrations_dir, 'migrations');
+    assert.match(
+      database.database_id ?? '',
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      'configured D1 binding must use a real UUID, not a placeholder',
+    );
+  }
 });
 
 test('package scripts expose one-command D1 setup plus Cloudflare dev/build/deploy', () => {
