@@ -275,10 +275,11 @@ export class GameScene extends Phaser.Scene {
     window.removeEventListener('online', this.handleCloudOnline);
     const platform = this.platform;
     const identity = platform?.backendIdentity;
+    const session = platform?.backendSession;
     const backendUrl = resolveBackendUrl();
-    if (!platform || !identity || backendUrl === null) return;
+    if (!platform || !identity || !session || backendUrl === null) return;
 
-    const profiles = new CloudProfileService(new BackendClient(backendUrl, identity));
+    const profiles = new CloudProfileService(new BackendClient(backendUrl, session));
     this.cloudSync = new CloudSyncCoordinator({
       identity,
       profiles,

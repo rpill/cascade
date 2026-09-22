@@ -1,46 +1,23 @@
 # Pikabu static hosting contract
 
-## What is hosted
+The Pikabu frontend is a static Vite build. Only `dist/` is published to the static host. The public bundle must not contain TypeScript source, tests, repository history, local env files, or server secrets.
 
-The Pikabu frontend is a static Vite application. Only the contents of `dist/` are deployed to the public static host.
-
-The public deployment repository must contain built artifacts only. It must not contain:
-
-- TypeScript source;
-- tests or test fixtures;
-- private repository history;
-- Supabase migrations/function secrets;
-- `.env.pikabu.local`;
-- Pikabu game secret;
-- Supabase service-role credentials.
-
-The existing Vite configuration uses a relative `base: './'`, so static assets remain host-independent.
-
-## Current hosting candidate
-
-GitVerse Pages is the current candidate for the static frontend. It is a deployment choice, not a code dependency. The backend API contract, Supabase project, and Pikabu adapter do not depend on GitVerse-specific APIs.
-
-**Release gate:** obtain written confirmation from GitVerse support that a monetized Pikabu game may use the chosen Pages Free plan before public release. Store that confirmation with release records. Until that written answer exists, hosting is not considered production-approved.
-
-If commercial use is denied or the service becomes unsuitable, replace only the static host. Do not redesign cloud storage, auth verification, or the backend API for a hosting-provider change.
+GitVerse Pages remains the static host. Persistence is independent of GitVerse: the frontend talks to a Cloudflare Worker and authorized Pikabu cloud state lives in D1 database `cascade-db`.
 
 ## Deployment flow
 
-1. Configure `.env.pikabu.local` with public Pikabu build values.
-2. Run `pnpm build:pikabu`.
-3. Verify `dist/` contains no server secret names/values.
-4. Publish only `dist/` to the static deployment repository/host.
-5. Add the final HTTPS origin to `CASCADE_ALLOWED_ORIGINS` on the Supabase function.
-6. Test the final hosted URL inside Pikabu Studio/test environment.
+1. Provision/migrate D1 with `pnpm backend:setup:d1`.
+2. Run `pnpm backend:build:cloudflare` and `pnpm backend:deploy:cloudflare`.
+3. Smoke the Worker using `https://games.pikabu.ru` as the allowed origin.
+4. Set repository variable `PIKABU_BACKEND_URL` to the deployed `workers.dev` URL.
+5. Run `pnpm build:pikabu` locally when verifying the release artifact.
+6. Trigger the existing `pikabu-*` tag workflow; it publishes only `dist/` to GitVerse.
+7. Test the hosted build inside the Pikabu test environment.
 
-The Pikabu SDK is expected to be tested in the platform/test environment; a raw standalone URL is not sufficient evidence that SDK auth/lifecycle integration works correctly.
+The Pikabu SDK must be validated inside the real platform/test environment; the raw GitVerse URL alone is not sufficient evidence for auth/lifecycle behavior.
 
-## Security check before upload
+## Security check
 
-From the repository root:
+The browser artifact must contain the public Worker URL but must not contain server secret names or any legacy third-party provisioning/login code. Use `tests/pikabu-no-gamepush-artifact.test.mjs` after the final Pikabu build.
 
-```bash
-! grep -R "PIKABU_GAME_SECRET\|SUPABASE_SERVICE_ROLE_KEY" dist
-```
-
-This check catches secret *names* accidentally bundled into frontend output. Also review the built environment values: `VITE_BACKEND_URL` is intentionally public, while all signing/database service credentials stay server-side.
+Repeated Cloudflare Worker error `1102` during real authenticated traffic blocks release. Do not enable a paid plan automatically.

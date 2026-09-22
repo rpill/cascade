@@ -200,7 +200,11 @@ export class LeaderboardService {
     try {
       const scopeKey = mode === 'daily' || mode === 'streak' ? dailyId : undefined;
       const raw = await this.platform.leaderboards.getPlayerEntry(technicalName, scopeKey ? { scopeKey } : undefined);
-      playerEntry = raw === null ? null : normalize(raw);
+      if (raw === null) playerEntry = null;
+      else if (raw.rank === 0) {
+        const normalized = normalize({ ...raw, rank: 1 });
+        playerEntry = normalized === null ? null : { ...normalized, rank: 0 };
+      } else playerEntry = normalize(raw);
     } catch {
       playerEntry = null;
     }

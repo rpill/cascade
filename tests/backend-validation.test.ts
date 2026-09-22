@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isUuid, validateBoardKey, validateDailyId, parseProfilePutBody, parseLeaderboardSubmitBody } from '../supabase/functions/cascade-api/validation.ts';
-import { HttpError, corsHeaders, readJsonBody } from '../supabase/functions/cascade-api/http.ts';
+import { isUuid, validateBoardKey, validateDailyId, parseProfilePutBody, parseLeaderboardSubmitBody } from '../server/cascade-api/validation.ts';
+import { HttpError, corsHeaders, readJsonBody } from '../server/cascade-api/http.ts';
 
 test('board date and UUID validation use strict whitelists', () => {
   assert.equal(validateBoardKey('standard'),'standard');
@@ -13,9 +13,10 @@ test('board date and UUID validation use strict whitelists', () => {
   assert.equal(isUuid('nope'),false);
 });
 
-test('profile PUT validation rejects invalid operation and revision', () => {
-  assert.throws(()=>parseProfilePutBody({operationId:'bad',expectedRevision:0,profile:{}}));
-  assert.throws(()=>parseProfilePutBody({operationId:'11111111-1111-4111-8111-111111111111',expectedRevision:-1,profile:{}}));
+test('profile PUT validation requires explicit BASE and LOCAL profile', () => {
+  assert.throws(()=>parseProfilePutBody({profile:{}}));
+  assert.throws(()=>parseProfilePutBody({base:'bad',profile:{}}));
+  assert.deepEqual(parseProfilePutBody({base:null,profile:{ok:true}}),{base:null,profile:{ok:true}});
 });
 
 test('Content-Length over 256 KiB returns 413 before body parse', async () => {
@@ -42,4 +43,17 @@ test('Standard leaderboard rejects zero streaks that would poison client ranking
     kind:'standard',
     bestStreak:0,
   }));
+});
+
+test('runtime-independent backend path contains no Postgres backend or CAS contract', async () => {
+  const { readdir, readFile } = await import('node:fs/promises');
+  const root = new URL('../server/cascade-api/', import.meta.url);
+  const names = (await readdir(root)).filter((name) => name.endsWith('.ts'));
+  const forbidden = /BackendDb|\/rest\/v1\/|\/rpc\/|SUPABASE_SERVICE_ROLE_KEY|expectedRevision|cascade_profiles|cascade_leaderboard/;
+  const offenders: string[] = [];
+  for (const name of names) {
+    const source = await readFile(new URL(name, root), 'utf8');
+    if (forbidden.test(source)) offenders.push(name);
+  }
+  assert.deepEqual(offenders, []);
 });

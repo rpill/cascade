@@ -1,104 +1,92 @@
 # Pikabu backend setup
 
-Cascade keeps the Yandex production path unchanged. The backend described here is used by the Pikabu build for cloud profiles and platform-independent leaderboards.
+Cascade uses Pikabu as the visible platform/auth SDK and Cloudflare Worker + D1 as the Pikabu cloud backend.
+
+```text
+Pikabu / static Vite build
+        -> Cloudflare Worker (workers.dev)
+        -> D1 (cascade-db, binding DB)
+```
+
+The browser remains local-first. Authorized cloud operations start only after the Worker verifies Pikabu `getSignedData()` and returns a short-lived bridge session. The Worker stores profiles and the four Pikabu leaderboard datasets in D1. The Yandex build keeps its existing Yandex storage/auth/leaderboard path.
 
 ## Prerequisites
 
-- Node.js 20 or newer.
-- pnpm matching the existing project workflow.
-- Supabase CLI available as `supabase` on `PATH`. On Windows, the official CLI can be installed with Scoop; alternatively install the official `supabase` npm package as a dev dependency and commit the resulting `pnpm-lock.yaml` update.
-- A Supabase Free project.
-- The Pikabu game secret from the Pikabu developer configuration.
+- Node.js 22 and pnpm.
+- A Cloudflare account using Workers Free.
+- The Pikabu game secret.
+- A bridge-session signing secret.
 
-Do not put `PIKABU_GAME_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, or any other server credential in a `VITE_*` variable. Vite variables are public browser data.
+Never put `PIKABU_GAME_SECRET` or `BRIDGE_SESSION_SECRET` in a `VITE_*` variable, committed env file, browser log, or frontend response.
 
-## Link and deploy
+## Local verification
 
-Run these commands from the repository root, in this order:
-
-```bash
-pnpm install
-pnpm exec supabase login
-pnpm exec supabase link --project-ref <project-ref>
-pnpm exec supabase db push
-pnpm exec supabase secrets set PIKABU_GAME_SECRET=<secret>
-pnpm exec supabase secrets set CASCADE_ALLOWED_ORIGINS=https://<pikabu-host>,http://localhost:5173
-pnpm exec supabase functions deploy cascade-api --no-verify-jwt --use-api
-```
-
-`--use-api` is intentional: `cascade-api` imports shared pure TypeScript code from outside `supabase/functions/`, and API deployment supports that layout without requiring Docker for deployment.
-
-Supabase supplies the function runtime with its own project URL/service-role environment. Do not copy service-role credentials into `.env.pikabu.local`.
-
-## Pikabu client environment
-
-Copy `.env.pikabu.example` to `.env.pikabu.local` and replace only the public project reference:
-
-```text
-VITE_PLATFORM_TARGET=pikabu
-VITE_BACKEND_URL=https://<project-ref>.supabase.co/functions/v1/cascade-api
-```
-
-Then build with:
-
-```bash
+```powershell
+pnpm install --frozen-lockfile
+pnpm test
+pnpm build
 pnpm build:pikabu
 ```
 
-The normal `pnpm build` remains the default/Yandex-compatible build.
+## First Cloudflare setup
 
-## Local Edge Function environment
+Run these commands in order:
 
-For local function work, use `supabase/functions/.env.local` for custom secrets. The file is git-ignored.
+```powershell
+pnpm dlx wrangler@4.135.0 login
+pnpm dlx wrangler@4.135.0 secret put PIKABU_GAME_SECRET
+pnpm dlx wrangler@4.135.0 secret put BRIDGE_SESSION_SECRET
+pnpm backend:setup:d1
+pnpm backend:test
+pnpm backend:build:cloudflare
+pnpm backend:deploy:cloudflare
+$env:CLOUDFLARE_BACKEND_URL='https://cascade-api.<actual-subdomain>.workers.dev'
+$env:CLOUDFLARE_SMOKE_ORIGIN='https://games.pikabu.ru'
+pnpm backend:smoke:cloudflare
+```
+
+Enter secrets interactively. Do not put secret values on the command line or paste them into logs/chat.
+
+`pnpm backend:setup:d1` is idempotent. It creates or reuses D1 database `cascade-db`, writes exactly one Wrangler binding named `DB`, and applies migrations from `migrations/`. Do not hand-edit a fake D1 UUID into source control.
+
+The deployed Worker URL has this shape:
 
 ```text
-PIKABU_GAME_SECRET=<local-or-test-secret>
-CASCADE_ALLOWED_ORIGINS=http://localhost:5173
+https://cascade-api.<account-subdomain>.workers.dev
 ```
 
-Start the local Supabase stack first when database access is required, then serve the function with the repository script:
+## Committed Worker configuration
 
-```bash
-pnpm supabase:serve -- --env-file supabase/functions/.env.local
+The committed `wrangler.jsonc` contains the Worker entrypoint, exact CORS allowlist, and the two required secret names. The real D1 database UUID is inserted locally by `pnpm backend:setup:d1` before deployment.
+
+Current allowed origins:
+
+```text
+http://localhost:5173
+http://127.0.0.1:5173
+https://games.pikabu.ru
 ```
 
-The local Supabase runtime supplies its own database URL and service-role values. Never commit the local secret file.
+Never use `*` for production CORS.
 
-## Database verification
+## Pikabu frontend configuration
 
-With Docker/local Supabase available:
+The frontend receives only public values:
 
-```bash
-pnpm supabase:test
+```env
+VITE_PLATFORM_TARGET=pikabu
+VITE_BACKEND_URL=https://cascade-api.<actual-subdomain>.workers.dev
 ```
 
-This executes the pgTAP contract in `supabase/tests/cascade_backend.sql`. The schema uses RLS and exposes no direct `anon`/`authenticated` table access; the browser talks only to the Edge Function.
+The GitHub Pikabu deployment workflow reads the Worker URL from repository variable `PIKABU_BACKEND_URL`.
 
-## Two-browser-profile smoke test
+## Free-plan operating boundary
 
-Before release, test with two isolated browser profiles using the same Pikabu account:
+- No payment method is part of this project setup and no paid plan is enabled automatically.
+- Free-limit exhaustion is handled as backend unavailability; local play/save continues.
+- Repeated Worker error `1102` is a release blocker; do not automatically switch to Workers Paid.
+- Backend failure must not corrupt or block the browser-local save. Pending cloud work retries after connectivity returns.
 
-1. In profile A, start as guest, win Standard, complete a Daily, reload, and verify local progress remains.
-2. Verify guest leaderboard top rows can be read while no player result is created for the guest.
-3. Authorize profile A and verify local progress remains after the local/cloud merge.
-4. Open profile B, authorize the same Pikabu account, and verify cloud progress loads.
-5. Starting from the same cloud revision, make one new win independently on A and B. Reconnect/sync both and verify both deltas exist exactly once.
-6. Finish the first Daily attempt offline, replay locally, reconnect, and verify the official backend result is still the first frozen attempt.
-7. Block the Supabase endpoint and verify startup, Standard, Daily, Mastery, and local persistence still work. Restore connectivity and verify pending profile/leaderboard operations flush.
-8. Run a Yandex smoke test afterwards; Yandex storage and Yandex leaderboard APIs must behave exactly as before.
+## Legacy local secrets
 
-## Secret rotation
-
-`PIKABU_GAME_SECRET` is used only by the Edge Function to verify `getSignedData()` tokens. Rotating it does not require putting a new secret into the browser bundle. Set the new Supabase secret and redeploy/restart the function as needed. Existing signed assertions created with the old secret may fail until the client obtains a fresh assertion; the game remains local-first while backend auth is unavailable.
-
-## Logs and incident debugging
-
-Use Supabase function logs to inspect status codes, route names, timing, and internal error identifiers. Never log:
-
-- `Authorization` headers;
-- Pikabu signed JWTs;
-- `PIKABU_GAME_SECRET`;
-- service-role credentials;
-- complete profile payloads unless a deliberately redacted diagnostic build is used.
-
-For auth failures, log only a generic reason/category and request correlation id. The token itself must never appear in logs.
+Do not read, print, copy, or delete old local backend secret files as part of this migration. Retire them manually only after the D1/Pikabu E2E is green.

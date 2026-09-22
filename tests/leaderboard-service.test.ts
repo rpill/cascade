@@ -103,3 +103,14 @@ test('syncDailyBest treats the fixed first-attempt score as authoritative even w
   assert.equal(await service.syncDailyBest(today,50,70_000),'submitted');
   assert.deepEqual(writes,[encodeDailyLeaderboardScore(today,50,70_000)]);
 });
+
+test('authorized pinned player keeps unknown admin rank as zero so UI can show a dash', async()=>{
+  const service=new LeaderboardService(platform({
+    entries:async()=>[{rank:1,score:9,playerId:'a',publicName:'Ada'}],
+    player:async()=>({rank:0,score:5,playerId:'me',publicName:'Me'}),
+  }));
+  const result=await service.load('winnable');
+  assert.equal(result.status,'ready');if(result.status!=='ready')return;
+  assert.equal(result.playerEntry?.rank,0);
+  assert.deepEqual(result.playerEntry?.metric,{kind:'standard',bestStreak:5});
+});

@@ -73,7 +73,7 @@ function asSafeNonNegative(value: unknown, label: string): number {
 }
 
 function mapMetric(row: BackendMetricRow, board: BackendBoard): PlatformLeaderboardEntry {
-  if (!Number.isSafeInteger(row.rank) || row.rank < 1 || typeof row.playerId !== 'string' || typeof row.publicName !== 'string') {
+  if (!Number.isSafeInteger(row.rank) || row.rank < 0 || typeof row.playerId !== 'string' || typeof row.publicName !== 'string') {
     throw new Error('Invalid backend leaderboard row.');
   }
   let score: number;
@@ -225,7 +225,7 @@ export class BackendLeaderboards implements PlatformLeaderboards {
   private async submitPending(store: CloudSyncStateStore, operation: PendingLeaderboardOperation): Promise<void> {
     const board = boardFor(operation.technicalName);
     try {
-      await this.client.request(`/v1/leaderboards/${board}/submit`, {
+      await this.client.request(`/v1/leaderboards/${board}`, {
         method: 'POST',
         body: JSON.stringify(buildSubmitBody(operation, this.nowDateId())),
       });

@@ -52,3 +52,10 @@ test('profile scope change preserves the current board only for the staged guest
   assert.match(load, /shouldPreserveActiveGameForProfileMerge/);
   assert.match(load, /if \(!preserveActiveGame\) \{/);
 });
+
+test('cloud profile transport shares the platform bridge session instead of identity bearer auth', () => {
+  const configure = method('configureCloudSync');
+  assert.match(configure, /platform\?\.backendSession/);
+  assert.match(configure, /new BackendClient\(backendUrl,\s*session\)/);
+  assert.doesNotMatch(configure, /new BackendClient\(backendUrl,\s*identity\)/);
+});

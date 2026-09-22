@@ -5,7 +5,7 @@ import { BackendLeaderboards } from '../src/backend/BackendLeaderboards.ts';
 import { CloudSyncStateStore } from '../src/cloud/CloudSyncState.ts';
 import { createDefaultMetaSave } from '../src/meta/MetaSave.ts';
 import { decodeDailyLeaderboardScore, decodeDailyStreakLeaderboardScore, decodeMasteryLeaderboardScore } from '../src/leaderboards/LeaderboardConfig.ts';
-import type { BackendIdentityProvider, BrowserStorageLike } from '../src/platform/services.ts';
+import type { BackendIdentityProvider, BackendSessionProvider, BrowserStorageLike } from '../src/platform/services.ts';
 
 class MemoryStorage implements BrowserStorageLike {
   values = new Map<string,string>();
@@ -22,9 +22,13 @@ const guest: BackendIdentityProvider = {
   localIdentityKey: () => null,
   getAssertion: async () => null,
 };
+const session: BackendSessionProvider = {
+  getToken: async () => 'bridge-token',
+  invalidate: () => undefined,
+};
 function response(body: unknown, status=200){ return new Response(JSON.stringify(body), {status,headers:{'content-type':'application/json'}}); }
 function create(fetchImpl: typeof fetch, id=identity, storage=new MemoryStorage()) {
-  const client = new BackendClient('https://api.example', id, fetchImpl, 1_000);
+  const client = new BackendClient('https://api.example', session, fetchImpl, 1_000);
   return { storage, boards: new BackendLeaderboards({ client, identity:id, stateStoreFactory:(provider,key)=>new CloudSyncStateStore(provider,key,storage), nowDateId:()=> '2026-09-20' }) };
 }
 
@@ -72,22 +76,24 @@ test('getEntries stays public while getPlayerEntry uses a separate authenticated
     authorizations.push(new Headers(init?.headers).get('authorization'));
     return response(calls === 1
       ? {entries:[],playerEntry:null}
-      : {entries:[],playerEntry:{rank:7,playerId:'me',publicName:'Me',metric:{bestStreak:4}}});
+      : {entries:[],playerEntry:{rank:0,playerId:'me',publicName:'Me',metric:{bestStreak:4}}});
   };
   const {boards}=create(fetchImpl);
   await boards.getEntries('standardwinstreak',{quantityTop:20});
   const me=await boards.getPlayerEntry('standardwinstreak');
   assert.equal(calls,2);
-  assert.deepEqual(authorizations,[null,'Bearer signed-token']);
+  assert.deepEqual(authorizations,[null,'Bearer bridge-token']);
   assert.equal(me?.score,4);
+  assert.equal(me?.rank,0);
 });
 
 test('standard submission posts structured bestStreak not opaque score', async()=>{
-  let body:any;
-  const fetchImpl:typeof fetch=async(_input,init)=>{body=JSON.parse(String(init?.body));return response({status:'saved'});};
+  let body:any; let url='';
+  const fetchImpl:typeof fetch=async(input,init)=>{url=String(input);body=JSON.parse(String(init?.body));return response({status:'saved'});};
   const {boards}=create(fetchImpl);
   await boards.setScore('standardwinstreak',999,{kind:'standard',bestStreak:12});
   assert.equal(body.kind,'standard');assert.equal(body.bestStreak,12);assert.equal('score' in body,false);assert.match(body.operationId,/^[0-9a-f-]{36}$/i);
+  assert.equal(new URL(url).pathname,'/v1/leaderboards/standard');
 });
 
 test('Daily submission posts official context and stable operationId', async()=>{

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { verifyPikabuSignedData } from '../supabase/functions/cascade-api/auth.ts';
+import { verifyPikabuSignedData } from '../server/cascade-api/auth.ts';
 
 function b64url(value: unknown): string { return Buffer.from(JSON.stringify(value)).toString('base64url'); }
 function sign(payload: Record<string, unknown>, secret='secret', header:Record<string,unknown>={alg:'HS256',typ:'JWT'}): string {

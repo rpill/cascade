@@ -47,15 +47,17 @@
 
 ## Platform-independent backend / Pikabu
 
-- `src/backend/` — target-neutral HTTP client, profile API wrapper, backend leaderboard adapter and public backend URL config.
+- `src/backend/` — target-neutral HTTP client, bridge-session client, profile API wrapper, backend leaderboard adapter and public backend URL config.
 - `src/cloud/` — cloud snapshot, semantic merge, per-identity durable sync state and local-first coordinator.
 - `src/platform/pikabu.ts` — Pikabu SDK loader/auth/identity adapter; guest player data remains in browser storage.
-- `supabase/migrations/` — Postgres schema/RPCs for identities, revisioned cloud profiles, Daily results, leaderboard rows and idempotency.
-- `supabase/functions/cascade-api/` — Pikabu signed-data verification and the profile/leaderboard HTTP API.
-- `supabase/tests/` — pgTAP database contract.
+- `server/cascade-api/` — runtime-neutral Pikabu signed-data/session verification plus profile/leaderboard business layer behind `CascadeStore`.
+- `server/cloudflare/d1.ts` — D1 implementation of `CascadeStore`.
+- `server/cloudflare/worker.ts` — thin Cloudflare Worker adapter; binding `DB` points at `cascade-db`.
+- `migrations/` — D1 schema for players, profiles, Standard, Daily, Daily Streak and Mastery.
+- `wrangler.jsonc` — Worker entrypoint, exact CORS allowlist, and required Worker secret names.
 
-The browser never receives `PIKABU_GAME_SECRET` or a Supabase service-role credential. `VITE_BACKEND_URL` is public by design. Backend failure must not prevent game startup or local persistence; sync/leaderboard mutations remain pending and retry later.
+The Pikabu runtime is Cloudflare Worker + D1. Verified Pikabu ID is the account key; no browser provisioning provider is needed. Profile synchronization remains BASE / LOCAL / CLOUD and local-first. Backend failure never blocks game startup or local persistence.
 
-`pnpm build` remains the normal/default build. `pnpm build:pikabu` selects Vite mode `pikabu`; `.env.pikabu.local` is intentionally untracked.
+The browser never receives `PIKABU_GAME_SECRET` or `BRIDGE_SESSION_SECRET`; `VITE_BACKEND_URL` is public by design. Daily uses a unique `(pikabu_id, daily_id)` row, so the first accepted result is immutable while exact retries remain idempotent.
 
-Backend deployment uses Supabase Edge Functions. `--use-api` is required by the documented deploy path because the function reuses pure TypeScript modules outside `supabase/functions/`.
+`pnpm build` remains the default build. `pnpm build:pikabu` selects Vite mode `pikabu`; `.env.pikabu.local` is intentionally untracked. Backend commands are `pnpm backend:setup:d1`, `pnpm backend:test`, `pnpm backend:build:cloudflare`, `pnpm backend:deploy:cloudflare`, and `pnpm backend:smoke:cloudflare`. Worker CLI operations use pinned `wrangler@4.135.0`. Repeated Cloudflare error `1102` is a Free-plan release blocker.

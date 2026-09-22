@@ -19,6 +19,10 @@ function fakeSdk(overrides: Partial<PikabuSdk> = {}): PikabuSdk {
   return {
     player,
     auth: { openAuthDialog: async () => undefined },
+    ads: {
+      fullscreen: { isSupported: false, canShow: async () => false, show: async () => ({ rendered: false as const, reason: 'unsupported' }) },
+      rewarded: { isSupported: false, canShow: async () => false, show: async () => ({ rendered: false as const, reason: 'unsupported', reward: false }) },
+    },
     gameStarted: () => undefined,
     once: (event, listener) => { listeners.set(event, listener); },
     ...overrides,
@@ -77,4 +81,64 @@ test('SDK load/init failure returns unavailable local-first platform instead of 
   assert.equal(platform.auth.isAuthorized(),false);
   await platform.playerStorage.save({still:'works'});
   assert.deepEqual(await platform.playerStorage.load(),{still:'works'});
+});
+
+
+test('Pikabu fullscreen ad uses native SDK and pauses platform only around rendering', async () => {
+  const events: boolean[] = [];
+  let canShowCalls = 0;
+  let showCalls = 0;
+  const sdk = fakeSdk() as PikabuSdk & { ads: any };
+  sdk.ads = {
+    fullscreen: {
+      isSupported: true,
+      canShow: async () => { canShowCalls += 1; return true; },
+      show: async () => { showCalls += 1; return { rendered: true }; },
+    },
+    rewarded: { isSupported: true, canShow: async () => true, show: async () => ({ rendered: true, reward: true }) },
+  };
+  const platform = createPikabuPlatformServices(sdk, null, null);
+  platform.platformPause.subscribe((paused) => events.push(paused));
+  assert.equal(platform.ads.available, true);
+  assert.equal(await platform.ads.showInterstitial(), true);
+  assert.equal(canShowCalls, 1);
+  assert.equal(showCalls, 1);
+  assert.deepEqual(events, [true, false]);
+  assert.equal(platform.platformPause.isPaused(), false);
+});
+
+test('Pikabu fullscreen ad skips unsupported/unavailable ads without pausing', async () => {
+  let showCalls = 0;
+  const sdk = fakeSdk() as PikabuSdk & { ads: any };
+  sdk.ads = {
+    fullscreen: { isSupported: true, canShow: async () => false, show: async () => { showCalls += 1; return { rendered: true }; } },
+    rewarded: { isSupported: false, canShow: async () => false, show: async () => ({ rendered: false, reason: 'unsupported', reward: false }) },
+  };
+  const platform = createPikabuPlatformServices(sdk, null, null);
+  const events: boolean[] = [];
+  platform.platformPause.subscribe((paused) => events.push(paused));
+  assert.equal(await platform.ads.showInterstitial(), false);
+  assert.equal(showCalls, 0);
+  assert.deepEqual(events, []);
+});
+
+test('Pikabu fullscreen ad failure returns false and always restores platform pause', async () => {
+  const sdk = fakeSdk() as PikabuSdk & { ads: any };
+  sdk.ads = {
+    fullscreen: { isSupported: true, canShow: async () => true, show: async () => { throw new Error('ad failed'); } },
+    rewarded: { isSupported: true, canShow: async () => true, show: async () => ({ rendered: true, reward: true }) },
+  };
+  const platform = createPikabuPlatformServices(sdk, null, null);
+  const events: boolean[] = [];
+  platform.platformPause.subscribe((paused) => events.push(paused));
+  assert.equal(await platform.ads.showInterstitial(), false);
+  assert.deepEqual(events, [true, false]);
+  assert.equal(platform.platformPause.isPaused(), false);
+});
+
+
+test('Pikabu platform source contains no GamePush provisioning wiring', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile('src/platform/pikabu.ts', 'utf8');
+  assert.doesNotMatch(source, /GamePush|backendProvisioning|game-score|onGPInit/);
 });

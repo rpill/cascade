@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cascade-api",
+  "main": "server/cloudflare/worker.ts",
+  "compatibility_date": "2026-09-21",
+  "workers_dev": true,
+  "secrets": {
+    "required": [
+      "PIKABU_GAME_SECRET",
+      "BRIDGE_SESSION_SECRET"
+    ]
+  },
+  "vars": {
+    "CASCADE_ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173,https://games.pikabu.ru"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cascade-db",
+      "database_id": "a52a3db7-8c43-476e-9813-212103a5209d",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

@@ -31,6 +31,11 @@ export interface BackendIdentityProvider {
   localIdentityKey(): string | null;
 }
 
+export interface BackendSessionProvider {
+  getToken(): Promise<string>;
+  invalidate(): void;
+}
+
 export interface PlatformAuth {
   readonly playerStorageScopeChangesOnAuthorization?: boolean;
   isAuthorized(): boolean;
@@ -85,6 +90,7 @@ export interface PlatformServices {
   readonly platformPause: PlatformPause;
   readonly gameplay: GameplayMarkup;
   readonly backendIdentity?: BackendIdentityProvider;
+  readonly backendSession?: BackendSessionProvider;
   readonly ready: () => void;
 }
 

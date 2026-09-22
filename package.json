@@ -18,19 +18,21 @@
     "deals:verify-all": "node tools/deals/verify-all.mjs",
     "deals:report": "node tools/deals/report.mjs",
     "deals:probe": "node tools/deals/probe.mjs",
-    "backend:start": "supabase start",
-    "backend:test:db": "supabase test db",
     "build:pikabu": "tsc && vite build --mode pikabu",
-    "supabase:test": "supabase test db",
-    "supabase:serve": "supabase functions serve cascade-api --no-verify-jwt"
+    "backend:test": "node --test --experimental-strip-types tests/cloudflare-*.test.ts tests/cloudflare-*.test.mjs tests/backend-*.test.ts tests/backend-*.test.mjs tests/bridge-session.test.ts tests/d1-*.test.ts tests/pikabu-signed-data.test.ts",
+    "backend:setup:d1": "node scripts/setup-cloudflare-d1.mjs",
+    "backend:dev:cloudflare": "pnpm dlx wrangler@4.135.0 dev",
+    "backend:build:cloudflare": "pnpm dlx wrangler@4.135.0 deploy --dry-run --outdir dist/cloudflare-worker",
+    "backend:deploy:cloudflare": "pnpm dlx wrangler@4.135.0 deploy",
+    "backend:smoke:cloudflare": "node scripts/cloudflare-backend-smoke.mjs"
   },
   "dependencies": {
     "phaser": "^4.2.1"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
-    "supabase": "^2.117.0",
     "typescript": "^5.9.2",
-    "vite": "^7.1.3"
+    "vite": "^7.1.3",
+    "esbuild": "^0.28.2"
   }
 }

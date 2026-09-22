@@ -10,8 +10,8 @@ test('Pikabu build uses a Vite mode while keeping relative asset base', () => {
   assert.match(pkg.scripts['build:pikabu'] ?? '', /vite build --mode pikabu/);
   assert.match(vite, /base:\s*['"]\.\/['"]/);
   assert.match(env, /VITE_PLATFORM_TARGET=pikabu/);
-  assert.match(env, /VITE_GAMEPUSH_PROJECT_ID=30632/);
-  assert.match(env, /VITE_GAMEPUSH_PUBLIC_TOKEN=/);
-  assert.doesNotMatch(env, /VITE_BACKEND_URL=/);
-  assert.doesNotMatch(env, /PIKABU_GAME_SECRET|SERVICE_ROLE/);
+  assert.match(env, /VITE_BACKEND_URL=https:\/\/cascade-api\.<account-subdomain>\.workers\.dev/);
+  assert.doesNotMatch(env, /supabase/i);
+  assert.doesNotMatch(env, /VITE_GAMEPUSH_PROJECT_ID|VITE_GAMEPUSH_PUBLIC_TOKEN/);
+  assert.doesNotMatch(env, /GAMEPUSH|PIKABU_GAME_SECRET|BRIDGE_SESSION_SECRET|SERVICE_ROLE/);
 });

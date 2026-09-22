@@ -1,4 +1,5 @@
 import { BackendClient } from '../backend/BackendClient.ts';
+import { BridgeSessionManager } from '../backend/BridgeSessionManager.ts';
 import { resolveBackendUrl } from '../backend/BackendConfig.ts';
 import { BackendLeaderboards } from '../backend/BackendLeaderboards.ts';
 import { CloudSyncStateStore } from '../cloud/CloudSyncState.ts';
@@ -21,9 +22,27 @@ export interface PikabuPlayer {
   getSignedData(): Promise<string>;
 }
 
+export type PikabuAdResult = { readonly rendered: true } | { readonly rendered: false; readonly reason: string };
+export type PikabuRewardedResult = PikabuAdResult & { readonly reward: boolean };
+export interface PikabuAdApi {
+  readonly isSupported: boolean;
+  canShow(): Promise<boolean>;
+  show(): Promise<PikabuAdResult>;
+}
+export interface PikabuRewardedAdApi {
+  readonly isSupported: boolean;
+  canShow(): Promise<boolean>;
+  show(): Promise<PikabuRewardedResult>;
+}
+export interface PikabuAdsApi {
+  readonly fullscreen: PikabuAdApi;
+  readonly rewarded: PikabuRewardedAdApi;
+}
+
 export interface PikabuSdk {
   player: PikabuPlayer;
   auth: { openAuthDialog(): Promise<void> };
+  ads: PikabuAdsApi;
   gameStarted(): void | Promise<void>;
   once(event: 'userAuthorized' | string, listener: () => void): void;
 }
@@ -102,13 +121,20 @@ export function createPikabuPlatformServices(
   };
 
   const backendUrl = backendUrlOverride === undefined ? resolveBackendUrl() : backendUrlOverride;
-  const backendLeaderboards = backendUrl
+  const backendSession = backendUrl
+    ? new BridgeSessionManager({
+      baseUrl: backendUrl,
+      identity: backendIdentity,
+    })
+    : undefined;
+  const backendLeaderboards = backendUrl && backendSession
     ? new BackendLeaderboards({
-      client: new BackendClient(backendUrl, backendIdentity),
+      client: new BackendClient(backendUrl, backendSession),
       identity: backendIdentity,
       stateStoreFactory: (provider, key) => new CloudSyncStateStore(provider, key, storage),
     })
     : null;
+  const fullscreen = sdk.ads.fullscreen;
 
   return {
     playerStorage,
@@ -136,10 +162,29 @@ export function createPikabuPlatformServices(
       getPlayerEntry: async () => null,
       setScore: async () => undefined,
     },
-    ads: { available: false, showInterstitial: async () => false },
+    ads: {
+      available: fullscreen.isSupported === true,
+      async showInterstitial() {
+        if (fullscreen.isSupported !== true) return false;
+        let canShow = false;
+        try { canShow = await fullscreen.canShow(); }
+        catch { return false; }
+        if (!canShow) return false;
+        authPause.setPaused(true);
+        try {
+          const result = await fullscreen.show();
+          return result.rendered === true;
+        } catch {
+          return false;
+        } finally {
+          authPause.setPaused(false);
+        }
+      },
+    },
     platformPause: authPause.pause,
     gameplay: { start: () => undefined, stop: () => undefined },
     backendIdentity,
+    backendSession,
     ready: () => {
       if (readySent) return;
       readySent = true;

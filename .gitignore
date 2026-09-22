@@ -11,6 +11,15 @@ _chatgpt_bundle/
 # Generated from Decks/Horizontal2/svgs before dev/build
 .env.pikabu
 .env.pikabu.local
-supabase/.temp/
-supabase/functions/.env
-supabase/functions/.env.local
+
+.superpowers/
+server/yandex/.env.deploy.local
+
+# Cloudflare Workers local/runtime artifacts
+.dev.vars
+.dev.vars.*
+.env
+.env.local
+.env.*.local
+/dist/cloudflare-worker/
+.wrangler/

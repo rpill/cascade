@@ -41,11 +41,13 @@
 
 ## Pikabu / platform-independent backend (implementation branch)
 
-- Phase 1 keeps the existing Yandex player-storage and Yandex leaderboard path unchanged.
-- Pikabu uses browser-local guest progress; authorized players can merge/sync through the platform-independent Supabase backend.
-- Cloud profile sync uses BASE / LOCAL / CLOUD semantic merge, revision CAS, persistent idempotent operations and offline backoff.
-- Pikabu backend leaderboards use structured submissions; Daily first official result is protected by backend uniqueness and Daily streak is derived server-side.
-- Pikabu client build mode is `pnpm build:pikabu` with public `VITE_PLATFORM_TARGET` / `VITE_BACKEND_URL` values only.
-- Backend schema, Edge Function and pgTAP contracts are present in `supabase/`.
-- **Verification pending outside this sandbox:** local/remote Supabase pgTAP run, full pnpm build/test, two-browser Pikabu Studio smoke test, and Yandex production smoke test.
-- **Release gate still open:** written confirmation that the selected GitVerse Pages Free plan permits hosting the monetized game.
+- The existing Yandex player-storage, auth, ads and Yandex leaderboard path is unchanged.
+- Pikabu is the only user-facing identity/platform SDK for the Pikabu build.
+- Guests remain fully local-first. Authorized players obtain a short-lived bridge session only after the Worker verifies Pikabu `getSignedData()`.
+- Pikabu runtime is `Pikabu SDK -> Cloudflare Worker -> D1`; D1 database `cascade-db` stores the cloud profile and four Pikabu leaderboard datasets.
+- The browser has no third-party provisioning/login SDK path.
+- Daily first-result semantics are enforced by the D1 key `(pikabu_id, daily_id)`; exact retries are idempotent and changed replays cannot replace the accepted row.
+- Browser bundles receive only public `VITE_BACKEND_URL`; `PIKABU_GAME_SECRET` and `BRIDGE_SESSION_SECRET` remain Worker-only.
+- D1 setup is `pnpm backend:setup:d1`; it creates/reuses the database, binds `DB`, and applies migrations without manual UUID editing.
+- **Release gates still required locally:** `pnpm test`, `pnpm build`, `pnpm build:pikabu`, `pnpm backend:test`, Worker smoke, two-browser Pikabu acceptance, four leaderboard checks, Daily replay immutability, and the Cloudflare `1102` CPU gate.
+- **Hosting gate still open:** written confirmation that the selected hosting plan permits the monetized game.
